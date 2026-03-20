@@ -1,0 +1,12 @@
+{
+  "order": 20,
+  "path": "/audit",
+  "name": "audit",
+  "title": "审计日志",
+  "caption": "Who changed what, when and why",
+  "description": "检索登录、授权、删除、实时消息等全链路留痕记录。",
+  "permission": "audit.read",
+  "view": "audit/AuditLogsView.vue",
+  "code": "AU",
+  "keepAlive": true
+}

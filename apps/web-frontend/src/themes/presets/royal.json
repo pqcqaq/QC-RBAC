@@ -1,0 +1,20 @@
+{
+  "id": "royal",
+  "label": "皇家蓝",
+  "description": "更强对比、更高辨识度的控制台风格。",
+  "tokens": {
+    "--accent": "#2b56d9",
+    "--accent-strong": "#1f3e99",
+    "--accent-soft": "#ecf1ff",
+    "--sidebar-bg": "#10172d",
+    "--sidebar-bg-2": "#172141",
+    "--surface-0": "#ffffff",
+    "--surface-1": "#f7f9ff",
+    "--surface-2": "#eef2ff",
+    "--surface-3": "#d7def5",
+    "--ink-1": "#172033",
+    "--ink-2": "#41506f",
+    "--ink-3": "#6f7d9c",
+    "--accent-rgb": "43, 86, 217"
+  }
+}

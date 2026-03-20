@@ -1,0 +1,12 @@
+{
+  "order": 30,
+  "path": "/users",
+  "name": "users",
+  "title": "用户控制中心",
+  "caption": "Directory, assignment and access state",
+  "description": "统一管理成员目录、角色绑定、账号状态和权限来源。",
+  "permission": "user.read",
+  "view": "users/UsersView.vue",
+  "code": "US",
+  "keepAlive": true
+}

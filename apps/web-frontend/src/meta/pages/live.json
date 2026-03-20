@@ -1,0 +1,12 @@
+{
+  "order": 70,
+  "path": "/live",
+  "name": "live",
+  "title": "实时协作台",
+  "caption": "Messaging, broadcast and presence events",
+  "description": "查看在线事件、团队广播和协同消息流。",
+  "permission": "realtime.read",
+  "view": "live/LiveView.vue",
+  "code": "RT",
+  "keepAlive": true
+}

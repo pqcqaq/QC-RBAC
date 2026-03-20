@@ -1,0 +1,12 @@
+{
+  "order": 10,
+  "path": "/dashboard",
+  "name": "dashboard",
+  "title": "战略总览",
+  "caption": "Key metrics / role coverage / audit feed",
+  "description": "查看核心指标、角色分布、最近成员和审计动态。",
+  "permission": "dashboard.view",
+  "view": "dashboard/DashboardView.vue",
+  "code": "OV",
+  "keepAlive": true
+}

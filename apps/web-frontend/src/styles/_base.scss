@@ -1,0 +1,222 @@
+h1,
+h2,
+h3,
+h4 {
+  margin: 0;
+  font-family: 'Segoe UI Variable Display', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+p {
+  margin: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+strong {
+  font-weight: 600;
+}
+
+.content-container {
+  width: min(100%, var(--content-max-width));
+  margin: 0 auto;
+}
+
+.brand-kicker,
+.shell-caption,
+.panel-caption,
+.hero-label,
+.metric-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+.panel-heading {
+  margin-top: 0;
+  font-size: 18px;
+  line-height: 1.2;
+}
+
+.panel-heading--xl {
+  font-size: 30px;
+}
+
+.panel-heading--lg {
+  font-size: 20px;
+}
+
+.panel-heading--md {
+  font-size: 17px;
+}
+
+.muted {
+  color: var(--ink-3);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.tag-list,
+.role-pill-row,
+.detail-chip-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.permission-tag,
+.role-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  padding: 5px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.permission-tag {
+  background: color-mix(in srgb, var(--accent) 10%, white);
+  color: color-mix(in srgb, var(--accent) 78%, #0f1822);
+}
+
+.role-pill {
+  background: #eff3f7;
+  color: #36495a;
+}
+
+.role-pill--dark {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--sidebar-ink);
+}
+
+.table-user {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.table-user__avatar {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-strong);
+  font-size: 14px;
+  font-weight: 700;
+  overflow: hidden;
+  flex: 0 0 38px;
+}
+
+.table-user__avatar--image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.table-user__meta,
+.table-stack {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.table-user__meta strong,
+.table-stack strong {
+  font-size: 14px;
+}
+
+.table-user__meta span,
+.table-stack span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
+.page-form-grid,
+.detail-kv-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.page-form-grid__full,
+.detail-kv--full {
+  grid-column: 1 / -1;
+}
+
+.detail-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.detail-section {
+  display: grid;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  background: var(--surface-1);
+}
+
+.detail-section__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-kv {
+  display: grid;
+  gap: 4px;
+}
+
+.detail-kv span {
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.detail-kv strong {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
+.audit-json {
+  margin: 0;
+  padding: 14px;
+  border: 1px solid var(--line-soft);
+  border-radius: var(--radius-md);
+  background: #f7fafc;
+  color: #173240;
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+@media (max-width: 960px) {
+  .page-form-grid,
+  .detail-kv-grid {
+    grid-template-columns: 1fr;
+  }
+}

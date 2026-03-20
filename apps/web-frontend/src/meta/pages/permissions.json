@@ -1,0 +1,12 @@
+{
+  "order": 50,
+  "path": "/permissions",
+  "name": "permissions",
+  "title": "权限目录",
+  "caption": "Atomic capabilities and control surface",
+  "description": "维护系统能力节点，区分系统种子权限与自定义权限。",
+  "permission": "permission.read",
+  "view": "permissions/PermissionsView.vue",
+  "code": "PM",
+  "keepAlive": true
+}

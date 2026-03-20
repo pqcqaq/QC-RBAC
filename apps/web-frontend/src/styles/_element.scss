@@ -1,0 +1,124 @@
+.el-button {
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0;
+}
+
+.el-button--primary {
+  box-shadow: 0 8px 18px rgba(var(--accent-rgb), 0.18);
+}
+
+.el-button.is-plain {
+  background: #ffffff;
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner,
+.el-segmented {
+  background: #f9fbfd;
+  box-shadow: 0 0 0 1px #dce5ee inset;
+}
+
+.el-input__wrapper,
+.el-select__wrapper,
+.el-textarea__inner {
+  transition: box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.el-input__inner,
+.el-textarea__inner,
+.el-select__placeholder,
+.el-select__selected-item,
+.el-form-item__label,
+.el-dropdown-menu__item,
+.el-drawer__title,
+.el-dialog__title {
+  font-size: 14px;
+}
+
+.el-form-item__label {
+  color: var(--ink-2);
+  font-weight: 500;
+  padding-bottom: 6px;
+}
+
+.el-input__wrapper.is-focus,
+.el-select__wrapper.is-focused,
+.el-textarea__inner:focus {
+  box-shadow: 0 0 0 1px var(--accent) inset;
+}
+
+.el-tabs__item {
+  font-weight: 500;
+}
+
+.el-table {
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  background: #ffffff;
+  --el-table-border-color: var(--line-strong);
+  --el-table-header-bg-color: #f4f7fb;
+  --el-table-tr-bg-color: #ffffff;
+  --el-table-row-hover-bg-color: #f7faff;
+}
+
+.el-table th.el-table__cell {
+  padding: 10px 0;
+  color: var(--ink-3);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.el-table td.el-table__cell {
+  padding: 12px 0;
+}
+
+.el-pagination {
+  justify-content: flex-end;
+}
+
+.el-dialog,
+.el-drawer {
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  box-shadow: var(--shadow-deep);
+}
+
+.el-dialog__header,
+.el-drawer__header {
+  margin-right: 0;
+  padding: 16px 18px 14px;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.el-dialog__body,
+.el-drawer__body {
+  padding: 18px;
+}
+
+.el-message {
+  border-radius: var(--radius-sm);
+}
+
+.el-breadcrumb {
+  font-size: 12px;
+}
+
+.el-tag {
+  font-weight: 500;
+}
+
+.el-dropdown-menu,
+.el-popover.el-popper {
+  border-radius: 10px;
+  border-color: var(--line-soft);
+  box-shadow: var(--shadow-panel);
+}
+
+.el-empty__description p {
+  color: var(--ink-3);
+}

@@ -1,0 +1,31 @@
+{
+  "name": "rbac-monorepo-starter",
+  "private": true,
+  "version": "0.1.0",
+  "packageManager": "pnpm@10.14.0",
+  "scripts": {
+    "postinstall": "pnpm --filter @rbac/api-common build",
+    "dev": "pnpm --filter @rbac/api-common build && pnpm -r --parallel dev",
+    "dev:backend": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/backend dev",
+    "dev:web": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/web-frontend dev",
+    "dev:app": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/app-frontend dev",
+    "build": "pnpm --filter @rbac/api-common build && pnpm -r --filter !@rbac/api-common build",
+    "lint": "pnpm -r lint",
+    "format": "prettier --write .",
+    "db:up": "docker compose -f infra/docker-compose.yml up -d",
+    "db:down": "docker compose -f infra/docker-compose.yml down"
+  },
+  "devDependencies": {
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2"
+  },
+  "pnpm": {
+    "overrides": {
+      "unconfig": "7.3.2"
+    }
+  },
+  "resolutions": {
+    "bin-wrapper": "npm:bin-wrapper-china",
+    "unconfig": "7.3.2"
+  }
+}

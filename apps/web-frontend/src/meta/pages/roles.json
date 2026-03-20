@@ -1,0 +1,12 @@
+{
+  "order": 40,
+  "path": "/roles",
+  "name": "roles",
+  "title": "角色构造器",
+  "caption": "Role matrix and permission composition",
+  "description": "按职责组合权限，统一查看角色成员数、权限数和变更影响。",
+  "permission": "role.read",
+  "view": "roles/RolesView.vue",
+  "code": "RL",
+  "keepAlive": true
+}
