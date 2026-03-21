@@ -3,7 +3,7 @@
     <template #actions>
       <el-space>
         <el-button @click="loadData">刷新</el-button>
-        <el-button type="primary" :disabled="!canCreate" @click="openCreate">新增权限</el-button>
+        <el-button v-permission="'permission.create'" type="primary" @click="openCreate">新增权限</el-button>
       </el-space>
     </template>
 
@@ -20,8 +20,6 @@
       :permissions="filteredPermissions"
       :loading="loading"
       :seed-count="seedCount"
-      :can-edit="canEdit"
-      :can-delete="canDelete"
       :context-menu-items="permissionContextMenuItems"
       :is-seed-permission="isSeedPermission"
       @detail="openDetail"
@@ -106,7 +104,6 @@ const createEmptyForm = (): PermissionEditorForm => ({
   description: '',
 });
 
-const canCreate = computed(() => auth.hasPermission('permission.create'));
 const canEdit = computed(() => auth.hasPermission('permission.update'));
 const canDelete = computed(() => auth.hasPermission('permission.delete'));
 const seedCount = computed(() => permissions.value.filter((item) => isSeedPermission(item.code)).length);
@@ -241,13 +238,13 @@ const permissionContextMenuItems = [
   {
     key: 'edit',
     label: '编辑权限',
-    disabled: () => !canEdit.value,
+    hidden: () => !canEdit.value,
     onSelect: (row) => openEdit(row),
   },
   {
     key: 'delete',
     label: '删除权限',
-    disabled: (row) => !canDelete.value || isSeedPermission(row.code),
+    hidden: (row) => !canDelete.value || isSeedPermission(row.code),
     danger: true,
     onSelect: (row) => removePermission(row),
   },

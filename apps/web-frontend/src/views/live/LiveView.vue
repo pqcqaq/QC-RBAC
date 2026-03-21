@@ -1,7 +1,7 @@
 <template>
   <PageScaffold :stats="stats">
     <template #actions>
-      <el-button :disabled="!canSend" type="primary" @click="sendMessage">发送消息</el-button>
+      <el-button v-permission="'realtime.send'" type="primary" @click="sendMessage">发送消息</el-button>
     </template>
 
     <template #toolbar>

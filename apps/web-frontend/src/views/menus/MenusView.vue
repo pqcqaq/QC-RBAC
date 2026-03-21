@@ -3,8 +3,8 @@
     <template #actions>
       <el-space>
         <el-button @click="reloadAll">刷新结构</el-button>
-        <el-button type="primary" :disabled="!canCreate" @click="openCreateRootDialog('DIRECTORY')">新增目录</el-button>
-        <el-button type="primary" plain :disabled="!canCreate" @click="openCreateRootDialog('PAGE')">新增页面</el-button>
+        <el-button v-permission="'menu.create'" type="primary" @click="openCreateRootDialog('DIRECTORY')">新增目录</el-button>
+        <el-button v-permission="'menu.create'" type="primary" plain @click="openCreateRootDialog('PAGE')">新增页面</el-button>
       </el-space>
     </template>
 
@@ -37,9 +37,6 @@
         :selected-node="selectedNode"
         :selected-parent-node="selectedParentNode"
         :description="inspectorDescription"
-        :can-create="canCreate"
-        :can-update="canUpdate"
-        :can-delete="canDelete"
         @edit="handleInspectorEdit"
         @create-sibling="openCreateSiblingDialog"
         @create-child="handleInspectorCreateChild"

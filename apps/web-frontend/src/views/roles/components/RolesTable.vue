@@ -62,8 +62,8 @@
             <template #default="{ row }">
               <el-space>
                 <el-button link @click="emit('detail', row)">详情</el-button>
-                <el-button link :disabled="!canEdit" @click="emit('edit', row)">编辑</el-button>
-                <el-button link type="danger" :disabled="!canDelete || row.isSystem" @click="emit('delete', row)">
+                <el-button v-permission="'role.update'" link @click="emit('edit', row)">编辑</el-button>
+                <el-button v-if="!row.isSystem" v-permission="'role.delete'" link type="danger" @click="emit('delete', row)">
                   删除
                 </el-button>
               </el-space>
@@ -86,8 +86,6 @@ type HostContextMenuItem = ContextMenuItem<never>;
 const props = defineProps<{
   roles: RoleRecord[];
   loading: boolean;
-  canEdit: boolean;
-  canDelete: boolean;
   contextMenuItems: ContextMenuItem<RoleRecord>[];
 }>();
 

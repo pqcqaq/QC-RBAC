@@ -1,6 +1,8 @@
 import type { CurrentUser, LoginPayload, RegisterPayload } from '@rbac/api-common';
 import { defineStore } from 'pinia';
 import { api, clearStoredTokens, getStoredAccessToken, getStoredRefreshToken, persistTokens } from '@/api/client';
+import type { AccessDirectiveValue } from '@/utils/access-control';
+import { matchAccess } from '@/utils/access-control';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -9,6 +11,8 @@ export const useAuthStore = defineStore('auth', {
   }),
   getters: {
     isAuthenticated: (state) => Boolean(state.user && getStoredAccessToken()),
+    roles: (state) => state.user?.roles ?? [],
+    roleCodes: (state) => state.user?.roles.map((item) => item.code) ?? [],
     permissions: (state) => state.user?.permissions ?? [],
   },
   actions: {
@@ -27,6 +31,15 @@ export const useAuthStore = defineStore('auth', {
     },
     hasPermission(permission: string) {
       return this.permissions.includes(permission);
+    },
+    hasRole(role: string) {
+      return this.roleCodes.includes(role);
+    },
+    matchPermissions(value: AccessDirectiveValue, operator?: string) {
+      return matchAccess(this.permissions, value, operator);
+    },
+    matchRoles(value: AccessDirectiveValue, operator?: string) {
+      return matchAccess(this.roleCodes, value, operator);
     },
     async bootstrap() {
       if (!getStoredAccessToken()) {

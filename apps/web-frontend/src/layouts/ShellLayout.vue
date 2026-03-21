@@ -101,7 +101,7 @@
                     <div v-else class="user-avatar-fallback">
                       {{ userInitial }}
                     </div>
-                    <span v-if="canUploadAvatar" class="user-avatar-badge" :class="{ 'is-loading': avatarUploading }">
+                    <span v-permission="'file.upload'" class="user-avatar-badge" :class="{ 'is-loading': avatarUploading }">
                       <UnoIcon :name="avatarUploading ? 'i-carbon-time' : 'i-carbon-cloud-upload'" :size="10" />
                     </span>
                   </span>
@@ -116,7 +116,7 @@
 
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item v-if="canUploadAvatar" command="upload-avatar" :disabled="avatarUploading">
+                    <el-dropdown-item v-permission="'file.upload'" command="upload-avatar" :disabled="avatarUploading">
                       <span class="header-dropdown-item">
                         <span class="header-dropdown-item__icon">
                           <UnoIcon :name="avatarUploading ? 'i-carbon-time' : 'i-carbon-cloud-upload'" :size="16" />

@@ -66,9 +66,9 @@
             <template #default="{ row }">
               <el-space>
                 <el-button link @click="emit('detail', row)">详情</el-button>
-                <el-button link :disabled="!canExplore" @click="emit('permission-source', row.id)">权限来源</el-button>
-                <el-button link :disabled="!canEdit" @click="emit('edit', row)">编辑</el-button>
-                <el-button link type="danger" :disabled="!canDelete" @click="emit('delete', row)">删除</el-button>
+                <el-button v-permission="'rbac.explorer'" link @click="emit('permission-source', row.id)">权限来源</el-button>
+                <el-button v-permission="'user.update'" link @click="emit('edit', row)">编辑</el-button>
+                <el-button v-permission="'user.delete'" link type="danger" @click="emit('delete', row)">删除</el-button>
               </el-space>
             </template>
           </el-table-column>
@@ -101,9 +101,6 @@ const props = defineProps<{
   total: number;
   page: number;
   pageSize: number;
-  canEdit: boolean;
-  canDelete: boolean;
-  canExplore: boolean;
   contextMenuItems: ContextMenuItem<UserRecord>[];
 }>();
 

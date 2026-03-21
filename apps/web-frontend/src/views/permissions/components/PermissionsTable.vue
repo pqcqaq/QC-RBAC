@@ -42,11 +42,12 @@
             <template #default="{ row }">
               <el-space>
                 <el-button link @click="emit('detail', row)">详情</el-button>
-                <el-button link :disabled="!canEdit" @click="emit('edit', row)">编辑</el-button>
+                <el-button v-permission="'permission.update'" link @click="emit('edit', row)">编辑</el-button>
                 <el-button
+                  v-if="!isSeedPermission(row.code)"
+                  v-permission="'permission.delete'"
                   link
                   type="danger"
-                  :disabled="!canDelete || isSeedPermission(row.code)"
                   @click="emit('delete', row)"
                 >
                   删除
@@ -72,8 +73,6 @@ const props = defineProps<{
   permissions: PermissionRecord[];
   loading: boolean;
   seedCount: number;
-  canEdit: boolean;
-  canDelete: boolean;
   contextMenuItems: ContextMenuItem<PermissionRecord>[];
   isSeedPermission: (code: string) => boolean;
 }>();

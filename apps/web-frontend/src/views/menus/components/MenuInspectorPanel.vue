@@ -6,12 +6,18 @@
   >
     <template v-if="selectedNode" #actions>
       <el-space wrap>
-        <el-button plain :disabled="!canUpdate" @click="emit('edit')">编辑</el-button>
-        <el-button plain :disabled="!canCreate" @click="emit('create-sibling')">新增同级</el-button>
-        <el-button plain type="primary" :disabled="!canCreate || selectedNode.type === 'ACTION'" @click="emit('create-child')">
+        <el-button v-permission="'menu.update'" plain @click="emit('edit')">编辑</el-button>
+        <el-button v-permission="'menu.create'" plain @click="emit('create-sibling')">新增同级</el-button>
+        <el-button
+          v-if="selectedNode.type !== 'ACTION'"
+          v-permission="'menu.create'"
+          plain
+          type="primary"
+          @click="emit('create-child')"
+        >
           新增子级
         </el-button>
-        <el-button plain type="danger" :disabled="!canDelete" @click="emit('delete')">删除</el-button>
+        <el-button v-permission="'menu.delete'" plain type="danger" @click="emit('delete')">删除</el-button>
       </el-space>
     </template>
 
@@ -101,9 +107,6 @@ defineProps<{
   selectedNode: MenuNodeRecord | null;
   selectedParentNode: MenuNodeRecord | null;
   description: string;
-  canCreate: boolean;
-  canUpdate: boolean;
-  canDelete: boolean;
 }>();
 
 const emit = defineEmits<{

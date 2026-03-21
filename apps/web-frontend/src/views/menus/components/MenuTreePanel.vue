@@ -187,7 +187,7 @@ const contextMenuItems = computed<ContextMenuItem<MenuNodeRecord>[]>(() => [
     label: '编辑节点',
     description: '打开节点编辑弹窗',
     divided: true,
-    disabled: () => !props.canUpdate,
+    hidden: () => !props.canUpdate,
     onSelect: (node) => {
       emit('select', node);
       emit('edit', node);
@@ -197,7 +197,7 @@ const contextMenuItems = computed<ContextMenuItem<MenuNodeRecord>[]>(() => [
     key: 'create-sibling',
     label: '新增同级',
     description: '在当前层级新增一个节点',
-    disabled: () => !props.canCreate,
+    hidden: () => !props.canCreate,
     onSelect: (node) => {
       emit('select', node);
       emit('create-sibling', node);
@@ -207,7 +207,7 @@ const contextMenuItems = computed<ContextMenuItem<MenuNodeRecord>[]>(() => [
     key: 'create-child',
     label: '新增子级',
     description: '在当前节点下继续扩展结构',
-    disabled: (node) => !props.canCreate || node.type === 'ACTION',
+    hidden: (node) => !props.canCreate || node.type === 'ACTION',
     onSelect: (node) => {
       emit('select', node);
       emit('create-child', node);
@@ -219,7 +219,7 @@ const contextMenuItems = computed<ContextMenuItem<MenuNodeRecord>[]>(() => [
     description: '删除当前节点及其下属结构',
     danger: true,
     divided: true,
-    disabled: () => !props.canDelete,
+    hidden: () => !props.canDelete,
     onSelect: (node) => {
       emit('select', node);
       emit('delete', node);

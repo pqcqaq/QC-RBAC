@@ -81,7 +81,12 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item v-if="form.type !== 'DIRECTORY'" label="权限绑定" class="page-form-grid__full">
+      <el-form-item
+        v-if="form.type !== 'DIRECTORY'"
+        v-permission="'menu.assign-permission'"
+        label="权限绑定"
+        class="page-form-grid__full"
+      >
         <el-select
           v-model="form.permissionId"
           clearable
@@ -113,7 +118,15 @@
     <template #footer>
       <el-button @click="emit('reset')">恢复初始值</el-button>
       <el-button @click="emit('update:visible', false)">取消</el-button>
-      <el-button type="primary" :loading="saving" :disabled="!canSubmit" @click="emit('save')">保存</el-button>
+      <el-button
+        v-permission="mode === 'edit' ? 'menu.update' : 'menu.create'"
+        type="primary"
+        :loading="saving"
+        :disabled="!canSubmit"
+        @click="emit('save')"
+      >
+        保存
+      </el-button>
     </template>
   </el-dialog>
 </template>

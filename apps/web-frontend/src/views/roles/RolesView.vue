@@ -3,7 +3,13 @@
     <template #actions>
       <el-space>
         <el-button @click="loadRoles">刷新</el-button>
-        <el-button type="primary" :disabled="!canCreate" @click="openCreate">新建角色</el-button>
+        <el-button
+          v-permission:and="['role.create', 'role.assign-permission']"
+          type="primary"
+          @click="openCreate"
+        >
+          新建角色
+        </el-button>
       </el-space>
     </template>
 
@@ -19,8 +25,6 @@
     <RolesTable
       :roles="filteredRoles"
       :loading="loading"
-      :can-edit="canEdit"
-      :can-delete="canDelete"
       :context-menu-items="roleContextMenuItems"
       @detail="openDetail"
       @edit="openEdit"
@@ -102,7 +106,6 @@ const createEmptyForm = (): RoleEditorForm => ({
   permissionIds: [],
 });
 
-const canCreate = computed(() => auth.hasPermission('role.create'));
 const canEdit = computed(() => auth.hasPermission('role.update'));
 const canDelete = computed(() => auth.hasPermission('role.delete'));
 
@@ -255,13 +258,13 @@ const roleContextMenuItems = [
   {
     key: 'edit',
     label: '编辑角色',
-    disabled: () => !canEdit.value,
+    hidden: () => !canEdit.value,
     onSelect: (row) => openEdit(row),
   },
   {
     key: 'delete',
     label: '删除角色',
-    disabled: (row) => !canDelete.value || row.isSystem,
+    hidden: (row) => !canDelete.value || row.isSystem,
     danger: true,
     onSelect: (row) => removeRole(row),
   },

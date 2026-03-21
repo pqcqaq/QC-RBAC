@@ -3,7 +3,13 @@
     <template #actions>
       <el-space>
         <el-button @click="loadUsers">刷新</el-button>
-        <el-button type="primary" :disabled="!canCreate" @click="openCreate">创建用户</el-button>
+        <el-button
+          v-permission:and="['user.create', 'user.assign-role']"
+          type="primary"
+          @click="openCreate"
+        >
+          创建用户
+        </el-button>
       </el-space>
     </template>
 
@@ -22,9 +28,6 @@
       :total="total"
       :page="pageState.page"
       :page-size="pageSize"
-      :can-edit="canEdit"
-      :can-delete="canDelete"
-      :can-explore="canExplore"
       :context-menu-items="userContextMenuItems"
       @detail="openDetail"
       @permission-source="showPermissionSource"
@@ -123,7 +126,6 @@ const createEmptyForm = (): UserEditorForm => ({
   roleIds: [],
 });
 
-const canCreate = computed(() => auth.hasPermission('user.create'));
 const canEdit = computed(() => auth.hasPermission('user.update'));
 const canDelete = computed(() => auth.hasPermission('user.delete'));
 const canAssignRoles = computed(() => auth.hasPermission('user.assign-role'));
@@ -271,7 +273,7 @@ const userContextMenuItems = [
   {
     key: 'permission-source',
     label: '查看权限来源',
-    disabled: () => !canExplore.value,
+    hidden: () => !canExplore.value,
     onSelect: (row) => showPermissionSource(row.id),
   },
   {
@@ -281,13 +283,13 @@ const userContextMenuItems = [
   {
     key: 'edit',
     label: '编辑用户',
-    disabled: () => !canEdit.value,
+    hidden: () => !canEdit.value,
     onSelect: (row) => openEdit(row),
   },
   {
     key: 'delete',
     label: '删除用户',
-    disabled: () => !canDelete.value,
+    hidden: () => !canDelete.value,
     danger: true,
     onSelect: (row) => removeUser(row),
   },
