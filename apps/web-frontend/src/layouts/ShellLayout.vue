@@ -49,10 +49,10 @@
     </el-aside>
 
     <el-container class="admin-shell__body">
-      <el-header class="admin-shell__header">
+      <el-header class="admin-shell__header" height="auto">
         <div
           class="shell-header__panel content-container"
-          :class="{ 'has-secondary-nav': workbench.layoutMode === 'sidebar' || workbench.layoutMode === 'tabs' }"
+          :class="{ 'has-secondary-nav': hasSecondaryNav }"
         >
           <div class="shell-header__inner">
             <div class="shell-header__left">
@@ -67,8 +67,10 @@
               </el-breadcrumb>
               <div class="shell-title-row">
                 <h2>{{ pageMeta.title }}</h2>
-                <span class="header-subtitle">{{ pageMeta.caption }}</span>
               </div>
+              <p v-if="pageMeta.description" class="header-description">
+                {{ pageMeta.description }}
+              </p>
             </div>
 
             <div class="shell-header__right">
@@ -153,7 +155,11 @@
             </div>
           </div>
 
-          <WorkbenchTabs v-if="workbench.layoutMode === 'sidebar'" embedded />
+          <WorkbenchTabs
+            v-if="showWorkbenchTabs"
+            embedded
+            :appearance="workbench.cachedTabDisplayMode"
+          />
 
           <div v-else-if="workbench.layoutMode === 'tabs'" class="top-nav-strip top-nav-strip--embedded">
             <el-scrollbar>
@@ -182,18 +188,14 @@
       <el-main class="admin-shell__main">
         <div class="content-container">
           <router-view v-slot="{ Component, route: currentRoute }">
-            <keep-alive :include="workbench.cacheInclude">
-              <component
-                :is="Component"
-                v-if="currentRoute.meta.keepAlive"
-                :key="String(currentRoute.name)"
-              />
-            </keep-alive>
-            <component
-              :is="Component"
-              v-if="!currentRoute.meta.keepAlive"
-              :key="currentRoute.fullPath"
-            />
+            <Transition :name="pageTransitionName" mode="out-in">
+              <keep-alive :include="workbench.cacheInclude">
+                <component
+                  :is="Component"
+                  :key="resolveRouteViewKey(currentRoute)"
+                />
+              </keep-alive>
+            </Transition>
           </router-view>
         </div>
       </el-main>
@@ -216,7 +218,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
-import { useRoute, useRouter } from 'vue-router';
+import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
 import UnoIcon from '@/components/common/UnoIcon.vue';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
 import MenuTreeNav from '@/components/workbench/MenuTreeNav.vue';
@@ -227,7 +229,7 @@ import { uploadAvatarFile } from '@/utils/direct-upload';
 import { getErrorMessage } from '@/utils/errors';
 import { useAuthStore } from '@/stores/auth';
 import { useMenuStore } from '@/stores/menus';
-import { useWorkbenchStore } from '@/stores/workbench';
+import { useWorkbenchStore, type PageTransitionMode } from '@/stores/workbench';
 
 const route = useRoute();
 const router = useRouter();
@@ -243,9 +245,14 @@ const topNavPages = computed(() => menus.pages);
 const canUploadAvatar = computed(() => auth.hasPermission('file.upload'));
 const userInitial = computed(() => (auth.user?.nickname?.slice(0, 1) ?? '?').toUpperCase());
 const breadcrumbs = computed(() => menus.getBreadcrumbs(route.path));
-const pageMeta = computed(() => menus.getPageByPath(route.path) ?? {
-  title: String(route.meta.title ?? '控制台'),
-  caption: String(route.meta.caption ?? 'RBAC Admin'),
+const pageMeta = computed(() => {
+  const currentPage = menus.getPageByPath(route.path);
+
+  return {
+    title: currentPage?.title || String(route.meta.title ?? '控制台'),
+    caption: currentPage?.caption || String(route.meta.caption ?? 'RBAC Admin'),
+    description: currentPage?.description || String(route.meta.description ?? route.meta.caption ?? ''),
+  };
 });
 const activeTheme = computed(() => findThemePreset(workbench.themePresetId));
 const avatarInputRef = ref<HTMLInputElement | null>(null);
@@ -253,6 +260,11 @@ const userDropdownVisible = ref(false);
 const avatarUploading = ref(false);
 type HeaderUserCommand = 'upload-avatar' | 'dashboard' | 'logout';
 const SIDEBAR_AUTO_COLLAPSE_BREAKPOINT = 1280;
+const pageTransitionNameMap: Record<PageTransitionMode, string> = {
+  none: 'shell-page-none',
+  fade: 'shell-page-fade',
+  slide: 'shell-page-slide',
+};
 
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -270,10 +282,18 @@ const isSidebarCollapsed = computed(() => {
 
 const sidebarWidth = computed(() => (isSidebarCollapsed.value ? '84px' : '248px'));
 const sidebarToggleTitle = computed(() => (isSidebarCollapsed.value ? '展开侧栏' : '折叠侧栏'));
+const pageTransitionName = computed(() => pageTransitionNameMap[workbench.pageTransition]);
+const showWorkbenchTabs = computed(
+  () => workbench.layoutMode === 'sidebar' && workbench.cachedTabDisplayMode !== 'hidden',
+);
+const hasSecondaryNav = computed(() => showWorkbenchTabs.value || workbench.layoutMode === 'tabs');
 
 const tickClock = () => {
   footerClock.value = new Date().toLocaleString();
 };
+
+const resolveRouteViewKey = (currentRoute: RouteLocationNormalizedLoaded) =>
+  currentRoute.meta.keepAlive ? String(currentRoute.name ?? currentRoute.path) : currentRoute.fullPath;
 
 const syncSidebarViewport = () => {
   if (typeof window === 'undefined') {

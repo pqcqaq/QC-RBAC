@@ -1,16 +1,21 @@
 <template>
-  <div class="workbench-tabs" :class="{ 'is-embedded': embedded }">
-    <div class="workbench-tabs__inner" :class="{ 'content-container': !embedded, 'is-embedded': embedded }">
-      <el-scrollbar class="workbench-tabs__scroll">
+  <div class="workbench-tabs" :class="[`is-style-${appearance}`, { 'is-embedded': embedded }]">
+    <div class="workbench-tabs__inner" :class="[`is-style-${appearance}`, { 'content-container': !embedded, 'is-embedded': embedded }]">
+      <div
+        ref="scrollWrapRef"
+        class="workbench-tabs__scroll"
+        @scroll="syncScrollState"
+        @wheel="handleTabsWheel"
+      >
         <ContextMenuHost :items="tabContextMenuItems" manual>
           <template #default="{ open }">
-            <div class="workbench-tabs__list">
+            <div class="workbench-tabs__list" :class="`is-style-${appearance}`">
               <RouterLink
                 v-for="tab in workbench.visitedTabs"
                 :key="tab.path"
                 :to="tab.path"
                 class="workbench-tab"
-                :class="{ 'is-active': route.path === tab.path }"
+                :class="[`is-style-${appearance}`, { 'is-active': route.path === tab.path }]"
                 @contextmenu="open($event, tab)"
                 @mousedown.middle.prevent
                 @auxclick="handleTabAuxClick($event, tab)"
@@ -31,9 +36,32 @@
             </div>
           </template>
         </ContextMenuHost>
-      </el-scrollbar>
+      </div>
 
       <div class="workbench-tabs__tools">
+        <div class="workbench-tabs__nav">
+          <button
+            class="workbench-tabs__action"
+            type="button"
+            title="向左滚动"
+            aria-label="向左滚动"
+            :disabled="!canScrollLeft"
+            @click="scrollTabsBy(-240)"
+          >
+            <UnoIcon name="i-carbon-chevron-left" :size="16" />
+          </button>
+          <button
+            class="workbench-tabs__action"
+            type="button"
+            title="向右滚动"
+            aria-label="向右滚动"
+            :disabled="!canScrollRight"
+            @click="scrollTabsBy(240)"
+          >
+            <UnoIcon name="i-carbon-chevron-right" :size="16" />
+          </button>
+        </div>
+
         <el-dropdown trigger="click">
           <button class="workbench-tabs__action" type="button" title="标签操作" aria-label="标签操作">
             <UnoIcon name="i-carbon-overflow-menu-horizontal" :size="18" />
@@ -62,13 +90,13 @@
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 import UnoIcon from '@/components/common/UnoIcon.vue';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import { useMenuStore } from '@/stores/menus';
-import type { VisitedTab } from '@/stores/workbench';
+import type { CachedTabDisplayMode, VisitedTab } from '@/stores/workbench';
 import { useWorkbenchStore } from '@/stores/workbench';
 
 const route = useRoute();
@@ -77,10 +105,17 @@ const menus = useMenuStore();
 const workbench = useWorkbenchStore();
 const homePath = computed(() => menus.homePath || '/');
 const hasClosableTabs = computed(() => workbench.visitedTabs.some((item) => item.closable));
+const scrollWrapRef = ref<HTMLDivElement | null>(null);
+const canScrollLeft = ref(false);
+const canScrollRight = ref(false);
+
+let resizeObserver: ResizeObserver | null = null;
 
 withDefaults(defineProps<{
+  appearance?: CachedTabDisplayMode;
   embedded?: boolean;
 }>(), {
+  appearance: 'classic',
   embedded: false,
 });
 
@@ -166,6 +201,66 @@ const tabContextMenuItems = [
   },
 ] satisfies ContextMenuItem<VisitedTab>[];
 
+const syncScrollState = () => {
+  const wrap = scrollWrapRef.value;
+  if (!wrap) {
+    canScrollLeft.value = false;
+    canScrollRight.value = false;
+    return;
+  }
+
+  const maxScrollLeft = Math.max(0, wrap.scrollWidth - wrap.clientWidth);
+  canScrollLeft.value = wrap.scrollLeft > 1;
+  canScrollRight.value = wrap.scrollLeft < maxScrollLeft - 1;
+};
+
+const ensureActiveTabVisible = () => {
+  const wrap = scrollWrapRef.value;
+  const activeTab = wrap?.querySelector<HTMLElement>('.workbench-tab.is-active');
+  if (!activeTab) {
+    syncScrollState();
+    return;
+  }
+
+  activeTab.scrollIntoView({
+    behavior: 'smooth',
+    block: 'nearest',
+    inline: 'nearest',
+  });
+
+  window.setTimeout(syncScrollState, 180);
+};
+
+const scrollTabsBy = (offset: number) => {
+  const wrap = scrollWrapRef.value;
+  if (!wrap) {
+    return;
+  }
+
+  wrap.scrollBy({
+    left: offset,
+    behavior: 'smooth',
+  });
+
+  window.setTimeout(syncScrollState, 180);
+};
+
+const handleTabsWheel = (event: WheelEvent) => {
+  const wrap = scrollWrapRef.value;
+  if (!wrap) {
+    return;
+  }
+
+  const delta = Math.abs(event.deltaX) > Math.abs(event.deltaY) ? event.deltaX : event.deltaY;
+  if (delta === 0) {
+    return;
+  }
+
+  event.preventDefault();
+  wrap.scrollLeft += delta;
+  syncScrollState();
+};
+
 const closeTab = async (path: string) => {
   if (!canCloseTab(path)) {
     return;
@@ -217,4 +312,30 @@ const handleTabAuxClick = async (event: MouseEvent, tab: VisitedTab) => {
   event.stopPropagation();
   await closeTab(tab.path);
 };
+
+watch(
+  () => [route.path, ...workbench.visitedTabs.map((tab) => tab.path)],
+  async () => {
+    await nextTick();
+    ensureActiveTabVisible();
+  },
+  { immediate: true },
+);
+
+onMounted(() => {
+  const wrap = scrollWrapRef.value;
+  if (typeof ResizeObserver !== 'undefined' && wrap) {
+    resizeObserver = new ResizeObserver(() => {
+      syncScrollState();
+    });
+    resizeObserver.observe(wrap);
+  }
+
+  syncScrollState();
+});
+
+onUnmounted(() => {
+  resizeObserver?.disconnect();
+  resizeObserver = null;
+});
 </script>

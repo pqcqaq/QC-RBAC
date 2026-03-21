@@ -11,6 +11,8 @@ import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
 import { useMenuStore } from '@/stores/menus';
 
 export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
+export type PageTransitionMode = 'none' | 'fade' | 'slide';
+export type CachedTabDisplayMode = 'hidden' | 'classic' | 'browser';
 
 export type VisitedTab = {
   path: string;
@@ -26,6 +28,8 @@ type WorkbenchSnapshot = {
   sidebarAppearance: SidebarAppearance;
   sidebarCollapsed: boolean;
   layoutMode: WorkbenchLayoutMode;
+  pageTransition: PageTransitionMode;
+  cachedTabDisplayMode: CachedTabDisplayMode;
   visitedTabs: VisitedTab[];
   cachedViewNames: string[];
   pageStateMap: Record<string, unknown>;
@@ -38,6 +42,8 @@ const createDefaultState = (): WorkbenchSnapshot => ({
   sidebarAppearance: defaultSidebarAppearance,
   sidebarCollapsed: false,
   layoutMode: 'sidebar',
+  pageTransition: 'fade',
+  cachedTabDisplayMode: 'classic',
   visitedTabs: [],
   cachedViewNames: [],
   pageStateMap: {},
@@ -68,7 +74,7 @@ const toComponentName = (routeName?: string) => {
     return '';
   }
   const pageDefinition = pageRegistryMap[routeName];
-  return pageDefinition?.cacheName ?? '';
+  return pageDefinition?.keepAlive ? pageDefinition.cacheName : '';
 };
 
 const buildTabFromPath = (path: string): VisitedTab | null => {
@@ -139,6 +145,8 @@ export const useWorkbenchStore = defineStore('workbench', {
     sidebarAppearance: defaultSidebarAppearance as SidebarAppearance,
     sidebarCollapsed: false,
     layoutMode: 'sidebar' as WorkbenchLayoutMode,
+    pageTransition: 'fade' as PageTransitionMode,
+    cachedTabDisplayMode: 'classic' as CachedTabDisplayMode,
     visitedTabs: [] as VisitedTab[],
     cachedViewNames: [] as string[],
     pageStateMap: {} as Record<string, unknown>,
@@ -157,6 +165,8 @@ export const useWorkbenchStore = defineStore('workbench', {
         sidebarAppearance: this.sidebarAppearance,
         sidebarCollapsed: this.sidebarCollapsed,
         layoutMode: this.layoutMode,
+        pageTransition: this.pageTransition,
+        cachedTabDisplayMode: this.cachedTabDisplayMode,
         visitedTabs: this.visitedTabs,
         cachedViewNames: this.cachedViewNames,
         pageStateMap: this.pageStateMap,
@@ -178,6 +188,10 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.sidebarAppearance = snapshot.sidebarAppearance === 'light' ? 'light' : 'dark';
       this.sidebarCollapsed = Boolean(snapshot.sidebarCollapsed);
       this.layoutMode = snapshot.layoutMode === 'tabs' ? 'tabs' : 'sidebar';
+      this.pageTransition = snapshot.pageTransition === 'none' || snapshot.pageTransition === 'slide' ? snapshot.pageTransition : 'fade';
+      this.cachedTabDisplayMode = snapshot.cachedTabDisplayMode === 'hidden' || snapshot.cachedTabDisplayMode === 'browser'
+        ? snapshot.cachedTabDisplayMode
+        : 'classic';
       this.visitedTabs = menus.ready ? normalizeVisitedTabs(snapshot.visitedTabs) : (snapshot.visitedTabs ?? []);
       this.cachedViewNames = menus.ready ? resolveCacheNames(this.visitedTabs) : (snapshot.cachedViewNames ?? []);
       this.pageStateMap = snapshot.pageStateMap ?? {};
@@ -214,6 +228,14 @@ export const useWorkbenchStore = defineStore('workbench', {
     },
     setLayoutMode(layoutMode: WorkbenchLayoutMode) {
       this.layoutMode = layoutMode;
+      this.persist();
+    },
+    setPageTransition(pageTransition: PageTransitionMode) {
+      this.pageTransition = pageTransition;
+      this.persist();
+    },
+    setCachedTabDisplayMode(cachedTabDisplayMode: CachedTabDisplayMode) {
+      this.cachedTabDisplayMode = cachedTabDisplayMode;
       this.persist();
     },
     openSettings() {
@@ -302,6 +324,8 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.sidebarAppearance = next.sidebarAppearance;
       this.sidebarCollapsed = next.sidebarCollapsed;
       this.layoutMode = next.layoutMode;
+      this.pageTransition = next.pageTransition;
+      this.cachedTabDisplayMode = next.cachedTabDisplayMode;
       this.visitedTabs = next.visitedTabs.map((tab) => ({ ...tab }));
       this.cachedViewNames = [...next.cachedViewNames];
       this.pageStateMap = {};

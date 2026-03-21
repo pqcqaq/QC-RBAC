@@ -5,13 +5,13 @@
       :index="`directory:${item.id}`"
     >
       <template #title>
-        <span class="menu-icon" :title="item.code">
+        <div class="menu-icon" :title="item.code">
           <UnoIcon :name="resolveMenuNodeIcon(item)" :title="item.title" :size="18" />
-        </span>
-        <span class="menu-copy">
-          <span class="menu-copy__title">{{ item.title }}</span>
+        </div>
+        <div class="menu-copy">
+          <div class="menu-copy__title">{{ item.title }}</div>
           <small>{{ item.caption || item.description || '目录节点' }}</small>
-        </span>
+        </div>
       </template>
 
       <MenuTreeNav :items="item.children" />
@@ -21,13 +21,13 @@
       v-else-if="item.type === 'PAGE' && item.path"
       :index="item.path"
     >
-      <span class="menu-icon" :title="item.code">
+      <div class="menu-icon" :title="item.code">
         <UnoIcon :name="resolveMenuNodeIcon(item)" :title="item.title" :size="18" />
-      </span>
-      <span class="menu-copy">
-        <span class="menu-copy__title">{{ item.title }}</span>
+      </div>
+      <div class="menu-copy">
+        <div class="menu-copy__title">{{ item.title }}</div>
         <small>{{ item.caption || item.description || '页面节点' }}</small>
-      </span>
+      </div>
     </el-menu-item>
   </template>
 </template>

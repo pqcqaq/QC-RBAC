@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite';
 import vue from '@vitejs/plugin-vue';
+import vueDevTools from 'vite-plugin-vue-devtools';
 import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
@@ -7,9 +8,10 @@ import path from 'node:path';
 import { pageRegistryPlugin } from './vite/page-registry';
 import { themePresetsPlugin } from './vite/theme-presets';
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   plugins: [
     vue(),
+    ...(command === 'serve' ? [vueDevTools()] : []),
     AutoImport({
       imports: ['vue', 'vue-router', 'pinia', { '@/meta/page-definition': ['definePage'] }],
       resolvers: [ElementPlusResolver()],
@@ -52,4 +54,4 @@ export default defineConfig({
       },
     },
   },
-});
+}));

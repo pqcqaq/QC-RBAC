@@ -41,6 +41,56 @@
 
       <section class="settings-section">
         <header>
+          <h4>切换动画</h4>
+          <span>控制主内容区在页面切换时的过渡效果，保持切换反馈但不过度打扰。</span>
+        </header>
+        <div class="settings-mode-grid settings-mode-grid--triple">
+          <button
+            v-for="option in pageTransitionOptions"
+            :key="option.value"
+            type="button"
+            class="settings-mode-card"
+            :class="{ 'is-active': option.value === workbench.pageTransition }"
+            @click="workbench.setPageTransition(option.value)"
+          >
+            <div class="settings-mode-card__preview" :class="`is-transition-${option.value}`">
+              <span />
+              <span />
+              <span />
+            </div>
+            <strong>{{ option.label }}</strong>
+            <small>{{ option.description }}</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <header>
+          <h4>缓存标签</h4>
+          <span>控制侧栏布局下缓存标签条的显示方式，可完全隐藏，也可切换为更接近浏览器的标签感。</span>
+        </header>
+        <div class="settings-mode-grid settings-mode-grid--triple">
+          <button
+            v-for="option in cachedTabDisplayOptions"
+            :key="option.value"
+            type="button"
+            class="settings-mode-card"
+            :class="{ 'is-active': option.value === workbench.cachedTabDisplayMode }"
+            @click="workbench.setCachedTabDisplayMode(option.value)"
+          >
+            <div class="settings-mode-card__preview" :class="`is-tabs-${option.value}`">
+              <span />
+              <span />
+              <span />
+            </div>
+            <strong>{{ option.label }}</strong>
+            <small>{{ option.description }}</small>
+          </button>
+        </div>
+      </section>
+
+      <section class="settings-section">
+        <header>
           <h4>主题方案</h4>
           <span>主题预设由 `themes/presets/*.json` 统一生成，可继续扩展。</span>
         </header>
@@ -90,6 +140,14 @@
             <span>布局模式</span>
             <strong>{{ workbench.layoutMode === 'sidebar' ? '侧栏' : '标签' }}</strong>
           </div>
+          <div>
+            <span>切换动画</span>
+            <strong>{{ currentPageTransitionLabel }}</strong>
+          </div>
+          <div>
+            <span>标签样式</span>
+            <strong>{{ currentCachedTabDisplayLabel }}</strong>
+          </div>
         </div>
         <el-button @click="workbench.resetWorkbenchPreferences(route.path)">恢复默认</el-button>
       </section>
@@ -102,7 +160,12 @@ import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { findThemePreset, themePresets } from '@/themes';
 import type { SidebarAppearance } from '@/themes';
-import { useWorkbenchStore, type WorkbenchLayoutMode } from '@/stores/workbench';
+import {
+  useWorkbenchStore,
+  type CachedTabDisplayMode,
+  type PageTransitionMode,
+  type WorkbenchLayoutMode,
+} from '@/stores/workbench';
 
 const route = useRoute();
 const workbench = useWorkbenchStore();
@@ -117,7 +180,25 @@ const sidebarAppearanceOptions = [
   { label: '亮色侧栏', value: 'light', description: '更轻盈，和主内容区更统一。' },
 ] satisfies Array<{ label: string; value: SidebarAppearance; description: string }>;
 
+const pageTransitionOptions = [
+  { label: '无动画', value: 'none', description: '立即切换，适合更克制的操作反馈。' },
+  { label: '淡入淡出', value: 'fade', description: '轻量过渡，兼顾稳定感和节奏感。' },
+  { label: '横向滑动', value: 'slide', description: '切换方向更明确，页面层次更清晰。' },
+] satisfies Array<{ label: string; value: PageTransitionMode; description: string }>;
+
+const cachedTabDisplayOptions = [
+  { label: '关闭', value: 'hidden', description: '不显示缓存标签条，header 保持更简洁。' },
+  { label: '标准', value: 'classic', description: '沿用当前的轻量胶囊式标签表现。' },
+  { label: '浏览器', value: 'browser', description: '更像浏览器页签，层次更鲜明。' },
+] satisfies Array<{ label: string; value: CachedTabDisplayMode; description: string }>;
+
 const currentTheme = computed(() => findThemePreset(workbench.themePresetId));
+const currentPageTransitionLabel = computed(
+  () => pageTransitionOptions.find((option) => option.value === workbench.pageTransition)?.label ?? '淡入淡出',
+);
+const currentCachedTabDisplayLabel = computed(
+  () => cachedTabDisplayOptions.find((option) => option.value === workbench.cachedTabDisplayMode)?.label ?? '标准',
+);
 
 const isLayoutMode = (value: string | number | boolean): value is WorkbenchLayoutMode =>
   value === 'sidebar' || value === 'tabs';

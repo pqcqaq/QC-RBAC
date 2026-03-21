@@ -41,16 +41,16 @@
   --shell-sidebar-active-muted: rgba(255, 255, 255, 0.72);
   --shell-sidebar-arrow: rgba(238, 243, 251, 0.58);
   --shell-sidebar-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
-  --shell-sidebar-shadow: 0 18px 42px rgba(10, 16, 26, 0.28);
+  --shell-sidebar-shadow: 0 14px 30px rgba(10, 16, 26, 0.24);
   --line-soft: #e6edf4;
   --line-strong: #d8e2ed;
   --surface-overlay: rgba(255, 255, 255, 0.84);
-  --shadow-panel: 0 8px 20px rgba(12, 24, 36, 0.06);
-  --shadow-deep: 0 18px 34px rgba(8, 16, 27, 0.18);
-  --header-height: 60px;
-  --content-max-width: 1680px;
-  --shell-padding-x: 16px;
-  --shell-padding-y: 12px;
+  --shadow-panel: 0 6px 16px rgba(12, 24, 36, 0.055);
+  --shadow-deep: 0 16px 30px rgba(8, 16, 27, 0.16);
+  --header-height: 56px;
+  --content-max-width: 1760px;
+  --shell-padding-x: 12px;
+  --shell-padding-y: 10px;
   --radius-xs: 6px;
   --radius-sm: 8px;
   --radius-md: 10px;
@@ -106,7 +106,7 @@
   --shell-sidebar-active-muted: color-mix(in srgb, var(--accent-strong) 74%, white 26%);
   --shell-sidebar-arrow: var(--ink-3);
   --shell-sidebar-active-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, var(--line-strong));
-  --shell-sidebar-shadow: 0 14px 32px rgba(11, 21, 31, 0.08);
+  --shell-sidebar-shadow: 0 10px 24px rgba(11, 21, 31, 0.07);
 }
 
 * {
