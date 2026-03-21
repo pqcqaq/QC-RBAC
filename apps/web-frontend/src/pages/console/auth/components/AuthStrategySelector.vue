@@ -44,31 +44,35 @@ const resolveStrategySummary = (strategy: AuthStrategyDescriptor) => {
 <style scoped lang="scss">
 .auth-strategy-picker {
   display: grid;
-  gap: 12px;
+  gap: 14px;
   grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
 }
 
 .auth-strategy-pill {
   display: grid;
-  gap: 8px;
-  padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, var(--line-soft) 92%, white);
-  border-radius: 18px;
-  background: color-mix(in srgb, white 92%, var(--surface-2));
-  color: var(--ink-2);
+  gap: 10px;
+  padding: 18px 18px 16px;
+  border: 1px solid rgba(18, 43, 57, 0.08);
+  border-radius: 22px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.92) 0%, rgba(247, 243, 236, 0.88) 100%);
+  color: #51636d;
   text-align: left;
+  box-shadow: 0 18px 36px rgba(18, 43, 57, 0.05);
   transition: border-color 0.18s ease, background 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
 }
 
 .auth-strategy-pill:hover {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--accent) 28%, var(--line-strong));
+  transform: translateY(-2px);
+  border-color: rgba(23, 56, 74, 0.2);
+  box-shadow: 0 24px 42px rgba(18, 43, 57, 0.08);
 }
 
 .auth-strategy-pill.is-active {
-  border-color: color-mix(in srgb, var(--accent) 40%, var(--line-strong));
-  background: color-mix(in srgb, white 84%, var(--accent) 10%);
-  box-shadow: var(--shadow-panel);
+  border-color: rgba(23, 56, 74, 0.22);
+  background:
+    linear-gradient(135deg, rgba(23, 56, 74, 0.95) 0%, rgba(39, 79, 99, 0.92) 100%);
+  box-shadow: 0 26px 52px rgba(12, 26, 35, 0.18);
 }
 
 .auth-strategy-pill__head {
@@ -79,32 +83,43 @@ const resolveStrategySummary = (strategy: AuthStrategyDescriptor) => {
 }
 
 .auth-strategy-pill__head strong {
-  color: var(--ink-1);
-  font-size: 14px;
+  color: #17384a;
+  font-size: 15px;
 }
 
 .auth-strategy-pill__head span,
 .auth-strategy-pill > span {
   font-size: 12px;
-  line-height: 1.6;
+  line-height: 1.7;
 }
 
 .auth-strategy-pill__badge {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 42px;
-  padding: 2px 8px;
+  min-width: 48px;
+  padding: 3px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, #0f9d80 16%, white);
+  background: rgba(236, 245, 239, 0.92);
   color: #0d6e5c;
   font-weight: 700;
+}
+
+.auth-strategy-pill.is-active .auth-strategy-pill__head strong,
+.auth-strategy-pill.is-active .auth-strategy-pill__head span,
+.auth-strategy-pill.is-active > span {
+  color: #eef4f7;
+}
+
+.auth-strategy-pill.is-active .auth-strategy-pill__badge {
+  background: rgba(238, 244, 247, 0.16);
+  color: #eef4f7;
 }
 
 .auth-strategy-picker :deep(.el-empty) {
   grid-column: 1 / -1;
   min-height: 180px;
-  border: 1px dashed var(--line-strong);
-  border-radius: 18px;
+  border: 1px dashed rgba(18, 43, 57, 0.18);
+  border-radius: 22px;
 }
 </style>

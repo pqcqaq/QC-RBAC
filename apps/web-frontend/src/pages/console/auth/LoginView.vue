@@ -1,73 +1,48 @@
 <template>
   <div class="auth-layout">
-    <section class="auth-showcase">
-      <p class="hero-label">Enterprise RBAC Console</p>
-      <h1>把认证方式做成后端策略，而不是把登录页写死成一种表单。</h1>
-      <p class="auth-copy">
-        登录、注册、验证码发送与校验都由后端认证策略驱动。当前启用了用户名密码、邮箱验证码、手机号验证码三种基础方式，
-        前端会按后端开启状态动态渲染可用组件。
-      </p>
+    <AuthShowcasePanel :capability-items="capabilityItems" :credential-items="credentialItems" />
 
-      <div class="auth-highlight-grid">
-        <article class="auth-highlight">
-          <span>USERNAME PASSWORD</span>
-          <strong>admin / Admin123!</strong>
-          <small>管理员账号，支持直接口令登录</small>
-        </article>
-        <article class="auth-highlight">
-          <span>MOCK CODE</span>
-          <strong>邮箱 123456 / 手机 654321</strong>
-          <small>发送验证码后会返回 mock 回执，便于联调</small>
-        </article>
-      </div>
-    </section>
+    <AuthAccessPanel :tab="tab" @update:tab="tab = $event">
+      <template #login>
+        <div v-loading="loadingStrategies" class="auth-panel__stack">
+          <AuthStrategySelector
+            v-model="selectedLoginStrategyCode"
+            :strategies="authConfig.loginStrategies"
+            empty-text="当前没有可用登录策略"
+          />
 
-    <section class="auth-panel">
-      <p class="panel-caption">Access Portal</p>
-      <h2 class="panel-heading panel-heading--xl">登录与注册</h2>
+          <AuthLoginStrategyForm
+            v-if="selectedLoginStrategy"
+            :strategy="selectedLoginStrategy"
+            :form="loginForms[selectedLoginStrategy.code]"
+            :submitting="submitting"
+            :sending-code="Boolean(sendingCodes[`LOGIN:${selectedLoginStrategy.code}`])"
+            @submit="submitLogin"
+            @send-code="sendVerificationCode('LOGIN')"
+          />
+        </div>
+      </template>
 
-      <el-tabs v-model="tab">
-        <el-tab-pane label="登录" name="login">
-          <div v-loading="loadingStrategies" class="auth-panel__stack">
-            <AuthStrategySelector
-              v-model="selectedLoginStrategyCode"
-              :strategies="authConfig.loginStrategies"
-              empty-text="当前没有可用登录策略"
-            />
+      <template #register>
+        <div v-loading="loadingStrategies" class="auth-panel__stack">
+          <AuthStrategySelector
+            v-model="selectedRegisterStrategyCode"
+            :strategies="authConfig.registerStrategies"
+            empty-text="当前没有可用注册策略"
+          />
 
-            <AuthLoginStrategyForm
-              v-if="selectedLoginStrategy"
-              :strategy="selectedLoginStrategy"
-              :form="loginForms[selectedLoginStrategy.code]"
-              :submitting="submitting"
-              :sending-code="Boolean(sendingCodes[`LOGIN:${selectedLoginStrategy.code}`])"
-              @submit="submitLogin"
-              @send-code="sendVerificationCode('LOGIN')"
-            />
-          </div>
-        </el-tab-pane>
-
-        <el-tab-pane label="注册" name="register">
-          <div v-loading="loadingStrategies" class="auth-panel__stack">
-            <AuthStrategySelector
-              v-model="selectedRegisterStrategyCode"
-              :strategies="authConfig.registerStrategies"
-              empty-text="当前没有可用注册策略"
-            />
-
-            <AuthRegisterStrategyForm
-              v-if="selectedRegisterStrategy"
-              :strategy="selectedRegisterStrategy"
-              :form="registerForms[selectedRegisterStrategy.code]"
-              :submitting="submitting"
-              :sending-code="Boolean(sendingCodes[`REGISTER:${selectedRegisterStrategy.code}`])"
-              @submit="submitRegister"
-              @send-code="sendVerificationCode('REGISTER')"
-            />
-          </div>
-        </el-tab-pane>
-      </el-tabs>
-    </section>
+          <AuthRegisterStrategyForm
+            v-if="selectedRegisterStrategy"
+            :strategy="selectedRegisterStrategy"
+            :form="registerForms[selectedRegisterStrategy.code]"
+            :submitting="submitting"
+            :sending-code="Boolean(sendingCodes[`REGISTER:${selectedRegisterStrategy.code}`])"
+            @submit="submitRegister"
+            @send-code="sendVerificationCode('REGISTER')"
+          />
+        </div>
+      </template>
+    </AuthAccessPanel>
   </div>
 </template>
 
@@ -85,8 +60,10 @@ import { useRouter } from 'vue-router';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
+import AuthAccessPanel from './components/AuthAccessPanel.vue';
 import AuthLoginStrategyForm from './components/AuthLoginStrategyForm.vue';
 import AuthRegisterStrategyForm from './components/AuthRegisterStrategyForm.vue';
+import AuthShowcasePanel from './components/AuthShowcasePanel.vue';
 import AuthStrategySelector from './components/AuthStrategySelector.vue';
 
 type StrategyFormState = {
@@ -129,6 +106,35 @@ const authConfig = reactive<AuthStrategyCollection>(createEmptyConfig());
 const loginForms = reactive<Record<string, StrategyFormState>>({});
 const registerForms = reactive<Record<string, StrategyFormState>>({});
 const sendingCodes = reactive<Record<string, boolean>>({});
+const capabilityItems = [
+  {
+    eyebrow: 'Identity Strategy',
+    title: '同一入口，多种认证方式',
+    copy: '用户名密码、邮箱验证码、手机号验证码都走策略模式，不再把登录页和流程耦死。',
+  },
+  {
+    eyebrow: 'Client Security',
+    title: '客户端身份纳入校验',
+    copy: 'Web 控制台与其他系统级 client 通过 secret 参与认证链路，token 也能追溯登录来源。',
+  },
+  {
+    eyebrow: 'Audit Reliability',
+    title: '认证与操作全程可审计',
+    copy: '策略、验证码、认证记录和软删除字段共同构成完整追踪面，适合继续向生产演进。',
+  },
+];
+const credentialItems = [
+  {
+    label: 'Username Password',
+    value: 'admin / Admin123!',
+    note: '适合直接进入控制台的管理员账号。',
+  },
+  {
+    label: 'Mock Verification',
+    value: '邮箱 123456 / 手机 654321',
+    note: '验证码发送后会返回 mock 回执，用于本地联调。',
+  },
+];
 
 const selectedLoginStrategy = computed(() =>
   authConfig.loginStrategies.find((item) => item.code === selectedLoginStrategyCode.value) ?? null,
@@ -290,108 +296,17 @@ onMounted(loadStrategies);
 <style scoped lang="scss">
 .auth-layout {
   display: grid;
-  min-height: 100vh;
-  grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
-  background:
-    radial-gradient(circle at top left, rgba(255, 255, 255, 0.68), transparent 38%),
-    linear-gradient(150deg, #f4ebdc 0%, #e7efe6 47%, #dbe7f1 100%);
-}
-
-.auth-showcase {
-  display: grid;
-  align-content: center;
-  gap: 24px;
-  padding: 64px 72px;
-}
-
-.hero-label {
-  margin: 0;
-  color: #607581;
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: 0.32em;
-  text-transform: uppercase;
-}
-
-.auth-showcase h1 {
-  max-width: 720px;
-  color: #17384a;
-  font-size: clamp(36px, 4vw, 58px);
-  line-height: 1.05;
-}
-
-.auth-copy {
-  max-width: 620px;
-  margin: 0;
-  color: #4e6572;
-  font-size: 16px;
-  line-height: 1.8;
-}
-
-.auth-highlight-grid {
-  display: grid;
-  gap: 16px;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-}
-
-.auth-highlight {
-  display: grid;
-  gap: 10px;
-  padding: 18px 20px;
-  border: 1px solid rgba(255, 255, 255, 0.46);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.52);
-  box-shadow: 0 24px 56px rgba(17, 33, 45, 0.08);
-  backdrop-filter: blur(18px);
-}
-
-.auth-highlight span {
-  color: #607581;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
-.auth-highlight strong {
-  color: #17384a;
-  font-size: 20px;
-}
-
-.auth-highlight small {
-  color: #607581;
-  font-size: 13px;
-  line-height: 1.7;
-}
-
-.auth-panel {
-  display: grid;
-  align-content: center;
-  gap: 12px;
-  padding: 48px 40px;
-  background: rgba(255, 255, 255, 0.66);
-  box-shadow: inset 1px 0 0 rgba(255, 255, 255, 0.44);
-  backdrop-filter: blur(20px);
+  grid-template-columns: minmax(0, 1.18fr) minmax(480px, 0.82fr);
 }
 
 .auth-panel__stack {
   display: grid;
   gap: 18px;
-  min-height: 420px;
-  padding-top: 12px;
+  min-height: 430px;
 }
 
 @media (max-width: 1120px) {
   .auth-layout {
-    grid-template-columns: 1fr;
-  }
-
-  .auth-showcase,
-  .auth-panel {
-    padding: 32px 24px;
-  }
-
-  .auth-highlight-grid {
     grid-template-columns: 1fr;
   }
 }

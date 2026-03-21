@@ -1,5 +1,11 @@
 <template>
   <el-form label-position="top" class="page-form-grid auth-form-grid" @submit.prevent="emit('submit')">
+    <div class="auth-form-banner page-form-grid__full">
+      <span class="auth-form-banner__eyebrow">{{ strategy.name }}</span>
+      <strong>{{ strategy.credentialType === 'PASSWORD' ? '使用固定凭据进入控制台' : '使用一次性验证码完成登录' }}</strong>
+      <small>{{ resolveIdentifierPlaceholder(strategy) }}</small>
+    </div>
+
     <el-form-item :label="resolveIdentifierLabel(strategy)" class="page-form-grid__full">
       <el-input
         v-model="form.identifier"
@@ -84,26 +90,57 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
 
 <style scoped lang="scss">
 .auth-form-grid {
-  margin-top: 18px;
+  margin-top: 2px;
+}
+
+.auth-form-banner {
+  display: grid;
+  gap: 6px;
+  padding: 16px 18px;
+  border: 1px solid rgba(18, 43, 57, 0.08);
+  border-radius: 20px;
+  background: linear-gradient(180deg, rgba(247, 243, 236, 0.72) 0%, rgba(255, 255, 255, 0.9) 100%);
+}
+
+.auth-form-banner__eyebrow {
+  color: #7a847d;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.24em;
+  text-transform: uppercase;
+}
+
+.auth-form-banner strong {
+  color: #17384a;
+  font-size: 16px;
+}
+
+.auth-form-banner small {
+  color: #607078;
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .auth-form-hint {
   display: grid;
   gap: 6px;
-  padding: 14px 16px;
-  border: 1px dashed color-mix(in srgb, var(--accent) 30%, var(--line-strong));
-  border-radius: 16px;
-  background: color-mix(in srgb, white 90%, var(--accent) 7%);
-  color: var(--ink-2);
+  padding: 16px 18px;
+  border: 1px dashed rgba(23, 56, 74, 0.22);
+  border-radius: 18px;
+  background: linear-gradient(180deg, rgba(248, 251, 253, 0.98) 0%, rgba(239, 245, 248, 0.98) 100%);
+  color: #4f626d;
   font-size: 12px;
 }
 
 .auth-form-hint strong {
-  color: var(--ink-1);
+  color: #17384a;
   font-size: 13px;
 }
 
 .auth-form-submit {
   width: 100%;
+  min-height: 46px;
+  margin-top: 2px;
+  border-radius: 16px;
 }
 </style>
