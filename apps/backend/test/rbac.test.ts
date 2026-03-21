@@ -56,14 +56,13 @@ const loginAs = async (account: string, password: string) => {
 };
 
 before(async () => {
-  execPrisma('db', 'push', '--skip-generate');
+  execPrisma('db', 'push', '--skip-generate', '--accept-data-loss');
   ({ createApp } = await import('../src/app.ts'));
   ({ prisma } = await import('../src/lib/prisma.ts'));
   ({ redis } = await import('../src/lib/redis.ts'));
   ({ seedDatabase } = await import('../prisma/seed-data.ts'));
   app = createApp();
 });
-
 beforeEach(async () => {
   await seedDatabase(prisma);
 });
@@ -448,10 +447,31 @@ describe('RBAC backend', () => {
 
     assert.equal(updatedUser.body.data.nickname, '目录负责人');
 
-    const uploadResponse = await request(app)
-      .post('/api/files/avatar')
+    const prepareResponse = await request(app)
+      .post('/api/files/presign')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        kind: 'avatar',
+        fileName: 'avatar.png',
+        contentType: 'image/png',
+        size: Buffer.byteLength('avatar-image-content'),
+      })
+      .expect(200);
+
+    assert.equal(prepareResponse.body.data.strategy, 'single');
+    assert.equal(prepareResponse.body.data.provider, 'local');
+
+    const localUploadTarget = new URL(prepareResponse.body.data.parts[0].url);
+    await request(app)
+      .post(localUploadTarget.pathname)
+      .field('token', prepareResponse.body.data.parts[0].fields.token)
       .attach('file', Buffer.from('avatar-image-content'), 'avatar.png')
+      .expect(204);
+
+    const uploadResponse = await request(app)
+      .post('/api/files/callback')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({ fileId: prepareResponse.body.data.fileId })
       .expect(200);
 
     assert.match(uploadResponse.body.data.url, /avatars\//);
@@ -586,3 +606,4 @@ describe('RBAC backend', () => {
     assert.match(updateRoleDenied.body.message, /role\.assign-permission/);
   });
 });
+

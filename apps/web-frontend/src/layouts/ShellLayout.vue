@@ -135,14 +135,14 @@
 
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
-import type { UploadRequestOptions } from 'element-plus';
+import type { UploadProgressEvent, UploadRequestOptions } from 'element-plus';
 import { ElMessage } from 'element-plus';
 import { useRoute, useRouter } from 'vue-router';
 import WorkbenchSettings from '@/components/workbench/WorkbenchSettings.vue';
 import WorkbenchTabs from '@/components/workbench/WorkbenchTabs.vue';
 import { pageRegistry, pageRegistryMap } from '@/meta/pages';
 import { findThemePreset } from '@/themes';
-import { api } from '@/api/client';
+import { uploadAvatarFile } from '@/utils/direct-upload';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkbenchStore } from '@/stores/workbench';
 
@@ -178,12 +178,12 @@ const logout = async () => {
 
 const uploadAvatar = async (options: UploadRequestOptions) => {
   try {
-    const formData = new FormData();
-    formData.append(options.filename || 'file', options.file);
-    await api.files.uploadAvatar(formData);
+    const result = await uploadAvatarFile(options.file, (percent) => {
+      options.onProgress?.({ percent } as UploadProgressEvent);
+    });
     await auth.syncCurrentUser();
     ElMessage.success('头像已更新');
-    options.onSuccess?.({ ok: true });
+    options.onSuccess?.({ ok: true, url: result.url });
   } catch (error: any) {
     ElMessage.error(error?.message ?? '头像上传失败');
     options.onError?.(error);

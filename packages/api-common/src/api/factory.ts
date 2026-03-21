@@ -9,6 +9,12 @@ import type {
   RoleSummary,
 } from '../types/auth.js';
 import type {
+  UploadCallbackPayload,
+  UploadCallbackResult,
+  UploadPreparePayload,
+  UploadPrepareResult,
+} from '../types/files.js';
+import type {
   ActivityLogRecord,
   DashboardSummary,
   LiveMessage,
@@ -65,8 +71,10 @@ export const createApiFactory = (options: ClientOptions) => {
       remove: (id: string) => client.request<{ ok: true }>({ url: `/permissions/${id}`, method: 'DELETE' }),
     },
     files: {
-      uploadAvatar: (payload: FormData) =>
-        client.request<{ url: string }>({ url: '/files/avatar', method: 'POST', data: payload }),
+      prepareUpload: (payload: UploadPreparePayload) =>
+        client.request<UploadPrepareResult>({ url: '/files/presign', method: 'POST', data: payload }),
+      completeUpload: (payload: UploadCallbackPayload) =>
+        client.request<UploadCallbackResult>({ url: '/files/callback', method: 'POST', data: payload }),
     },
     live: {
       history: () => client.request<LiveMessage[]>({ url: '/realtime/messages' }),

@@ -2,6 +2,7 @@ export * from './constants/permissions.js';
 export * from './types/auth.js';
 export * from './types/common.js';
 export * from './types/rbac.js';
+export * from './types/files.js';
 export * from './client/core.js';
 export * from './client/adapters/fetch.js';
 export * from './client/adapters/uni.js';

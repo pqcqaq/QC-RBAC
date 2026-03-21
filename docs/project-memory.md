@@ -18,6 +18,7 @@ The project should remain easy to continue over multiple sessions without re-exp
 ### Monorepo structure
 
 - `apps/backend`
+- `apps/backend-jobs`
 - `packages/api-common`
 - `apps/web-frontend`
 - `apps/app-frontend`
@@ -25,7 +26,7 @@ The project should remain easy to continue over multiple sessions without re-exp
 ### Fixed stack constraints
 
 - Web: Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite 8
-- Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + Multer + OSS + Socket.io
+- Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + Multer + S3-compatible object storage + Socket.io
 - App: must be based on official unibest structure; do not replace it with a custom uni-app scaffold
 - Shared API: `api-common` must provide a custom request layer usable in both Web and uni-app environments
 
@@ -42,6 +43,7 @@ The project should remain easy to continue over multiple sessions without re-exp
 ## 3.1 Monorepo
 
 - `apps/backend`: implemented and tested
+- `apps/backend-jobs`: implemented for scheduled upload reconciliation
 - `packages/api-common`: implemented and shared by backend/web/app
 - `apps/web-frontend`: implemented with mature admin-shell direction
 - `apps/app-frontend`: based on unibest and integrated with shared request/token logic
@@ -57,6 +59,7 @@ Implemented:
 - dashboard summary
 - audit logs
 - avatar upload
+- hourly pending-upload reconciliation worker for S3 single-part uploads
 - Socket.io realtime channel
 - Redis-backed session / permission-related flow
 
@@ -206,6 +209,7 @@ Start here when resuming work:
 Then inspect these implementation anchors if needed:
 
 - backend: `apps/backend`
+- backend jobs: `apps/backend-jobs`
 - shared API: `packages/api-common`
 - web shell: `apps/web-frontend/src/layouts/ShellLayout.vue`
 - page metadata: `apps/web-frontend/src/meta/pages.ts`
