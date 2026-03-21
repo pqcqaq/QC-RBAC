@@ -4,6 +4,19 @@ import { defineStore } from 'pinia';
 import { api } from '@/api/client';
 import { pageRegistryMap } from '@/meta/pages';
 
+const CONSOLE_NAMESPACE = '/console';
+
+const toConsolePath = (path: string) => {
+  const normalizedPath = path.startsWith('/') ? path : `/${path}`;
+  return normalizedPath === '/' ? CONSOLE_NAMESPACE : `${CONSOLE_NAMESPACE}${normalizedPath}`;
+};
+
+const mapConsoleNamespace = (nodes: MenuNodeRecord[]): MenuNodeRecord[] => nodes.map((node) => ({
+  ...node,
+  path: node.path ? toConsolePath(node.path) : node.path,
+  children: mapConsoleNamespace(node.children),
+}));
+
 const flattenPages = (nodes: MenuNodeRecord[]): MenuNodeRecord[] => nodes.flatMap((node) => {
   if (node.type === 'PAGE') {
     return [node, ...flattenPages(node.children)];
@@ -66,14 +79,21 @@ export const useMenuStore = defineStore('menus', {
     addedRouteNames: [] as string[],
   }),
   getters: {
-    navigationTree: (state) => stripActionNodes(state.tree),
-    pageMapByPath: (state) => buildPageLookup(state.tree),
-    breadcrumbsByPath: (state) => buildBreadcrumbMap(state.tree),
+    routedTree: (state) => mapConsoleNamespace(state.tree),
+    navigationTree(): MenuNodeRecord[] {
+      return stripActionNodes(this.routedTree);
+    },
+    pageMapByPath(): Record<string, MenuNodeRecord & { path: string; viewKey: string }> {
+      return buildPageLookup(this.routedTree);
+    },
+    breadcrumbsByPath(): Record<string, MenuNodeRecord[]> {
+      return buildBreadcrumbMap(this.routedTree);
+    },
     pages(): Array<MenuNodeRecord & { path: string; viewKey: string }> {
       return Object.values(this.pageMapByPath);
     },
     homePath(): string {
-      return this.pages[0]?.path ?? '/';
+      return this.pages[0]?.path ?? CONSOLE_NAMESPACE;
     },
     hasPagePath(): (path: string) => boolean {
       return (path: string) => Boolean(this.pageMapByPath[path]);
@@ -123,7 +143,7 @@ export const useMenuStore = defineStore('menus', {
           },
         };
 
-        router.addRoute('shell', routeRecord);
+        router.addRoute('console-root', routeRecord);
         nextRouteNames.push(routeName);
       });
 

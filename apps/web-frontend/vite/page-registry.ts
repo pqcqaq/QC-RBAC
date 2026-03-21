@@ -6,7 +6,7 @@ import type { PageDefinitionInput, PageDefinitionRecord } from '../src/meta/page
 
 const VIRTUAL_MODULE_ID = 'virtual:page-registry';
 const RESOLVED_VIRTUAL_MODULE_ID = `\0${VIRTUAL_MODULE_ID}`;
-const VIEW_ROOT_SEGMENTS = ['src', 'views'] as const;
+const VIEW_ROOT_SEGMENTS = ['src', 'pages'] as const;
 const REQUIRED_PAGE_FIELDS = ['viewKey'] as const;
 
 type SerializableValue =
@@ -344,10 +344,10 @@ const renderVirtualModule = (definitions: PageDefinitionRecord[]) => {
 
   return `const pageDefinitions = ${serializedDefinitions};
 
-const viewModules = import.meta.glob('/src/views/**/*.vue');
+const viewModules = import.meta.glob('/src/pages/**/*.vue');
 
 export const pageRegistry = pageDefinitions.map((item) => {
-  const component = viewModules[\`/src/views/\${item.view}\`];
+  const component = viewModules[\`/src/pages/\${item.view}\`];
   if (!component) {
     throw new Error(\`Missing page view: \${item.view}\`);
   }

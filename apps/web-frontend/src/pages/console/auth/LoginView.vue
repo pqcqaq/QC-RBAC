@@ -243,7 +243,7 @@ const submitLogin = async () => {
     await auth.login(payload);
     resetMockReceipt(form);
     ElMessage.success('登录成功');
-    await router.push('/dashboard');
+    await router.push('/console');
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '登录失败'));
   } finally {
@@ -276,7 +276,7 @@ const submitRegister = async () => {
     await auth.register(payload);
     resetMockReceipt(form);
     ElMessage.success('注册成功');
-    await router.push('/dashboard');
+    await router.push('/console');
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '注册失败'));
   } finally {
