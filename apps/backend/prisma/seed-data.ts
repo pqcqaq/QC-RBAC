@@ -1,9 +1,10 @@
 import 'dotenv/config';
 import bcrypt from 'bcryptjs';
 import type { PrismaClient } from '@prisma/client';
-import { permissionCatalog } from '@rbac/api-common';
+import { bootstrapSystemRbac } from '../src/services/system-rbac.js';
 
 export async function seedDatabase(prisma: PrismaClient) {
+  await prisma.menuNode.deleteMany();
   await prisma.rolePermission.deleteMany();
   await prisma.userRole.deleteMany();
   await prisma.refreshToken.deleteMany();
@@ -14,63 +15,14 @@ export async function seedDatabase(prisma: PrismaClient) {
   await prisma.role.deleteMany();
   await prisma.user.deleteMany();
 
-  const permissions = await Promise.all(
-    permissionCatalog.map((permission) =>
-      prisma.permission.create({
-        data: {
-          code: permission.code,
-          name: permission.name,
-          module: permission.module,
-          action: permission.action,
-          description: `${permission.module} / ${permission.action}`,
-        },
-      }),
-    ),
-  );
+  const { roleByCode } = await bootstrapSystemRbac(prisma);
+  const adminRole = roleByCode.get('super-admin');
+  const managerRole = roleByCode.get('ops-manager');
+  const userRole = roleByCode.get('member');
 
-  const allPermissionIds = permissions.map((item) => item.id);
-  const managerPermissionIds = permissions
-    .filter((item) => !['permission.delete', 'role.delete', 'user.delete'].includes(item.code))
-    .map((item) => item.id);
-  const memberPermissionIds = permissions
-    .filter((item) => ['dashboard.view'].includes(item.code))
-    .map((item) => item.id);
-
-  const adminRole = await prisma.role.create({
-    data: {
-      code: 'super-admin',
-      name: '超级管理员',
-      description: '拥有系统所有权限。',
-      isSystem: true,
-      permissions: {
-        create: allPermissionIds.map((permissionId) => ({ permissionId })),
-      },
-    },
-  });
-
-  const managerRole = await prisma.role.create({
-    data: {
-      code: 'ops-manager',
-      name: '运营经理',
-      description: '可管理用户、角色并查看权限来源。',
-      isSystem: true,
-      permissions: {
-        create: managerPermissionIds.map((permissionId) => ({ permissionId })),
-      },
-    },
-  });
-
-  const userRole = await prisma.role.create({
-    data: {
-      code: 'member',
-      name: '普通成员',
-      description: '可登录并查看自己的权限信息。',
-      isSystem: true,
-      permissions: {
-        create: memberPermissionIds.map((permissionId) => ({ permissionId })),
-      },
-    },
-  });
+  if (!adminRole || !managerRole || !userRole) {
+    throw new Error('System roles bootstrap failed');
+  }
 
   const passwordHashes = {
     admin: await bcrypt.hash('Admin123!', 10),

@@ -126,6 +126,11 @@ import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'AuditView' });
 
+definePage({
+  viewKey: 'audit',
+  keepAlive: true,
+});
+
 type AuditPageState = {
   filters: {
     q: string;

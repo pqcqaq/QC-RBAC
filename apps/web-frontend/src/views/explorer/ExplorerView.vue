@@ -86,6 +86,11 @@ import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'ExplorerView' });
 
+definePage({
+  viewKey: 'explorer',
+  keepAlive: true,
+});
+
 const userOptions = ref<UserRecord[]>([]);
 const source = ref<UserPermissionSource | null>(null);
 const loading = ref(false);

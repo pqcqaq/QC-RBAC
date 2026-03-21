@@ -107,7 +107,7 @@
                   <el-button link @click="openDetail(row)">详情</el-button>
                   <el-button link :disabled="!canExplore" @click="showPermissionSource(row.id)">权限来源</el-button>
                   <el-button link :disabled="!canEdit" @click="openEdit(row)">编辑</el-button>
-                  <el-button link type="danger" :disabled="!canDelete" @click="removeUser(row.id)">删除</el-button>
+                  <el-button link type="danger" :disabled="!canDelete" @click="removeUser(row)">删除</el-button>
                 </el-space>
               </template>
             </el-table-column>
@@ -243,18 +243,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import type { UserPermissionSource, UserRecord } from '@rbac/api-common';
+import { computed, onMounted, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import type { UserFormPayload, UserPermissionSource, UserRecord } from '@rbac/api-common';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
+import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
-import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'UsersView' });
+
+definePage({
+  viewKey: 'users',
+  keepAlive: true,
+});
 
 type UsersPageState = {
   filters: {
@@ -269,13 +275,9 @@ const auth = useAuthStore();
 const users = ref<UserRecord[]>([]);
 const roleOptions = ref<Array<{ id: string; name: string }>>([]);
 const permissionSource = ref<UserPermissionSource | null>(null);
-const dialogVisible = ref(false);
 const drawerVisible = ref(false);
-const detailVisible = ref(false);
-const editingId = ref<string | null>(null);
 const total = ref(0);
 const loading = ref(false);
-const detailUser = ref<UserRecord | null>(null);
 const pageSize = 10;
 
 const { state: pageState } = usePageState<UsersPageState>('page:users', {
@@ -287,13 +289,22 @@ const { state: pageState } = usePageState<UsersPageState>('page:users', {
   page: 1,
 });
 
-const form = reactive({
+type UserEditorForm = {
+  username: string;
+  email: string;
+  nickname: string;
+  password: string;
+  status: 'ACTIVE' | 'DISABLED';
+  roleIds: string[];
+};
+
+const createEmptyForm = (): UserEditorForm => ({
   username: '',
   email: '',
   nickname: '',
   password: '',
-  status: 'ACTIVE' as 'ACTIVE' | 'DISABLED',
-  roleIds: [] as string[],
+  status: 'ACTIVE',
+  roleIds: [],
 });
 
 const canCreate = computed(() => auth.hasPermission('user.create'));
@@ -301,36 +312,6 @@ const canEdit = computed(() => auth.hasPermission('user.update'));
 const canDelete = computed(() => auth.hasPermission('user.delete'));
 const canAssignRoles = computed(() => auth.hasPermission('user.assign-role'));
 const canExplore = computed(() => auth.hasPermission('rbac.explorer'));
-const userContextMenuItems = [
-  {
-    key: 'detail',
-    label: '查看详情',
-    onSelect: (row) => openDetail(row),
-  },
-  {
-    key: 'permission-source',
-    label: '查看权限来源',
-    disabled: () => !canExplore.value,
-    onSelect: (row) => showPermissionSource(row.id),
-  },
-  {
-    key: 'edit-divider',
-    type: 'divider',
-  },
-  {
-    key: 'edit',
-    label: '编辑用户',
-    disabled: () => !canEdit.value,
-    onSelect: (row) => openEdit(row),
-  },
-  {
-    key: 'delete',
-    label: '删除用户',
-    disabled: () => !canDelete.value,
-    danger: true,
-    onSelect: (row) => removeUser(row.id),
-  },
-] satisfies ContextMenuItem<UserRecord>[];
 
 const stats = computed(() => {
   const activeCount = users.value.filter((item) => item.status === 'ACTIVE').length;
@@ -345,15 +326,6 @@ const stats = computed(() => {
 });
 
 const formatTime = (value: string) => new Date(value).toLocaleString();
-
-const resetForm = () => {
-  form.username = '';
-  form.email = '';
-  form.nickname = '';
-  form.password = '';
-  form.status = 'ACTIVE';
-  form.roleIds = [];
-};
 
 const loadUsers = async () => {
   try {
@@ -396,78 +368,6 @@ const resetFilters = async () => {
   await loadUsers();
 };
 
-const openCreate = () => {
-  editingId.value = null;
-  resetForm();
-  dialogVisible.value = true;
-};
-
-const openEdit = (row: UserRecord) => {
-  editingId.value = row.id;
-  form.username = row.username;
-  form.email = row.email;
-  form.nickname = row.nickname;
-  form.password = '';
-  form.status = row.status;
-  form.roleIds = row.roles.map((role) => role.id);
-  dialogVisible.value = true;
-};
-
-const saveUser = async () => {
-  try {
-    if (!form.username || !form.nickname || !form.email) {
-      ElMessage.warning('请完整填写用户名、昵称和邮箱');
-      return;
-    }
-
-    if (!editingId.value && !form.password) {
-      ElMessage.warning('创建用户时必须填写密码');
-      return;
-    }
-
-    if (!form.roleIds.length) {
-      ElMessage.warning('至少为用户分配一个角色');
-      return;
-    }
-
-    const payload = {
-      username: form.username,
-      email: form.email,
-      nickname: form.nickname,
-      password: form.password || undefined,
-      status: form.status,
-      roleIds: form.roleIds,
-    };
-
-    if (editingId.value) {
-      await api.users.update(editingId.value, payload);
-      ElMessage.success('用户已更新');
-    } else {
-      await api.users.create({ ...payload, password: form.password });
-      ElMessage.success('用户已创建');
-    }
-
-    dialogVisible.value = false;
-    await loadUsers();
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '保存用户失败'));
-  }
-};
-
-const removeUser = async (id: string) => {
-  try {
-    await ElMessageBox.confirm('删除后不可恢复，是否继续？', '删除用户', { type: 'warning' });
-    await api.users.remove(id);
-    ElMessage.success('用户已删除');
-    await loadUsers();
-  } catch (error: unknown) {
-    if (isDialogCancellation(error)) {
-      return;
-    }
-    ElMessage.error(getErrorMessage(error, '删除用户失败'));
-  }
-};
-
 const showPermissionSource = async (id: string) => {
   try {
     permissionSource.value = await api.users.permissionSources(id);
@@ -477,14 +377,107 @@ const showPermissionSource = async (id: string) => {
   }
 };
 
-const openDetail = async (row: UserRecord) => {
-  try {
-    detailUser.value = await api.users.detail(row.id);
-    detailVisible.value = true;
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '加载用户详情失败'));
-  }
-};
+const {
+  dialogVisible,
+  editingId,
+  form,
+  openCreate,
+  openEdit,
+  save: saveUser,
+} = useResourceEditor<UserRecord, UserEditorForm, UserFormPayload>({
+  createEmptyForm,
+  getId: (row) => row.id,
+  assignForm: (currentForm, row) => {
+    currentForm.username = row.username;
+    currentForm.email = row.email;
+    currentForm.nickname = row.nickname;
+    currentForm.password = '';
+    currentForm.status = row.status;
+    currentForm.roleIds = row.roles.map((role) => role.id);
+  },
+  buildPayload: (currentForm) => ({
+    username: currentForm.username,
+    email: currentForm.email,
+    nickname: currentForm.nickname,
+    password: currentForm.password || undefined,
+    status: currentForm.status,
+    roleIds: currentForm.roleIds,
+  }),
+  create: (payload) => api.users.create(payload),
+  update: (id, payload) => api.users.update(id, payload),
+  validate: (currentForm, currentEditingId) => {
+    if (!currentForm.username || !currentForm.nickname || !currentForm.email) {
+      return '请完整填写用户名、昵称和邮箱';
+    }
+
+    if (!currentEditingId && !currentForm.password) {
+      return '创建用户时必须填写密码';
+    }
+
+    if (!currentForm.roleIds.length) {
+      return '至少为用户分配一个角色';
+    }
+
+    return undefined;
+  },
+  afterSaved: loadUsers,
+  messages: {
+    createSuccess: '用户已创建',
+    updateSuccess: '用户已更新',
+    saveError: '保存用户失败',
+  },
+});
+
+const {
+  detailVisible,
+  detail: detailUser,
+  openDetail,
+} = useResourceDetail<UserRecord, UserRecord>({
+  getId: (row) => row.id,
+  loadDetail: (id) => api.users.detail(id),
+  errorMessage: '加载用户详情失败',
+});
+
+const { removeRecord: removeUser } = useResourceRemoval<UserRecord>({
+  getId: (row) => row.id,
+  remove: (id) => api.users.remove(id),
+  confirmTitle: '删除用户',
+  confirmMessage: '删除后不可恢复，是否继续？',
+  successMessage: '用户已删除',
+  errorMessage: '删除用户失败',
+  afterRemoved: loadUsers,
+});
+
+const userContextMenuItems = [
+  {
+    key: 'detail',
+    label: '查看详情',
+    onSelect: (row) => openDetail(row),
+  },
+  {
+    key: 'permission-source',
+    label: '查看权限来源',
+    disabled: () => !canExplore.value,
+    onSelect: (row) => showPermissionSource(row.id),
+  },
+  {
+    key: 'edit-divider',
+    type: 'divider',
+  },
+  {
+    key: 'edit',
+    label: '编辑用户',
+    disabled: () => !canEdit.value,
+    onSelect: (row) => openEdit(row),
+  },
+  {
+    key: 'delete',
+    label: '删除用户',
+    disabled: () => !canDelete.value,
+    danger: true,
+    onSelect: (row) => removeUser(row),
+  },
+] satisfies ContextMenuItem<UserRecord>[];
 
 const changePage = async (value: number) => {
   pageState.page = value;

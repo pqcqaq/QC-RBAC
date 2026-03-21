@@ -15,6 +15,7 @@ export const useAuthStore = defineStore('auth', {
     setSession(payload: { user: CurrentUser; tokens: { accessToken: string; refreshToken: string } }) {
       persistTokens(payload.tokens);
       this.user = payload.user;
+      this.ready = true;
     },
     setUser(user: CurrentUser) {
       this.user = user;
@@ -22,6 +23,7 @@ export const useAuthStore = defineStore('auth', {
     clearSession() {
       clearStoredTokens();
       this.user = null;
+      this.ready = true;
     },
     hasPermission(permission: string) {
       return this.permissions.includes(permission);

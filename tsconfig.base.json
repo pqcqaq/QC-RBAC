@@ -8,11 +8,9 @@
     "resolveJsonModule": true,
     "skipLibCheck": true,
     "strict": true,
-    "ignoreDeprecations": "5.0",
-    "baseUrl": ".",
     "paths": {
-      "@rbac/api-common": ["packages/api-common/src/index.ts"],
-      "@rbac/api-common/*": ["packages/api-common/src/*"]
+      "@rbac/api-common": ["./packages/api-common/src/index.ts"],
+      "@rbac/api-common/*": ["./packages/api-common/src/*"]
     }
   }
 }

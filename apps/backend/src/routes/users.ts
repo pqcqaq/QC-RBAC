@@ -2,14 +2,14 @@ import { Router } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { logActivity } from '../utils/audit.js';
 import { hashPassword } from '../utils/password.js';
 import { getPermissionSource, invalidatePermissionCache } from '../utils/rbac.js';
+import { publishRbacMutation } from '../utils/rbac-mutation.js';
+import { toRoleSummary, toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records.js';
 
 const userPayloadSchema = z.object({
   username: z.string().min(3).max(24),
@@ -20,34 +20,7 @@ const userPayloadSchema = z.object({
   roleIds: z.array(z.string()).min(1),
 });
 
-const userWithRolesInclude = {
-  roles: {
-    include: {
-      role: true,
-    },
-  },
-} satisfies Prisma.UserInclude;
-
-type UserWithRoles = Prisma.UserGetPayload<{
-  include: typeof userWithRolesInclude;
-}>;
-
-const toUserRecord = (user: UserWithRoles) => ({
-  id: user.id,
-  username: user.username,
-  email: user.email,
-  nickname: user.nickname,
-  avatar: user.avatar,
-  status: user.status,
-  createdAt: user.createdAt.toISOString(),
-  updatedAt: user.updatedAt.toISOString(),
-  roles: user.roles.map(({ role }) => ({
-    id: role.id,
-    code: role.code,
-    name: role.name,
-    description: role.description,
-  })),
-});
+const userWithRolesInclude = userRoleSummaryInclude;
 
 const sameStringSet = (left: string[], right: string[]) => {
   if (left.length !== right.length) {
@@ -69,7 +42,7 @@ usersRouter.get(
       orderBy: { name: 'asc' },
       select: { id: true, code: true, name: true, description: true },
     });
-    return ok(res, roles, 'Role options');
+    return ok(res, roles.map(toRoleSummary), 'Role options');
   }),
 );
 
@@ -175,16 +148,14 @@ usersRouter.post(
       include: userWithRolesInclude,
     });
 
-    await invalidatePermissionCache([user.id]);
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'user.create',
       target: user.email,
       detail: { roleIds: payload.roleIds },
+      affectedUserIds: [user.id],
+      reason: 'User created',
     });
-    emitAuditEvent({ action: 'user.create', actor: actor.nickname, target: user.email });
-    emitRbacUpdated([user.id], 'User created');
 
     return ok(res, toUserRecord(user), 'User created');
   }),
@@ -228,16 +199,14 @@ usersRouter.put(
       include: userWithRolesInclude,
     });
 
-    await invalidatePermissionCache([user.id]);
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'user.update',
       target: user.email,
       detail: { roleIds: payload.roleIds },
+      affectedUserIds: [user.id],
+      reason: 'User profile updated',
     });
-    emitAuditEvent({ action: 'user.update', actor: actor.nickname, target: user.email });
-    emitRbacUpdated([user.id], 'User profile updated');
 
     return ok(res, toUserRecord(user), 'User updated');
   }),
@@ -259,15 +228,13 @@ usersRouter.delete(
     }
 
     await prisma.user.delete({ where: { id: userId } });
-    await invalidatePermissionCache([userId]);
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'user.delete',
       target: existed.email,
+      affectedUserIds: [userId],
+      reason: 'User deleted',
     });
-    emitAuditEvent({ action: 'user.delete', actor: actor.nickname, target: existed.email });
-    emitRbacUpdated([userId], 'User deleted');
 
     return ok(res, { ok: true }, 'User deleted');
   }),

@@ -1,6 +1,14 @@
 import { defineStore } from 'pinia';
-import { applyThemePreset, defaultThemePresetId } from '@/themes';
+import {
+  applySidebarAppearance,
+  applyThemePreset,
+  defaultSidebarAppearance,
+  defaultThemePresetId,
+  type SidebarAppearance,
+} from '@/themes';
 import { pageRegistryMap } from '@/meta/pages';
+import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
+import { useMenuStore } from '@/stores/menus';
 
 export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
 
@@ -9,11 +17,14 @@ export type VisitedTab = {
   name: string;
   title: string;
   code: string;
+  icon: string;
   closable: boolean;
 };
 
 type WorkbenchSnapshot = {
   themePresetId: string;
+  sidebarAppearance: SidebarAppearance;
+  sidebarCollapsed: boolean;
   layoutMode: WorkbenchLayoutMode;
   visitedTabs: VisitedTab[];
   cachedViewNames: string[];
@@ -22,19 +33,13 @@ type WorkbenchSnapshot = {
 
 const STORAGE_KEY = 'rbac-workbench';
 
-const dashboardTab: VisitedTab = {
-  path: '/dashboard',
-  name: 'dashboard',
-  title: '战略总览',
-  code: 'OV',
-  closable: false,
-};
-
 const createDefaultState = (): WorkbenchSnapshot => ({
   themePresetId: defaultThemePresetId,
+  sidebarAppearance: defaultSidebarAppearance,
+  sidebarCollapsed: false,
   layoutMode: 'sidebar',
-  visitedTabs: [{ ...dashboardTab }],
-  cachedViewNames: ['DashboardView'],
+  visitedTabs: [],
+  cachedViewNames: [],
   pageStateMap: {},
 });
 
@@ -62,31 +67,37 @@ const toComponentName = (routeName?: string) => {
   if (!routeName) {
     return '';
   }
-  return `${routeName.charAt(0).toUpperCase()}${routeName.slice(1)}View`;
+  const pageDefinition = pageRegistryMap[routeName];
+  return pageDefinition?.cacheName ?? '';
 };
 
 const buildTabFromPath = (path: string): VisitedTab | null => {
-  if (path === dashboardTab.path) {
-    return { ...dashboardTab };
-  }
-
-  const registry = pageRegistryMap[path];
-  if (!registry) {
+  const menus = useMenuStore();
+  const page = menus.getPageByPath(path);
+  if (!page) {
     return null;
   }
 
   return {
     path,
-    name: registry.name,
-    title: registry.title,
-    code: registry.code,
-    closable: true,
+    name: page.viewKey,
+    title: page.title,
+    code: page.code,
+    icon: resolveMenuNodeIcon(page),
+    closable: path !== menus.homePath,
   };
 };
 
 const normalizeVisitedTabs = (tabs: VisitedTab[] = []) => {
-  const normalized: VisitedTab[] = [{ ...dashboardTab }];
-  const seen = new Set<string>([dashboardTab.path]);
+  const menus = useMenuStore();
+  const normalized: VisitedTab[] = [];
+  const seen = new Set<string>();
+  const homeTab = menus.homePath ? buildTabFromPath(menus.homePath) : null;
+
+  if (homeTab) {
+    normalized.push(homeTab);
+    seen.add(homeTab.path);
+  }
 
   tabs.forEach((tab) => {
     const next = buildTabFromPath(tab.path);
@@ -125,9 +136,11 @@ export const useWorkbenchStore = defineStore('workbench', {
     initialized: false,
     settingsVisible: false,
     themePresetId: defaultThemePresetId,
+    sidebarAppearance: defaultSidebarAppearance as SidebarAppearance,
+    sidebarCollapsed: false,
     layoutMode: 'sidebar' as WorkbenchLayoutMode,
-    visitedTabs: [{ ...dashboardTab }] as VisitedTab[],
-    cachedViewNames: ['DashboardView'] as string[],
+    visitedTabs: [] as VisitedTab[],
+    cachedViewNames: [] as string[],
     pageStateMap: {} as Record<string, unknown>,
   }),
   getters: {
@@ -141,6 +154,8 @@ export const useWorkbenchStore = defineStore('workbench', {
 
       const snapshot: WorkbenchSnapshot = {
         themePresetId: this.themePresetId,
+        sidebarAppearance: this.sidebarAppearance,
+        sidebarCollapsed: this.sidebarCollapsed,
         layoutMode: this.layoutMode,
         visitedTabs: this.visitedTabs,
         cachedViewNames: this.cachedViewNames,
@@ -157,20 +172,45 @@ export const useWorkbenchStore = defineStore('workbench', {
         return;
       }
 
+      const menus = useMenuStore();
       const snapshot = safeParse();
       this.themePresetId = snapshot.themePresetId;
+      this.sidebarAppearance = snapshot.sidebarAppearance === 'light' ? 'light' : 'dark';
+      this.sidebarCollapsed = Boolean(snapshot.sidebarCollapsed);
       this.layoutMode = snapshot.layoutMode === 'tabs' ? 'tabs' : 'sidebar';
-      this.visitedTabs = normalizeVisitedTabs(snapshot.visitedTabs);
-      this.syncCacheFromTabs();
+      this.visitedTabs = menus.ready ? normalizeVisitedTabs(snapshot.visitedTabs) : (snapshot.visitedTabs ?? []);
+      this.cachedViewNames = menus.ready ? resolveCacheNames(this.visitedTabs) : (snapshot.cachedViewNames ?? []);
       this.pageStateMap = snapshot.pageStateMap ?? {};
       applyThemePreset(this.themePresetId);
+      applySidebarAppearance(this.sidebarAppearance);
       this.initialized = true;
+      this.persist();
+    },
+    syncWithMenus() {
+      if (!this.initialized) {
+        return;
+      }
+
+      this.visitedTabs = normalizeVisitedTabs(this.visitedTabs);
+      this.syncCacheFromTabs();
       this.persist();
     },
     setThemePreset(themePresetId: string) {
       this.themePresetId = themePresetId;
       applyThemePreset(themePresetId);
       this.persist();
+    },
+    setSidebarAppearance(sidebarAppearance: SidebarAppearance) {
+      this.sidebarAppearance = sidebarAppearance;
+      applySidebarAppearance(sidebarAppearance);
+      this.persist();
+    },
+    setSidebarCollapsed(sidebarCollapsed: boolean) {
+      this.sidebarCollapsed = sidebarCollapsed;
+      this.persist();
+    },
+    toggleSidebarCollapsed() {
+      this.setSidebarCollapsed(!this.sidebarCollapsed);
     },
     setLayoutMode(layoutMode: WorkbenchLayoutMode) {
       this.layoutMode = layoutMode;
@@ -200,7 +240,8 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.persist();
     },
     removeVisitedTab(path: string) {
-      if (path === dashboardTab.path) {
+      const menus = useMenuStore();
+      if (path === menus.homePath) {
         return;
       }
 
@@ -208,29 +249,33 @@ export const useWorkbenchStore = defineStore('workbench', {
       syncTabState(this);
     },
     closeLeftTabs(path: string) {
+      const menus = useMenuStore();
       const targetIndex = this.visitedTabs.findIndex((item) => item.path === path);
       if (targetIndex <= 0) {
         return;
       }
 
-      this.visitedTabs = this.visitedTabs.filter((item, index) => index >= targetIndex || item.path === dashboardTab.path);
+      this.visitedTabs = this.visitedTabs.filter((item, index) => index >= targetIndex || item.path === menus.homePath);
       syncTabState(this);
     },
     closeRightTabs(path: string) {
+      const menus = useMenuStore();
       const targetIndex = this.visitedTabs.findIndex((item) => item.path === path);
       if (targetIndex === -1) {
         return;
       }
 
-      this.visitedTabs = this.visitedTabs.filter((item, index) => index <= targetIndex || item.path === dashboardTab.path);
+      this.visitedTabs = this.visitedTabs.filter((item, index) => index <= targetIndex || item.path === menus.homePath);
       syncTabState(this);
     },
     closeOtherTabs(path: string) {
-      this.visitedTabs = this.visitedTabs.filter((item) => item.path === dashboardTab.path || item.path === path);
+      const menus = useMenuStore();
+      this.visitedTabs = this.visitedTabs.filter((item) => item.path === menus.homePath || item.path === path);
       syncTabState(this);
     },
     closeAllTabs() {
-      this.visitedTabs = [{ ...dashboardTab }];
+      const homeTab = buildTabFromPath(useMenuStore().homePath);
+      this.visitedTabs = homeTab ? [homeTab] : [];
       syncTabState(this);
     },
     setPageState(key: string, payload: unknown) {
@@ -242,18 +287,26 @@ export const useWorkbenchStore = defineStore('workbench', {
     },
     resetWorkbenchPreferences(activePath?: string) {
       const next = createDefaultState();
-      const activeTab = activePath ? buildTabFromPath(activePath) : null;
-      if (activeTab && activeTab.path !== dashboardTab.path) {
-        next.visitedTabs.push(activeTab);
-        next.cachedViewNames = resolveCacheNames(next.visitedTabs);
+      const homeTab = buildTabFromPath(useMenuStore().homePath);
+      if (homeTab) {
+        next.visitedTabs.push(homeTab);
       }
 
+      const activeTab = activePath ? buildTabFromPath(activePath) : null;
+      if (activeTab && !next.visitedTabs.some((tab) => tab.path === activeTab.path)) {
+        next.visitedTabs.push(activeTab);
+      }
+      next.cachedViewNames = resolveCacheNames(next.visitedTabs);
+
       this.themePresetId = next.themePresetId;
+      this.sidebarAppearance = next.sidebarAppearance;
+      this.sidebarCollapsed = next.sidebarCollapsed;
       this.layoutMode = next.layoutMode;
       this.visitedTabs = next.visitedTabs.map((tab) => ({ ...tab }));
       this.cachedViewNames = [...next.cachedViewNames];
       this.pageStateMap = {};
       applyThemePreset(this.themePresetId);
+      applySidebarAppearance(this.sidebarAppearance);
       this.persist();
     },
   },

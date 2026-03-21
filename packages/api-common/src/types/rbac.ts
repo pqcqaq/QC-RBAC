@@ -57,6 +57,41 @@ export interface PermissionSourceGroup {
   permissions: PermissionSummary[];
 }
 
+export type MenuNodeType = 'DIRECTORY' | 'PAGE' | 'ACTION';
+
+export interface MenuNodeRecord {
+  id: string;
+  code: string;
+  type: MenuNodeType;
+  title: string;
+  caption?: string;
+  description?: string;
+  icon?: string;
+  path?: string;
+  viewKey?: string;
+  sortOrder: number;
+  parentId?: string | null;
+  permissionId?: string | null;
+  permission?: PermissionSummary;
+  children: MenuNodeRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MenuNodeFormPayload {
+  code: string;
+  type: MenuNodeType;
+  title: string;
+  caption?: string | null;
+  description?: string | null;
+  icon?: string | null;
+  path?: string | null;
+  viewKey?: string | null;
+  sortOrder: number;
+  parentId?: string | null;
+  permissionId?: string | null;
+}
+
 export interface UserPermissionSource {
   user: UserRecord;
   groups: PermissionSourceGroup[];

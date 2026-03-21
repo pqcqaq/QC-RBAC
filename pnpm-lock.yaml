@@ -330,6 +330,9 @@ importers:
 
   apps/web-frontend:
     dependencies:
+      '@iconify/vue':
+        specifier: ^5.0.0
+        version: 5.0.0(vue@3.5.30(typescript@5.9.3))
       '@rbac/api-common':
         specifier: workspace:*
         version: link:../../packages/api-common
@@ -349,9 +352,15 @@ importers:
         specifier: ^4.5.1
         version: 4.6.4(vue@3.5.30(typescript@5.9.3))
     devDependencies:
+      '@iconify-json/carbon':
+        specifier: ^1.2.19
+        version: 1.2.19
       '@types/node':
         specifier: ^24.3.0
         version: 24.12.0
+      '@unocss/preset-icons':
+        specifier: ^66.6.7
+        version: 66.6.7
       '@vitejs/plugin-vue':
         specifier: ^6.0.5
         version: 6.0.5(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))
@@ -361,6 +370,9 @@ importers:
       typescript:
         specifier: ^5.9.2
         version: 5.9.3
+      unocss:
+        specifier: 66.0.0
+        version: 66.0.0(postcss@8.5.8)(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))
       unplugin-auto-import:
         specifier: ^20.3.0
         version: 20.3.0(@vueuse/core@12.0.0(typescript@5.9.3))
@@ -1543,6 +1555,11 @@ packages:
   '@iconify/utils@3.1.0':
     resolution: {integrity: sha512-Zlzem1ZXhI1iHeeERabLNzBHdOa4VhQbqAcOQaMKuTuyZCpwKbC2R4Dd0Zo3g9EAc+Y4fiarO8HIHRAth7+skw==}
 
+  '@iconify/vue@5.0.0':
+    resolution: {integrity: sha512-C+KuEWIF5nSBrobFJhT//JS87OZ++QDORB6f2q2Wm6fl2mueSTpFBeBsveK0KW9hWiZ4mNiPjsh6Zs4jjdROSg==}
+    peerDependencies:
+      vue: '>=3'
+
   '@intlify/core-base@9.1.9':
     resolution: {integrity: sha512-x5T0p/Ja0S8hs5xs+ImKyYckVkL4CzcEXykVYYV6rcbXxJTe2o58IquSqX9bdncVKbRZP7GlBU1EcRaQEEJ+vw==}
     engines: {node: '>= 10'}
@@ -2614,6 +2631,9 @@ packages:
 
   '@unocss/preset-icons@66.0.0':
     resolution: {integrity: sha512-6ObwTvEGuPBbKWRoMMiDioHtwwQTFI5oojFLJ32Y8tW6TdXvBLkO88d7qpgQxEjgVt4nJrqF1WEfR4niRgBm0Q==}
+
+  '@unocss/preset-icons@66.6.7':
+    resolution: {integrity: sha512-mGAOyI/qz1pZUV1BcOtWAMm5czdFCjhFCYcDk0KY+Jw37pKRVSQRFeh4gpHuYKmehGv36caLyVrWXpTAwRBdFQ==}
 
   '@unocss/preset-legacy-compat@66.0.0':
     resolution: {integrity: sha512-NpMyzNVkVDGt9nO1n7dZLBDvzAkUu2hCR3ePY//xnUn7Syl5SwPdCEuc7FzHHb/rdSVVsip1cvFEaThO2FnUXQ==}
@@ -7179,6 +7199,11 @@ snapshots:
       '@iconify/types': 2.0.0
       mlly: 1.8.2
 
+  '@iconify/vue@5.0.0(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
+      '@iconify/types': 2.0.0
+      vue: 3.5.30(typescript@5.9.3)
+
   '@intlify/core-base@9.1.9':
     dependencies:
       '@intlify/devtools-if': 9.1.9
@@ -8408,6 +8433,16 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
+  '@unocss/astro@66.0.0(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
+      '@unocss/core': 66.0.0
+      '@unocss/reset': 66.0.0
+      '@unocss/vite': 66.0.0(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))
+    optionalDependencies:
+      vite: 8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - vue
+
   '@unocss/cli@66.0.0':
     dependencies:
       '@ampproject/remapping': 2.3.0
@@ -8452,6 +8487,17 @@ snapshots:
     transitivePeerDependencies:
       - vue
 
+  '@unocss/inspector@66.0.0(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
+      '@unocss/core': 66.0.0
+      '@unocss/rule-utils': 66.0.0
+      colorette: 2.0.20
+      gzip-size: 6.0.0
+      sirv: 3.0.2
+      vue-flow-layout: 0.1.1(vue@3.5.30(typescript@5.9.3))
+    transitivePeerDependencies:
+      - vue
+
   '@unocss/postcss@66.0.0(postcss@8.5.8)':
     dependencies:
       '@unocss/config': 66.0.0
@@ -8472,6 +8518,12 @@ snapshots:
       ofetch: 1.5.1
     transitivePeerDependencies:
       - supports-color
+
+  '@unocss/preset-icons@66.6.7':
+    dependencies:
+      '@iconify/utils': 3.1.0
+      '@unocss/core': 66.6.7
+      ofetch: 1.5.1
 
   '@unocss/preset-legacy-compat@66.0.0':
     dependencies:
@@ -8536,7 +8588,7 @@ snapshots:
 
   '@unocss/rule-utils@66.0.0':
     dependencies:
-      '@unocss/core': 66.0.0
+      '@unocss/core': 66.6.7
       magic-string: 0.30.21
 
   '@unocss/rule-utils@66.6.7':
@@ -8573,6 +8625,20 @@ snapshots:
       tinyglobby: 0.2.15
       unplugin-utils: 0.2.5
       vite: 5.2.8(@types/node@20.19.37)(lightningcss@1.32.0)(sass@1.77.8)(terser@5.46.1)
+    transitivePeerDependencies:
+      - vue
+
+  '@unocss/vite@66.0.0(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))':
+    dependencies:
+      '@ampproject/remapping': 2.3.0
+      '@unocss/config': 66.0.0
+      '@unocss/core': 66.0.0
+      '@unocss/inspector': 66.0.0(vue@3.5.30(typescript@5.9.3))
+      chokidar: 3.6.0
+      magic-string: 0.30.21
+      tinyglobby: 0.2.15
+      unplugin-utils: 0.2.5
+      vite: 8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
     transitivePeerDependencies:
       - vue
 
@@ -10993,6 +11059,33 @@ snapshots:
       - supports-color
       - vue
 
+  unocss@66.0.0(postcss@8.5.8)(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3)):
+    dependencies:
+      '@unocss/astro': 66.0.0(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))
+      '@unocss/cli': 66.0.0
+      '@unocss/core': 66.0.0
+      '@unocss/postcss': 66.0.0(postcss@8.5.8)
+      '@unocss/preset-attributify': 66.0.0
+      '@unocss/preset-icons': 66.0.0
+      '@unocss/preset-mini': 66.0.0
+      '@unocss/preset-tagify': 66.0.0
+      '@unocss/preset-typography': 66.0.0
+      '@unocss/preset-uno': 66.0.0
+      '@unocss/preset-web-fonts': 66.0.0
+      '@unocss/preset-wind': 66.0.0
+      '@unocss/preset-wind3': 66.0.0
+      '@unocss/transformer-attributify-jsx': 66.0.0
+      '@unocss/transformer-compile-class': 66.0.0
+      '@unocss/transformer-directives': 66.0.0
+      '@unocss/transformer-variant-group': 66.0.0
+      '@unocss/vite': 66.0.0(vite@8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2))(vue@3.5.30(typescript@5.9.3))
+    optionalDependencies:
+      vite: 8.0.1(@types/node@24.12.0)(esbuild@0.27.4)(jiti@2.6.1)(sass@1.77.8)(terser@5.46.1)(tsx@4.21.0)(yaml@2.8.2)
+    transitivePeerDependencies:
+      - postcss
+      - supports-color
+      - vue
+
   unpipe@1.0.0: {}
 
   unplugin-auto-import@0.16.7(@vueuse/core@12.0.0(typescript@5.8.3))(rollup@4.59.0):
@@ -11145,6 +11238,10 @@ snapshots:
   vue-flow-layout@0.1.1(vue@3.4.21(typescript@5.8.3)):
     dependencies:
       vue: 3.4.21(typescript@5.8.3)
+
+  vue-flow-layout@0.1.1(vue@3.5.30(typescript@5.9.3)):
+    dependencies:
+      vue: 3.5.30(typescript@5.9.3)
 
   vue-i18n@9.1.9(vue@3.4.21(typescript@5.8.3)):
     dependencies:

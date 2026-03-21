@@ -1,8 +1,9 @@
-import type { PermissionRecord, RoleRecord, UserPermissionSource, UserRecord } from '@rbac/api-common';
+import type { PermissionRecord, UserPermissionSource } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { cacheDel, cacheGet, cacheSet } from '../lib/redis.js';
 import { notFound } from './errors.js';
+import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records.js';
 
 const userInclude = {
   roles: {
@@ -22,65 +23,17 @@ const userInclude = {
 
 type UserWithRelations = Prisma.UserGetPayload<{ include: typeof userInclude }>;
 
-const mapPermission = (
-  permission: Prisma.PermissionGetPayload<Record<string, never>>,
-): PermissionRecord => ({
-  id: permission.id,
-  code: permission.code,
-  name: permission.name,
-  module: permission.module,
-  action: permission.action,
-  description: permission.description ?? undefined,
-  createdAt: permission.createdAt.toISOString(),
-  updatedAt: permission.updatedAt.toISOString(),
-});
-
 const dedupePermissions = (user: UserWithRelations) => {
   const map = new Map<string, PermissionRecord>();
   user.roles.forEach(({ role }) => {
     role.permissions.forEach(({ permission }) => {
-      map.set(permission.id, mapPermission(permission));
+      map.set(permission.id, toPermissionRecord(permission));
     });
   });
   return [...map.values()];
 };
 
-export const mapUserRecord = (user: UserWithRelations): UserRecord => ({
-  id: user.id,
-  username: user.username,
-  email: user.email,
-  nickname: user.nickname,
-  avatar: user.avatar,
-  status: user.status,
-  createdAt: user.createdAt.toISOString(),
-  updatedAt: user.updatedAt.toISOString(),
-  roles: user.roles.map(({ role }) => ({
-    id: role.id,
-    code: role.code,
-    name: role.name,
-    description: role.description,
-  })),
-});
-
-export const mapRoleRecord = (
-  role: Prisma.RoleGetPayload<{
-    include: {
-      permissions: { include: { permission: true } };
-      _count: { select: { users: true; permissions: true } };
-    };
-  }>,
-): RoleRecord => ({
-  id: role.id,
-  code: role.code,
-  name: role.name,
-  description: role.description,
-  isSystem: role.isSystem,
-  userCount: role._count.users,
-  permissionCount: role._count.permissions,
-  permissions: role.permissions.map(({ permission }) => mapPermission(permission)),
-  createdAt: role.createdAt.toISOString(),
-  updatedAt: role.updatedAt.toISOString(),
-});
+export const mapUserRecord = toUserRecord;
 
 export const getUserWithRelations = async (userId: string) => {
   const user = await prisma.user.findUnique({
@@ -116,7 +69,7 @@ export const invalidatePermissionCache = async (userIds: string[]) => {
 export const buildCurrentUser = async (userId: string) => {
   const user = await getUserWithRelations(userId);
   return {
-    ...mapUserRecord(user),
+    ...toUserRecord(user),
     permissions: await getUserPermissionCodes(userId),
   };
 };
@@ -124,15 +77,10 @@ export const buildCurrentUser = async (userId: string) => {
 export const getPermissionSource = async (userId: string): Promise<UserPermissionSource> => {
   const user = await getUserWithRelations(userId);
   return {
-    user: mapUserRecord(user),
+    user: toUserRecord(user),
     groups: user.roles.map(({ role }) => ({
-      role: {
-        id: role.id,
-        code: role.code,
-        name: role.name,
-        description: role.description,
-      },
-      permissions: role.permissions.map(({ permission }) => mapPermission(permission)),
+      role: toRoleSummary(role),
+      permissions: role.permissions.map(({ permission }) => toPermissionRecord(permission)),
     })),
     effectivePermissions: dedupePermissions(user),
   };
@@ -155,4 +103,14 @@ export const findAffectedUserIdsByRoleIds = async (roleIds: string[]) => {
   });
 
   return [...new Set(rows.map((item) => item.userId))];
+};
+
+export const findAllUserIds = async () => {
+  const rows = await prisma.user.findMany({
+    select: {
+      id: true,
+    },
+  });
+
+  return rows.map((item) => item.id);
 };

@@ -1,11 +1,11 @@
-import type { ApiEnvelope } from '../types/common.js';
+import type { ApiEnvelope, QueryParams } from '../types/common.js';
 
 export interface RequestConfig {
   url: string;
   method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
   data?: unknown;
   headers?: Record<string, string>;
-  params?: Record<string, string | number | boolean | undefined>;
+  params?: QueryParams;
 }
 
 export interface RequestAdaptor {

@@ -86,7 +86,7 @@
                     link
                     type="danger"
                     :disabled="!canDelete || isSeedPermission(row.code)"
-                    @click="removePermission(row.id, row.code)"
+                    @click="removePermission(row)"
                   >
                     删除
                   </el-button>
@@ -164,19 +164,25 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
+import { computed, onMounted, ref } from 'vue';
+import { ElMessage } from 'element-plus';
 import { permissionCatalog } from '@rbac/api-common';
-import type { PermissionRecord } from '@rbac/api-common';
+import type { PermissionFormPayload, PermissionRecord } from '@rbac/api-common';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
+import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
-import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'PermissionsView' });
+
+definePage({
+  viewKey: 'permissions',
+  keepAlive: true,
+});
 
 type PermissionsPageState = {
   filters: {
@@ -188,10 +194,6 @@ type PermissionsPageState = {
 
 const auth = useAuthStore();
 const permissions = ref<PermissionRecord[]>([]);
-const dialogVisible = ref(false);
-const editingId = ref<string | null>(null);
-const detailVisible = ref(false);
-const detailPermission = ref<PermissionRecord | null>(null);
 const seedPermissionLocked = ref(false);
 const loading = ref(false);
 
@@ -203,7 +205,15 @@ const { state: pageState } = usePageState<PermissionsPageState>('page:permission
   },
 });
 
-const form = reactive({
+type PermissionEditorForm = {
+  code: string;
+  name: string;
+  module: string;
+  action: string;
+  description: string;
+};
+
+const createEmptyForm = (): PermissionEditorForm => ({
   code: '',
   name: '',
   module: '',
@@ -214,30 +224,6 @@ const form = reactive({
 const canCreate = computed(() => auth.hasPermission('permission.create'));
 const canEdit = computed(() => auth.hasPermission('permission.update'));
 const canDelete = computed(() => auth.hasPermission('permission.delete'));
-const permissionContextMenuItems = [
-  {
-    key: 'detail',
-    label: '查看详情',
-    onSelect: (row) => openDetail(row),
-  },
-  {
-    key: 'edit-divider',
-    type: 'divider',
-  },
-  {
-    key: 'edit',
-    label: '编辑权限',
-    disabled: () => !canEdit.value,
-    onSelect: (row) => openEdit(row),
-  },
-  {
-    key: 'delete',
-    label: '删除权限',
-    disabled: (row) => !canDelete.value || isSeedPermission(row.code),
-    danger: true,
-    onSelect: (row) => removePermission(row.id, row.code),
-  },
-] satisfies ContextMenuItem<PermissionRecord>[];
 const seedCount = computed(() => permissions.value.filter((item) => isSeedPermission(item.code)).length);
 const customCount = computed(() => permissions.value.length - seedCount.value);
 const moduleOptions = computed(() => Array.from(new Set(permissions.value.map((item) => item.module))).sort((left, right) => left.localeCompare(right, 'zh-CN')));
@@ -280,14 +266,6 @@ const loadData = async () => {
   }
 };
 
-const resetForm = () => {
-  form.code = '';
-  form.name = '';
-  form.module = '';
-  form.action = '';
-  form.description = '';
-};
-
 const applyFilters = async () => {
   await loadData();
 };
@@ -299,68 +277,97 @@ const resetFilters = async () => {
   await loadData();
 };
 
-const openCreate = () => {
-  editingId.value = null;
-  seedPermissionLocked.value = false;
-  resetForm();
-  dialogVisible.value = true;
-};
-
-const openEdit = (row: PermissionRecord) => {
-  editingId.value = row.id;
-  seedPermissionLocked.value = isSeedPermission(row.code);
-  form.code = row.code;
-  form.name = row.name;
-  form.module = row.module;
-  form.action = row.action;
-  form.description = row.description ?? '';
-  dialogVisible.value = true;
-};
-
-const savePermission = async () => {
-  try {
-    if (!form.code || !form.name || !form.module || !form.action) {
-      ElMessage.warning('请完整填写权限码、名称、模块和动作');
-      return;
+const {
+  dialogVisible,
+  editingId,
+  form,
+  openCreate,
+  openEdit,
+  save: savePermission,
+} = useResourceEditor<PermissionRecord, PermissionEditorForm, PermissionFormPayload>({
+  createEmptyForm,
+  getId: (row) => row.id,
+  assignForm: (currentForm, row) => {
+    currentForm.code = row.code;
+    currentForm.name = row.name;
+    currentForm.module = row.module;
+    currentForm.action = row.action;
+    currentForm.description = row.description ?? '';
+  },
+  buildPayload: (currentForm) => ({
+    code: currentForm.code,
+    name: currentForm.name,
+    module: currentForm.module,
+    action: currentForm.action,
+    description: currentForm.description,
+  }),
+  create: (payload) => api.permissions.create(payload),
+  update: (id, payload) => api.permissions.update(id, payload),
+  validate: (currentForm) => {
+    if (!currentForm.code || !currentForm.name || !currentForm.module || !currentForm.action) {
+      return '请完整填写权限码、名称、模块和动作';
     }
 
-    if (editingId.value) {
-      await api.permissions.update(editingId.value, form);
-      ElMessage.success('权限已更新');
-    } else {
-      await api.permissions.create(form);
-      ElMessage.success('权限已新增');
-    }
+    return undefined;
+  },
+  afterOpenCreate: () => {
+    seedPermissionLocked.value = false;
+  },
+  afterOpenEdit: (row) => {
+    seedPermissionLocked.value = isSeedPermission(row.code);
+  },
+  afterSaved: loadData,
+  messages: {
+    createSuccess: '权限已新增',
+    updateSuccess: '权限已更新',
+    saveError: '保存权限失败',
+  },
+});
 
-    dialogVisible.value = false;
-    await loadData();
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '保存权限失败'));
-  }
-};
+const {
+  detailVisible,
+  detail: detailPermission,
+  openDetail,
+} = useResourceDetail<PermissionRecord, PermissionRecord>({
+  getId: (row) => row.id,
+  loadDetail: (id) => api.permissions.detail(id),
+  errorMessage: '加载权限详情失败',
+});
 
-const openDetail = async (row: PermissionRecord) => {
-  try {
-    detailPermission.value = await api.permissions.detail(row.id);
-    detailVisible.value = true;
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '加载权限详情失败'));
-  }
-};
+const { removeRecord: removePermission } = useResourceRemoval<PermissionRecord>({
+  getId: (row) => row.id,
+  remove: (id) => api.permissions.remove(id),
+  confirmTitle: '删除权限',
+  confirmMessage: (row) => `确定删除权限“${row.code}”吗？`,
+  successMessage: '权限已删除',
+  errorMessage: '删除权限失败',
+  afterRemoved: loadData,
+});
 
-const removePermission = async (id: string, code: string) => {
-  try {
-    await ElMessageBox.confirm(`确定删除权限“${code}”吗？`, '删除权限', { type: 'warning' });
-    await api.permissions.remove(id);
-    ElMessage.success('权限已删除');
-    await loadData();
-  } catch (error: unknown) {
-    if (isDialogCancellation(error)) {
-      return;
-    }
-    ElMessage.error(getErrorMessage(error, '删除权限失败'));
-  }
-};
+const permissionContextMenuItems = [
+  {
+    key: 'detail',
+    label: '查看详情',
+    onSelect: (row) => openDetail(row),
+  },
+  {
+    key: 'edit-divider',
+    type: 'divider',
+  },
+  {
+    key: 'edit',
+    label: '编辑权限',
+    disabled: () => !canEdit.value,
+    onSelect: (row) => openEdit(row),
+  },
+  {
+    key: 'delete',
+    label: '删除权限',
+    disabled: (row) => !canDelete.value || isSeedPermission(row.code),
+    danger: true,
+    onSelect: (row) => removePermission(row),
+  },
+] satisfies ContextMenuItem<PermissionRecord>[];
 
 onMounted(loadData);
 </script>

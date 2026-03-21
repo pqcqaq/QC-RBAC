@@ -18,6 +18,8 @@ import type {
   ActivityLogRecord,
   DashboardSummary,
   LiveMessage,
+  MenuNodeFormPayload,
+  MenuNodeRecord,
   PaginatedAuditLogs,
   PermissionFormPayload,
   PermissionRecord,
@@ -27,9 +29,38 @@ import type {
   UserPermissionSource,
   UserRecord,
 } from '../types/rbac.js';
+import type { PaginatedResult, QueryParams } from '../types/common.js';
+
+type CrudResourceOptions = {
+  resource: string;
+};
+
+const createCrudEndpoints = <
+  TRecord,
+  TForm,
+  TListResult = TRecord[],
+  TListParams extends QueryParams | undefined = QueryParams | undefined,
+>(
+  client: ReturnType<typeof createRequestClient>,
+  { resource }: CrudResourceOptions,
+) => ({
+  list: (params?: TListParams) => client.request<TListResult>({ url: resource, params }),
+  detail: (id: string) => client.request<TRecord>({ url: `${resource}/${id}` }),
+  create: (payload: TForm) => client.request<TRecord>({ url: resource, method: 'POST', data: payload }),
+  update: (id: string, payload: TForm) => client.request<TRecord>({ url: `${resource}/${id}`, method: 'PUT', data: payload }),
+  remove: (id: string) => client.request<{ ok: true }>({ url: `${resource}/${id}`, method: 'DELETE' }),
+});
 
 export const createApiFactory = (options: ClientOptions) => {
   const client = createRequestClient(options);
+  const userCrud = createCrudEndpoints<
+    UserRecord,
+    UserFormPayload,
+    PaginatedResult<UserRecord>
+  >(client, { resource: '/users' });
+  const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload>(client, { resource: '/roles' });
+  const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload>(client, { resource: '/permissions' });
+  const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
 
   return {
     auth: {
@@ -47,28 +78,22 @@ export const createApiFactory = (options: ClientOptions) => {
         client.request<PaginatedAuditLogs>({ url: '/audit-logs', params }),
     },
     users: {
-      list: (params?: Record<string, string | number | boolean | undefined>) => client.request<{ items: UserRecord[]; meta: { page: number; pageSize: number; total: number } }>({ url: '/users', params }),
-      detail: (id: string) => client.request<UserRecord>({ url: `/users/${id}` }),
-      create: (payload: UserFormPayload) => client.request<UserRecord>({ url: '/users', method: 'POST', data: payload }),
-      update: (id: string, payload: UserFormPayload) => client.request<UserRecord>({ url: `/users/${id}`, method: 'PUT', data: payload }),
-      remove: (id: string) => client.request<{ ok: true }>({ url: `/users/${id}`, method: 'DELETE' }),
+      ...userCrud,
       permissionSources: (id: string) => client.request<UserPermissionSource>({ url: `/users/${id}/permission-sources` }),
       roles: () => client.request<RoleSummary[]>({ url: '/users/options/roles' }),
     },
     roles: {
-      list: () => client.request<RoleRecord[]>({ url: '/roles' }),
-      detail: (id: string) => client.request<RoleRecord>({ url: `/roles/${id}` }),
-      create: (payload: RoleFormPayload) => client.request<RoleRecord>({ url: '/roles', method: 'POST', data: payload }),
-      update: (id: string, payload: RoleFormPayload) => client.request<RoleRecord>({ url: `/roles/${id}`, method: 'PUT', data: payload }),
-      remove: (id: string) => client.request<{ ok: true }>({ url: `/roles/${id}`, method: 'DELETE' }),
+      ...roleCrud,
       permissions: () => client.request<PermissionSummary[]>({ url: '/roles/options/permissions' }),
     },
     permissions: {
-      list: () => client.request<PermissionRecord[]>({ url: '/permissions' }),
-      detail: (id: string) => client.request<PermissionRecord>({ url: `/permissions/${id}` }),
-      create: (payload: PermissionFormPayload) => client.request<PermissionRecord>({ url: '/permissions', method: 'POST', data: payload }),
-      update: (id: string, payload: PermissionFormPayload) => client.request<PermissionRecord>({ url: `/permissions/${id}`, method: 'PUT', data: payload }),
-      remove: (id: string) => client.request<{ ok: true }>({ url: `/permissions/${id}`, method: 'DELETE' }),
+      ...permissionCrud,
+    },
+    menus: {
+      ...menuCrud,
+      current: () => client.request<MenuNodeRecord[]>({ url: '/menus/current' }),
+      tree: menuCrud.list,
+      permissions: () => client.request<PermissionSummary[]>({ url: '/menus/options/permissions' }),
     },
     files: {
       prepareUpload: (payload: UploadPreparePayload) =>

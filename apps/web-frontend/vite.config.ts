@@ -4,13 +4,14 @@ import AutoImport from 'unplugin-auto-import/vite';
 import Components from 'unplugin-vue-components/vite';
 import { ElementPlusResolver } from 'unplugin-vue-components/resolvers';
 import path from 'node:path';
+import { pageRegistryPlugin } from './vite/page-registry';
 import { themePresetsPlugin } from './vite/theme-presets';
 
 export default defineConfig({
   plugins: [
     vue(),
     AutoImport({
-      imports: ['vue', 'vue-router', 'pinia'],
+      imports: ['vue', 'vue-router', 'pinia', { '@/meta/page-definition': ['definePage'] }],
       resolvers: [ElementPlusResolver()],
       dts: 'src/auto-imports.d.ts',
     }),
@@ -18,6 +19,7 @@ export default defineConfig({
       resolvers: [ElementPlusResolver({ importStyle: 'css', directives: true })],
       dts: 'src/components.d.ts',
     }),
+    pageRegistryPlugin(),
     themePresetsPlugin(),
   ],
   resolve: {

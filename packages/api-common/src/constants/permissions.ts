@@ -1,6 +1,11 @@
 export const permissionCatalog = [
   { module: 'dashboard', code: 'dashboard.view', name: '查看仪表盘', action: 'read' },
   { module: 'audit', code: 'audit.read', name: '查看审计日志', action: 'read' },
+  { module: 'menu', code: 'menu.read', name: '查看菜单管理', action: 'read' },
+  { module: 'menu', code: 'menu.create', name: '创建菜单节点', action: 'create' },
+  { module: 'menu', code: 'menu.update', name: '编辑菜单节点', action: 'update' },
+  { module: 'menu', code: 'menu.delete', name: '删除菜单节点', action: 'delete' },
+  { module: 'menu', code: 'menu.assign-permission', name: '分配菜单权限', action: 'assign' },
   { module: 'user', code: 'user.read', name: '查看用户', action: 'read' },
   { module: 'user', code: 'user.create', name: '创建用户', action: 'create' },
   { module: 'user', code: 'user.update', name: '编辑用户', action: 'update' },

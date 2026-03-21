@@ -77,6 +77,11 @@ import { api } from '@/api/client';
 
 defineOptions({ name: 'DashboardView' });
 
+definePage({
+  viewKey: 'dashboard',
+  keepAlive: true,
+});
+
 const summary = reactive<DashboardSummary>({
   metrics: [],
   roleDistribution: [],

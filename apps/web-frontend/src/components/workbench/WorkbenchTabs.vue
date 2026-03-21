@@ -1,6 +1,6 @@
 <template>
-  <div class="workbench-tabs">
-    <div class="workbench-tabs__inner content-container">
+  <div class="workbench-tabs" :class="{ 'is-embedded': embedded }">
+    <div class="workbench-tabs__inner" :class="{ 'content-container': !embedded, 'is-embedded': embedded }">
       <el-scrollbar class="workbench-tabs__scroll">
         <ContextMenuHost :items="tabContextMenuItems" manual>
           <template #default="{ open }">
@@ -15,7 +15,9 @@
                 @mousedown.middle.prevent
                 @auxclick="handleTabAuxClick($event, tab)"
               >
-                <span class="workbench-tab__code">{{ tab.code }}</span>
+                <span class="workbench-tab__icon">
+                  <UnoIcon :name="tab.icon" :title="tab.title" :size="15" />
+                </span>
                 <span class="workbench-tab__title">{{ tab.title }}</span>
                 <button
                   v-if="tab.closable"
@@ -33,7 +35,9 @@
 
       <div class="workbench-tabs__tools">
         <el-dropdown trigger="click">
-          <el-button plain>标签操作</el-button>
+          <button class="workbench-tabs__action" type="button" title="标签操作" aria-label="标签操作">
+            <UnoIcon name="i-carbon-overflow-menu-horizontal" :size="18" />
+          </button>
           <template #dropdown>
             <el-dropdown-menu>
               <el-dropdown-item :disabled="!canCloseTab(route.path)" @click="closeTab(route.path)">
@@ -60,20 +64,29 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
+import UnoIcon from '@/components/common/UnoIcon.vue';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
+import { useMenuStore } from '@/stores/menus';
 import type { VisitedTab } from '@/stores/workbench';
 import { useWorkbenchStore } from '@/stores/workbench';
 
 const route = useRoute();
 const router = useRouter();
+const menus = useMenuStore();
 const workbench = useWorkbenchStore();
-const dashboardPath = '/dashboard';
+const homePath = computed(() => menus.homePath || '/');
 const hasClosableTabs = computed(() => workbench.visitedTabs.some((item) => item.closable));
+
+withDefaults(defineProps<{
+  embedded?: boolean;
+}>(), {
+  embedded: false,
+});
 
 const getTabIndex = (path: string) => workbench.visitedTabs.findIndex((item) => item.path === path);
 const hasTab = (path: string) => workbench.visitedTabs.some((item) => item.path === path);
-const canCloseTab = (path: string) => path !== dashboardPath && hasTab(path);
+const canCloseTab = (path: string) => path !== homePath.value && hasTab(path);
 const canCloseTabsToLeft = (path: string) => {
   const targetIndex = getTabIndex(path);
   return workbench.visitedTabs.some((item, index) => item.closable && index < targetIndex);
@@ -87,10 +100,10 @@ const canCloseOtherTabs = (path: string) => workbench.visitedTabs.some((item) =>
 const resolveNeighborPath = (path: string) => {
   const index = getTabIndex(path);
   if (index === -1) {
-    return dashboardPath;
+    return homePath.value;
   }
 
-  return workbench.visitedTabs[index + 1]?.path ?? workbench.visitedTabs[index - 1]?.path ?? dashboardPath;
+  return workbench.visitedTabs[index + 1]?.path ?? workbench.visitedTabs[index - 1]?.path ?? homePath.value;
 };
 
 const ensureRouteAvailability = async (preferredPath?: string, forcePreferred = false) => {
@@ -107,7 +120,7 @@ const ensureRouteAvailability = async (preferredPath?: string, forcePreferred = 
 
   const fallback = preferredPath && hasTab(preferredPath)
     ? preferredPath
-    : workbench.visitedTabs.at(-1)?.path ?? dashboardPath;
+    : workbench.visitedTabs.at(-1)?.path ?? homePath.value;
 
   if (route.path !== fallback) {
     await router.push(fallback);
@@ -192,7 +205,7 @@ const closeOtherTabs = async (path = route.path, activatePreferred = false) => {
 
 const closeAllTabs = async () => {
   workbench.closeAllTabs();
-  await ensureRouteAvailability(dashboardPath, true);
+  await ensureRouteAvailability(homePath.value, true);
 };
 
 const handleTabAuxClick = async (event: MouseEvent, tab: VisitedTab) => {

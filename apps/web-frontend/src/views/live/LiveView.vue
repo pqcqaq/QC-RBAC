@@ -64,6 +64,11 @@ import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'LiveView' });
 
+definePage({
+  viewKey: 'live',
+  keepAlive: true,
+});
+
 type FeedEvent = { id: string; title: string; body: string; time: string };
 
 const auth = useAuthStore();

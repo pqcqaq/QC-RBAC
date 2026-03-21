@@ -3,13 +3,13 @@ import { permissionCatalog } from '@rbac/api-common';
 import type { Permission as PermissionModel, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
-import { logActivity } from '../utils/audit.js';
-import { findAffectedUserIdsByRoleIds, invalidatePermissionCache } from '../utils/rbac.js';
+import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
+import { publishRbacMutation } from '../utils/rbac-mutation.js';
+import { toPermissionRecord } from '../utils/rbac-records.js';
 
 const permissionPayloadSchema = z.object({
   code: z.string().min(3).max(48),
@@ -26,17 +26,6 @@ const permissionWithRolesInclude = {
 type PermissionWithRoles = Prisma.PermissionGetPayload<{
   include: typeof permissionWithRolesInclude;
 }>;
-
-const toPermissionRecord = (permission: PermissionModel) => ({
-  id: permission.id,
-  code: permission.code,
-  name: permission.name,
-  module: permission.module,
-  action: permission.action,
-  description: permission.description ?? undefined,
-  createdAt: permission.createdAt.toISOString(),
-  updatedAt: permission.updatedAt.toISOString(),
-});
 
 const permissionsRouter = Router();
 
@@ -61,13 +50,11 @@ permissionsRouter.post(
     const payload = permissionPayloadSchema.parse(req.body);
     const permission = await prisma.permission.create({ data: payload });
 
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'permission.create',
       target: permission.code,
     });
-    emitAuditEvent({ action: 'permission.create', actor: actor.nickname, target: permission.code });
 
     return ok(res, toPermissionRecord(permission), 'Permission created');
   }),
@@ -115,16 +102,13 @@ permissionsRouter.put(
 
     const affectedUserIds = await findAffectedUserIdsByRoleIds(current.roles.map((item) => item.roleId));
     const permission = await prisma.permission.update({ where: { id: permissionId }, data: payload });
-    await invalidatePermissionCache(affectedUserIds);
-
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'permission.update',
       target: permission.code,
+      affectedUserIds,
+      reason: `Permission changed: ${permission.code}`,
     });
-    emitAuditEvent({ action: 'permission.update', actor: actor.nickname, target: permission.code });
-    emitRbacUpdated(affectedUserIds, `Permission changed: ${permission.code}`);
 
     return ok(res, toPermissionRecord(permission), 'Permission updated');
   }),
@@ -149,16 +133,13 @@ permissionsRouter.delete(
 
     const affectedUserIds = await findAffectedUserIdsByRoleIds(permission.roles.map((item) => item.roleId));
     await prisma.permission.delete({ where: { id: permissionId } });
-    await invalidatePermissionCache(affectedUserIds);
-
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'permission.delete',
       target: permission.code,
+      affectedUserIds,
+      reason: `Permission removed: ${permission.code}`,
     });
-    emitAuditEvent({ action: 'permission.delete', actor: actor.nickname, target: permission.code });
-    emitRbacUpdated(affectedUserIds, `Permission removed: ${permission.code}`);
 
     return ok(res, { ok: true }, 'Permission deleted');
   }),

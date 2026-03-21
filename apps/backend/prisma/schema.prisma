@@ -28,6 +28,12 @@ enum MediaAssetUploadStrategy {
   CHUNKED
 }
 
+enum MenuNodeType {
+  DIRECTORY
+  PAGE
+  ACTION
+}
+
 model User {
   id            String         @id @default(cuid())
   username      String         @unique
@@ -67,6 +73,30 @@ model Permission {
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   roles       RolePermission[]
+  menuNode    MenuNode?
+}
+
+model MenuNode {
+  id           String       @id @default(cuid())
+  code         String       @unique
+  type         MenuNodeType
+  title        String
+  caption      String?
+  description  String?
+  icon         String?
+  path         String?      @unique
+  viewKey      String?      @unique
+  sortOrder    Int          @default(0)
+  parentId     String?
+  permissionId String?      @unique
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+  parent       MenuNode?    @relation("MenuTree", fields: [parentId], references: [id])
+  children     MenuNode[]   @relation("MenuTree")
+  permission   Permission?  @relation(fields: [permissionId], references: [id], onDelete: SetNull)
+
+  @@index([parentId, sortOrder])
+  @@index([type])
 }
 
 model UserRole {

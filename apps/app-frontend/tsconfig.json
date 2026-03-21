@@ -5,9 +5,9 @@
       "esnext",
       "dom"
     ],
-    "baseUrl": ".",
     "module": "esnext",
     "moduleResolution": "bundler",
+    "rootDir": "src",
     "paths": {
       "@/*": [
         "./src/*"
@@ -42,7 +42,6 @@
     ]
   },
   "include": [
-    "package.json",
     "src/**/*.ts",
     "src/**/*.js",
     "src/**/*.d.ts",

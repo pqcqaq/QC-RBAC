@@ -2,13 +2,13 @@ import { Router } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
-import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
-import { logActivity } from '../utils/audit.js';
 import { findAffectedUserIdsByRoleIds, invalidatePermissionCache } from '../utils/rbac.js';
+import { publishRbacMutation } from '../utils/rbac-mutation.js';
+import { roleWithPermissionSummaryInclude, toPermissionSummary, toRoleRecord } from '../utils/rbac-records.js';
 
 const rolePayloadSchema = z.object({
   code: z.string().min(2).max(32),
@@ -18,42 +18,15 @@ const rolePayloadSchema = z.object({
   permissionIds: z.array(z.string()),
 });
 
-const roleWithRelationsInclude = {
-  permissions: { include: { permission: true } },
-  _count: { select: { users: true, permissions: true } },
-} satisfies Prisma.RoleInclude;
+const roleWithRelationsInclude = roleWithPermissionSummaryInclude;
 
 const roleWithUserCountInclude = {
   _count: { select: { users: true } },
 } satisfies Prisma.RoleInclude;
 
-type RoleWithRelations = Prisma.RoleGetPayload<{
-  include: typeof roleWithRelationsInclude;
-}>;
-
 type RoleWithUserCount = Prisma.RoleGetPayload<{
   include: typeof roleWithUserCountInclude;
 }>;
-
-const toRoleRecord = (role: RoleWithRelations) => ({
-  id: role.id,
-  code: role.code,
-  name: role.name,
-  description: role.description,
-  isSystem: role.isSystem,
-  userCount: role._count?.users ?? 0,
-  permissionCount: role._count?.permissions ?? role.permissions?.length ?? 0,
-  permissions: role.permissions.map(({ permission }) => ({
-    id: permission.id,
-    code: permission.code,
-    name: permission.name,
-    module: permission.module,
-    action: permission.action,
-    description: permission.description ?? undefined,
-  })),
-  createdAt: role.createdAt.toISOString(),
-  updatedAt: role.updatedAt.toISOString(),
-});
 
 const sameStringSet = (left: string[], right: string[]) => {
   if (left.length !== right.length) {
@@ -72,18 +45,7 @@ rolesRouter.get(
   requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
   asyncHandler(async (_req, res) => {
     const permissions = await prisma.permission.findMany({ orderBy: [{ module: 'asc' }, { action: 'asc' }] });
-    return ok(
-      res,
-      permissions.map((item) => ({
-        id: item.id,
-        code: item.code,
-        name: item.name,
-        module: item.module,
-        action: item.action,
-        description: item.description ?? undefined,
-      })),
-      'Permission options',
-    );
+    return ok(res, permissions.map(toPermissionSummary), 'Permission options');
   }),
 );
 
@@ -139,14 +101,12 @@ rolesRouter.post(
       include: roleWithRelationsInclude,
     });
 
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'role.create',
       target: role.name,
       detail: { permissionIds: payload.permissionIds },
     });
-    emitAuditEvent({ action: 'role.create', actor: actor.nickname, target: role.name });
 
     return ok(res, toRoleRecord(role), 'Role created');
   }),
@@ -192,16 +152,14 @@ rolesRouter.put(
       include: roleWithRelationsInclude,
     });
 
-    await invalidatePermissionCache(affectedUserIds);
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'role.update',
       target: role.name,
       detail: { permissionIds: payload.permissionIds },
+      affectedUserIds,
+      reason: `Role changed: ${role.name}`,
     });
-    emitAuditEvent({ action: 'role.update', actor: actor.nickname, target: role.name });
-    emitRbacUpdated(affectedUserIds, `Role changed: ${role.name}`);
 
     return ok(res, toRoleRecord(role), 'Role updated');
   }),
@@ -229,13 +187,11 @@ rolesRouter.delete(
     }
 
     await prisma.role.delete({ where: { id: roleId } });
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
+    await publishRbacMutation({
+      actor,
       action: 'role.delete',
       target: role.name,
     });
-    emitAuditEvent({ action: 'role.delete', actor: actor.nickname, target: role.name });
 
     return ok(res, { ok: true }, 'Role deleted');
   }),

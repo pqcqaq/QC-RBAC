@@ -11,11 +11,32 @@
           <h4>布局方式</h4>
           <span>切换左侧导航或浏览器式标签布局。</span>
         </header>
-        <el-segmented
-          :model-value="workbench.layoutMode"
-          :options="layoutOptions"
-          @change="onLayoutChange"
-        />
+        <el-segmented class="settings-segmented" :model-value="workbench.layoutMode" :options="layoutOptions" @change="onLayoutChange" />
+      </section>
+
+      <section class="settings-section">
+        <header>
+          <h4>侧栏风格</h4>
+          <span>暗色更聚焦导航，亮色更贴近整体面板。切换后会同步适配菜单、激活态和文案对比度。</span>
+        </header>
+        <div class="settings-mode-grid">
+          <button
+            v-for="option in sidebarAppearanceOptions"
+            :key="option.value"
+            type="button"
+            class="settings-mode-card"
+            :class="{ 'is-active': option.value === workbench.sidebarAppearance }"
+            @click="workbench.setSidebarAppearance(option.value)"
+          >
+            <div class="settings-mode-card__preview" :class="`is-${option.value}`">
+              <span />
+              <span />
+              <span />
+            </div>
+            <strong>{{ option.label }}</strong>
+            <small>{{ option.description }}</small>
+          </button>
+        </div>
       </section>
 
       <section class="settings-section">
@@ -54,6 +75,10 @@
             <strong>{{ currentTheme?.label ?? '-' }}</strong>
           </div>
           <div>
+            <span>侧栏风格</span>
+            <strong>{{ workbench.sidebarAppearance === 'dark' ? '暗色' : '亮色' }}</strong>
+          </div>
+          <div>
             <span>缓存标签</span>
             <strong>{{ workbench.visitedTabs.length }}</strong>
           </div>
@@ -76,6 +101,7 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import { findThemePreset, themePresets } from '@/themes';
+import type { SidebarAppearance } from '@/themes';
 import { useWorkbenchStore, type WorkbenchLayoutMode } from '@/stores/workbench';
 
 const route = useRoute();
@@ -86,9 +112,19 @@ const layoutOptions = [
   { label: '顶部标签', value: 'tabs' },
 ];
 
+const sidebarAppearanceOptions = [
+  { label: '暗色侧栏', value: 'dark', description: '更强对比，更聚焦导航层级。' },
+  { label: '亮色侧栏', value: 'light', description: '更轻盈，和主内容区更统一。' },
+] satisfies Array<{ label: string; value: SidebarAppearance; description: string }>;
+
 const currentTheme = computed(() => findThemePreset(workbench.themePresetId));
 
+const isLayoutMode = (value: string | number | boolean): value is WorkbenchLayoutMode =>
+  value === 'sidebar' || value === 'tabs';
+
 const onLayoutChange = (value: string | number | boolean) => {
-  workbench.setLayoutMode(value as WorkbenchLayoutMode);
+  if (isLayoutMode(value)) {
+    workbench.setLayoutMode(value);
+  }
 };
 </script>

@@ -4,6 +4,9 @@ export interface ApiEnvelope<T> {
   data: T;
 }
 
+export type QueryValue = string | number | boolean | undefined | null;
+export type QueryParams = Record<string, QueryValue>;
+
 export interface PaginationMeta {
   page: number;
   pageSize: number;

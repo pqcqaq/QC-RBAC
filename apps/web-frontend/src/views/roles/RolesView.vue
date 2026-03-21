@@ -203,18 +203,24 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
-import { ElMessage, ElMessageBox } from 'element-plus';
-import type { PermissionSummary, RoleRecord } from '@rbac/api-common';
+import { computed, onMounted, ref } from 'vue';
+import { ElMessage } from 'element-plus';
+import type { PermissionSummary, RoleFormPayload, RoleRecord } from '@rbac/api-common';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
+import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
-import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'RolesView' });
+
+definePage({
+  viewKey: 'roles',
+  keepAlive: true,
+});
 
 type RolesPageState = {
   filters: {
@@ -227,10 +233,6 @@ type RolesPageState = {
 const auth = useAuthStore();
 const roles = ref<RoleRecord[]>([]);
 const permissionOptions = ref<PermissionSummary[]>([]);
-const dialogVisible = ref(false);
-const detailVisible = ref(false);
-const detailRole = ref<RoleRecord | null>(null);
-const editingId = ref<string | null>(null);
 const loading = ref(false);
 const systemRoleLocked = ref(false);
 
@@ -242,40 +244,23 @@ const { state: pageState } = usePageState<RolesPageState>('page:roles', {
   },
 });
 
-const form = reactive({
+type RoleEditorForm = {
+  code: string;
+  name: string;
+  description: string;
+  permissionIds: string[];
+};
+
+const createEmptyForm = (): RoleEditorForm => ({
   code: '',
   name: '',
   description: '',
-  permissionIds: [] as string[],
+  permissionIds: [],
 });
 
 const canCreate = computed(() => auth.hasPermission('role.create'));
 const canEdit = computed(() => auth.hasPermission('role.update'));
 const canDelete = computed(() => auth.hasPermission('role.delete'));
-const roleContextMenuItems = [
-  {
-    key: 'detail',
-    label: '查看详情',
-    onSelect: (row) => openDetail(row),
-  },
-  {
-    key: 'edit-divider',
-    type: 'divider',
-  },
-  {
-    key: 'edit',
-    label: '编辑角色',
-    disabled: () => !canEdit.value,
-    onSelect: (row) => openEdit(row),
-  },
-  {
-    key: 'delete',
-    label: '删除角色',
-    disabled: (row) => !canDelete.value || row.isSystem,
-    danger: true,
-    onSelect: (row) => removeRole(row),
-  },
-] satisfies ContextMenuItem<RoleRecord>[];
 
 const filteredRoles = computed(() => {
   const keyword = pageState.filters.q.trim().toLowerCase();
@@ -316,13 +301,6 @@ const sortRoles = (items: RoleRecord[]) => [...items].sort((left, right) => {
   return left.name.localeCompare(right.name, 'zh-CN');
 });
 
-const resetForm = () => {
-  form.code = '';
-  form.name = '';
-  form.description = '';
-  form.permissionIds = [];
-};
-
 const loadRoles = async () => {
   try {
     loading.value = true;
@@ -353,79 +331,99 @@ const resetFilters = async () => {
   await loadRoles();
 };
 
-const openCreate = () => {
-  editingId.value = null;
-  systemRoleLocked.value = false;
-  resetForm();
-  dialogVisible.value = true;
-};
-
-const openEdit = (row: RoleRecord) => {
-  editingId.value = row.id;
-  systemRoleLocked.value = row.isSystem;
-  form.code = row.code;
-  form.name = row.name;
-  form.description = row.description ?? '';
-  form.permissionIds = row.permissions.map((permission) => permission.id);
-  dialogVisible.value = true;
-};
-
-const saveRole = async () => {
-  try {
-    if (!form.code || !form.name) {
-      ElMessage.warning('请完整填写角色编码和角色名称');
-      return;
+const {
+  dialogVisible,
+  editingId,
+  form,
+  openCreate,
+  openEdit,
+  save: saveRole,
+} = useResourceEditor<RoleRecord, RoleEditorForm, RoleFormPayload>({
+  createEmptyForm,
+  getId: (row) => row.id,
+  assignForm: (currentForm, row) => {
+    currentForm.code = row.code;
+    currentForm.name = row.name;
+    currentForm.description = row.description ?? '';
+    currentForm.permissionIds = row.permissions.map((permission) => permission.id);
+  },
+  buildPayload: (currentForm) => ({
+    code: currentForm.code,
+    name: currentForm.name,
+    description: currentForm.description,
+    permissionIds: currentForm.permissionIds,
+  }),
+  create: (payload) => api.roles.create(payload),
+  update: (id, payload) => api.roles.update(id, payload),
+  validate: (currentForm) => {
+    if (!currentForm.code || !currentForm.name) {
+      return '请完整填写角色编码和角色名称';
     }
 
-    if (!form.permissionIds.length) {
-      ElMessage.warning('至少为角色分配一项权限');
-      return;
+    if (!currentForm.permissionIds.length) {
+      return '至少为角色分配一项权限';
     }
 
-    const payload = {
-      code: form.code,
-      name: form.name,
-      description: form.description,
-      permissionIds: form.permissionIds,
-    };
+    return undefined;
+  },
+  afterOpenCreate: () => {
+    systemRoleLocked.value = false;
+  },
+  afterOpenEdit: (row) => {
+    systemRoleLocked.value = row.isSystem;
+  },
+  afterSaved: loadRoles,
+  messages: {
+    createSuccess: '角色已创建',
+    updateSuccess: '角色已更新',
+    saveError: '保存角色失败',
+  },
+});
 
-    if (editingId.value) {
-      await api.roles.update(editingId.value, payload);
-      ElMessage.success('角色已更新');
-    } else {
-      await api.roles.create(payload);
-      ElMessage.success('角色已创建');
-    }
+const {
+  detailVisible,
+  detail: detailRole,
+  openDetail,
+} = useResourceDetail<RoleRecord, RoleRecord>({
+  getId: (row) => row.id,
+  loadDetail: (id) => api.roles.detail(id),
+  errorMessage: '加载角色详情失败',
+});
 
-    dialogVisible.value = false;
-    await loadRoles();
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '保存角色失败'));
-  }
-};
+const { removeRecord: removeRole } = useResourceRemoval<RoleRecord>({
+  getId: (row) => row.id,
+  remove: (id) => api.roles.remove(id),
+  confirmTitle: '删除角色',
+  confirmMessage: (row) => `确定删除角色“${row.name}”吗？`,
+  successMessage: '角色已删除',
+  errorMessage: '删除角色失败',
+  afterRemoved: loadRoles,
+});
 
-const openDetail = async (row: RoleRecord) => {
-  try {
-    detailRole.value = await api.roles.detail(row.id);
-    detailVisible.value = true;
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '加载角色详情失败'));
-  }
-};
-
-const removeRole = async (row: RoleRecord) => {
-  try {
-    await ElMessageBox.confirm(`确定删除角色“${row.name}”吗？`, '删除角色', { type: 'warning' });
-    await api.roles.remove(row.id);
-    ElMessage.success('角色已删除');
-    await loadRoles();
-  } catch (error: unknown) {
-    if (isDialogCancellation(error)) {
-      return;
-    }
-    ElMessage.error(getErrorMessage(error, '删除角色失败'));
-  }
-};
+const roleContextMenuItems = [
+  {
+    key: 'detail',
+    label: '查看详情',
+    onSelect: (row) => openDetail(row),
+  },
+  {
+    key: 'edit-divider',
+    type: 'divider',
+  },
+  {
+    key: 'edit',
+    label: '编辑角色',
+    disabled: () => !canEdit.value,
+    onSelect: (row) => openEdit(row),
+  },
+  {
+    key: 'delete',
+    label: '删除角色',
+    disabled: (row) => !canDelete.value || row.isSystem,
+    danger: true,
+    onSelect: (row) => removeRole(row),
+  },
+] satisfies ContextMenuItem<RoleRecord>[];
 
 onMounted(async () => {
   await Promise.all([loadRoles(), loadPermissionOptions()]);

@@ -5,7 +5,7 @@
 export {}
 
 interface ModuleMap {
-  [path: string]: unknown
+  [path: string]: any
 }
 
 declare global {
