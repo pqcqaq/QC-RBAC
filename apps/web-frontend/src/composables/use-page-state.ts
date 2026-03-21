@@ -8,7 +8,7 @@ const cloneValue = <T>(value: T): T => {
   return JSON.parse(JSON.stringify(value)) as T;
 };
 
-export const usePageState = <T extends Record<string, any>>(key: string, defaults: T) => {
+export const usePageState = <T extends Record<string, unknown>>(key: string, defaults: T) => {
   const workbench = useWorkbenchStore();
   const initial = workbench.getPageState<T>(key);
   const state = reactive<T>(cloneValue(initial ?? defaults));

@@ -6,17 +6,66 @@ const VITE_UPLOAD_BASEURL = `${getEnvBaseUrl()}/upload`
 type TfileType = 'image' | 'file'
 type TImage = 'png' | 'jpg' | 'jpeg' | 'webp' | '*'
 type TFile = 'doc' | 'docx' | 'ppt' | 'zip' | 'xls' | 'xlsx' | 'txt' | TImage
+type UploadFormData = Record<string, string | number | boolean | undefined>
+type UploadHookError = Error | UniApp.GeneralCallbackResult
+
+type SelectedFile = {
+  tempFilePath: string
+  size: number
+}
+
+type SelectFileResult = {
+  tempFilePaths?: string[]
+  tempFiles?: Array<{
+    tempFilePath?: string
+    size?: number
+  }>
+}
 
 interface TOptions<T extends TfileType> {
-  formData?: Record<string, any>
+  formData?: UploadFormData
   maxSize?: number
   accept?: T extends 'image' ? TImage[] : TFile[]
   fileType?: T
-  success?: (params: any) => void
-  error?: (err: any) => void
+  success?: (params: unknown) => void
+  error?: (err: UploadHookError) => void
 }
 
-export default function useUpload<T extends TfileType>(options: TOptions<T> = {} as TOptions<T>) {
+const toUploadError = (error: unknown, fallback: string): Error => {
+  if (error instanceof Error) {
+    return error
+  }
+
+  const message = typeof error === 'object' && error !== null && typeof Reflect.get(error, 'errMsg') === 'string'
+    ? String(Reflect.get(error, 'errMsg'))
+    : fallback
+
+  return new Error(message)
+}
+
+const parseUploadResponse = (payload: string): unknown => {
+  const parsed = JSON.parse(payload) as { data?: unknown }
+  return parsed.data ?? parsed
+}
+
+const resolveSelectedFile = (result: unknown): SelectedFile | null => {
+  if (!result || typeof result !== 'object') {
+    return null
+  }
+
+  const { tempFiles, tempFilePaths } = result as SelectFileResult
+  const tempFile = tempFiles?.[0]
+  const tempFilePath = tempFile?.tempFilePath ?? tempFilePaths?.[0]
+  const size = tempFile?.size
+
+  if (!tempFilePath || typeof size !== 'number') {
+    return null
+  }
+
+  return { tempFilePath, size }
+}
+
+export default function useUpload<T extends TfileType>(options: TOptions<T> = {}) {
   const {
     formData = {},
     maxSize = 5 * 1024 * 1024,
@@ -28,7 +77,7 @@ export default function useUpload<T extends TfileType>(options: TOptions<T> = {}
 
   const loading = ref(false)
   const error = ref<Error | null>(null)
-  const data = ref<any>(null)
+  const data = ref<unknown>(null)
 
   const handleFileChoose = ({ tempFilePath, size }: { tempFilePath: string, size: number }) => {
     if (size > maxSize) {
@@ -56,12 +105,10 @@ export default function useUpload<T extends TfileType>(options: TOptions<T> = {}
       formData,
       onSuccess: (res) => {
         // 修改这里的解析逻辑，适应不同平台的返回格式
-        let parsedData = res
+        let parsedData: unknown = res
         try {
           // 尝试解析为JSON
-          const jsonData = JSON.parse(res)
-          // 检查是否包含data字段
-          parsedData = jsonData.data || jsonData
+          parsedData = parseUploadResponse(res)
         }
         catch (e) {
           // 如果解析失败，使用原始数据
@@ -72,7 +119,7 @@ export default function useUpload<T extends TfileType>(options: TOptions<T> = {}
         success?.(parsedData)
       },
       onError: (err) => {
-        error.value = err
+        error.value = err instanceof Error ? err : new Error(err.errMsg)
         onError?.(err)
       },
       onComplete: () => {
@@ -86,29 +133,28 @@ export default function useUpload<T extends TfileType>(options: TOptions<T> = {}
     // 微信小程序在2023年10月17日之后，使用本API需要配置隐私协议
     const chooseFileOptions = {
       count: 1,
-      success: (res: any) => {
+      success: (res: unknown) => {
         console.log('File selected successfully:', res)
         // 小程序中res:{errMsg: "chooseImage:ok", tempFiles: [{fileType: "image", size: 48976, tempFilePath: "http://tmp/5iG1WpIxTaJf3ece38692a337dc06df7eb69ecb49c6b.jpeg"}]}
         // h5中res:{errMsg: "chooseImage:ok", tempFilePaths: "blob:http://localhost:9000/f74ab6b8-a14d-4cb6-a10d-fcf4511a0de5", tempFiles: [File]}
         // h5的File有以下字段：{name: "girl.jpeg", size: 48976, type: "image/jpeg"}
         // App中res:{errMsg: "chooseImage:ok", tempFilePaths: "file:///Users/feige/xxx/gallery/1522437259-compressed-IMG_0006.jpg", tempFiles: [File]}
         // App的File有以下字段：{path: "file:///Users/feige/xxx/gallery/1522437259-compressed-IMG_0006.jpg", size: 48976}
-        let tempFilePath = ''
-        let size = 0
-        // #ifdef MP-WEIXIN
-        tempFilePath = res.tempFiles[0].tempFilePath
-        size = res.tempFiles[0].size
-        // #endif
-        // #ifndef MP-WEIXIN
-        tempFilePath = res.tempFilePaths[0]
-        size = res.tempFiles[0].size
-        // #endif
-        handleFileChoose({ tempFilePath, size })
+        const selectedFile = resolveSelectedFile(res)
+        if (!selectedFile) {
+          const selectionError = new Error('无法解析所选文件')
+          error.value = selectionError
+          onError?.(selectionError)
+          return
+        }
+
+        handleFileChoose(selectedFile)
       },
-      fail: (err: any) => {
+      fail: (err: unknown) => {
         console.error('File selection failed:', err)
-        error.value = err
-        onError?.(err)
+        const uploadError = toUploadError(err, '文件选择失败')
+        error.value = uploadError
+        onError?.(uploadError)
       },
     }
 
@@ -143,9 +189,9 @@ async function uploadFile({
   onComplete,
 }: {
   tempFilePath: string
-  formData: Record<string, any>
-  onSuccess: (data: any) => void
-  onError: (err: any) => void
+  formData: UploadFormData
+  onSuccess: (data: string) => void
+  onError: (err: UploadHookError) => void
   onComplete: () => void
 }) {
   uni.uploadFile({
@@ -158,8 +204,8 @@ async function uploadFile({
         const data = uploadFileRes.data
         onSuccess(data)
       }
-      catch (err) {
-        onError(err)
+      catch (err: unknown) {
+        onError(toUploadError(err, '上传失败'))
       }
     },
     fail: (err) => {

@@ -1,4 +1,3 @@
-import type { RouteLocationNormalizedLoaded } from 'vue-router';
 import { defineStore } from 'pinia';
 import { applyThemePreset, defaultThemePresetId } from '@/themes';
 import { pageRegistryMap } from '@/meta/pages';
@@ -109,6 +108,18 @@ const resolveCacheNames = (tabs: VisitedTab[]) => Array.from(
   ),
 );
 
+type TabStateStore = {
+  visitedTabs: VisitedTab[];
+  persist: () => void;
+  syncCacheFromTabs: () => void;
+};
+
+const syncTabState = (store: TabStateStore) => {
+  store.visitedTabs = normalizeVisitedTabs(store.visitedTabs);
+  store.syncCacheFromTabs();
+  store.persist();
+};
+
 export const useWorkbenchStore = defineStore('workbench', {
   state: () => ({
     initialized: false,
@@ -174,8 +185,8 @@ export const useWorkbenchStore = defineStore('workbench', {
     toggleSettings() {
       this.settingsVisible = !this.settingsVisible;
     },
-    addVisitedTab(route: RouteLocationNormalizedLoaded) {
-      const next = buildTabFromPath(route.path);
+    addVisitedTab(path: string) {
+      const next = buildTabFromPath(path);
       if (!next) {
         return;
       }
@@ -193,23 +204,34 @@ export const useWorkbenchStore = defineStore('workbench', {
         return;
       }
 
-      this.visitedTabs = normalizeVisitedTabs(
-        this.visitedTabs.filter((item) => item.path !== path),
-      );
-      this.syncCacheFromTabs();
-      this.persist();
+      this.visitedTabs = this.visitedTabs.filter((item) => item.path !== path);
+      syncTabState(this);
+    },
+    closeLeftTabs(path: string) {
+      const targetIndex = this.visitedTabs.findIndex((item) => item.path === path);
+      if (targetIndex <= 0) {
+        return;
+      }
+
+      this.visitedTabs = this.visitedTabs.filter((item, index) => index >= targetIndex || item.path === dashboardTab.path);
+      syncTabState(this);
+    },
+    closeRightTabs(path: string) {
+      const targetIndex = this.visitedTabs.findIndex((item) => item.path === path);
+      if (targetIndex === -1) {
+        return;
+      }
+
+      this.visitedTabs = this.visitedTabs.filter((item, index) => index <= targetIndex || item.path === dashboardTab.path);
+      syncTabState(this);
     },
     closeOtherTabs(path: string) {
-      this.visitedTabs = normalizeVisitedTabs(
-        this.visitedTabs.filter((item) => item.path === dashboardTab.path || item.path === path),
-      );
-      this.syncCacheFromTabs();
-      this.persist();
+      this.visitedTabs = this.visitedTabs.filter((item) => item.path === dashboardTab.path || item.path === path);
+      syncTabState(this);
     },
     closeAllTabs() {
       this.visitedTabs = [{ ...dashboardTab }];
-      this.syncCacheFromTabs();
-      this.persist();
+      syncTabState(this);
     },
     setPageState(key: string, payload: unknown) {
       this.pageStateMap[key] = payload;

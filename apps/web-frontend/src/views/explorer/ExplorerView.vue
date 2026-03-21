@@ -82,6 +82,7 @@ import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'ExplorerView' });
 
@@ -112,8 +113,8 @@ const loadUsers = async () => {
     if (pageState.selectedUserId) {
       await loadSource(pageState.selectedUserId);
     }
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载用户列表失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载用户列表失败'));
   }
 };
 
@@ -126,8 +127,8 @@ const loadSource = async (id = pageState.selectedUserId) => {
   try {
     loading.value = true;
     source.value = await api.users.permissionSources(id);
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载权限来源失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载权限来源失败'));
   } finally {
     loading.value = false;
   }

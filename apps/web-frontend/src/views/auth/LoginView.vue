@@ -70,6 +70,7 @@ import { reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
+import { getErrorMessage } from '@/utils/errors';
 
 const router = useRouter();
 const auth = useAuthStore();
@@ -94,8 +95,8 @@ const submitLogin = async () => {
     await auth.login(loginForm);
     ElMessage.success('登录成功');
     await router.push('/dashboard');
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '登录失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '登录失败'));
   } finally {
     submitting.value = false;
   }
@@ -107,8 +108,8 @@ const submitRegister = async () => {
     await auth.register(registerForm);
     ElMessage.success('注册成功');
     await router.push('/dashboard');
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '注册失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '注册失败'));
   } finally {
     submitting.value = false;
   }

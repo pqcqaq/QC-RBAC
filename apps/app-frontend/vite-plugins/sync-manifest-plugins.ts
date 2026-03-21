@@ -6,12 +6,12 @@ import process from 'node:process'
 interface ManifestType {
   'plus'?: {
     distribute?: {
-      plugins?: Record<string, any>
+      plugins?: Record<string, unknown>
     }
   }
   'app-plus'?: {
     distribute?: {
-      plugins?: Record<string, any>
+      plugins?: Record<string, unknown>
     }
   }
 }

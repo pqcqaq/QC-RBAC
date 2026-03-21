@@ -2,6 +2,7 @@
 import { reactive } from 'vue'
 import { REGISTER_PAGE } from '@/router/config'
 import { useTokenStore } from '@/store/token'
+import { getErrorMessage } from '@/utils/error'
 
 definePage({
   style: {
@@ -27,9 +28,9 @@ async function doLogin() {
     })
     uni.switchTab({ url: '/pages/index/index' })
   }
-  catch (error: any) {
+  catch (error: unknown) {
     uni.showToast({
-      title: error?.message || '登录失败',
+      title: getErrorMessage(error, '登录失败'),
       icon: 'none',
     })
   }

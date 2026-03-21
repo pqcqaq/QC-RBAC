@@ -1,4 +1,8 @@
-export type ContextMenuValueResolver<T, R> = R | ((context: T) => R);
+type ContextMenuHandler<Args extends unknown[], Result> = {
+  bivarianceHack: (...args: Args) => Result;
+}['bivarianceHack'];
+
+export type ContextMenuValueResolver<T, R> = R | ContextMenuHandler<[context: T], R>;
 
 export type ContextMenuOpenHandler<T = unknown> = (event: MouseEvent, context?: T | null) => void;
 
@@ -23,7 +27,7 @@ export type ContextMenuActionItem<T = unknown> = {
   hidden?: ContextMenuValueResolver<T, boolean>;
   danger?: ContextMenuValueResolver<T, boolean>;
   divided?: ContextMenuValueResolver<T, boolean>;
-  onSelect?: (context: T, controls: ContextMenuActionControls<T>) => void | Promise<void>;
+  onSelect?: ContextMenuHandler<[context: T, controls: ContextMenuActionControls<T>], void | Promise<void>>;
 };
 
 export type ContextMenuItem<T = unknown> = ContextMenuDividerItem<T> | ContextMenuActionItem<T>;
@@ -41,5 +45,5 @@ export type ContextMenuResolvedItem<T = unknown> =
       shortcut?: string;
       disabled: boolean;
       danger: boolean;
-      onSelect?: (context: T, controls: ContextMenuActionControls<T>) => void | Promise<void>;
+      onSelect?: ContextMenuHandler<[context: T, controls: ContextMenuActionControls<T>], void | Promise<void>>;
     };

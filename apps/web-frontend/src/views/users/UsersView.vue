@@ -252,6 +252,7 @@ import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
 
 defineOptions({ name: 'UsersView' });
 
@@ -367,8 +368,8 @@ const loadUsers = async () => {
 
     users.value = response.items;
     total.value = response.meta.total;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载用户列表失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载用户列表失败'));
   } finally {
     loading.value = false;
   }
@@ -377,8 +378,8 @@ const loadUsers = async () => {
 const loadRoleOptions = async () => {
   try {
     roleOptions.value = await api.users.roles();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载角色选项失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载角色选项失败'));
   }
 };
 
@@ -448,8 +449,8 @@ const saveUser = async () => {
 
     dialogVisible.value = false;
     await loadUsers();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '保存用户失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '保存用户失败'));
   }
 };
 
@@ -459,11 +460,11 @@ const removeUser = async (id: string) => {
     await api.users.remove(id);
     ElMessage.success('用户已删除');
     await loadUsers();
-  } catch (error: any) {
-    if (error === 'cancel' || error === 'close') {
+  } catch (error: unknown) {
+    if (isDialogCancellation(error)) {
       return;
     }
-    ElMessage.error(error?.message ?? '删除用户失败');
+    ElMessage.error(getErrorMessage(error, '删除用户失败'));
   }
 };
 
@@ -471,8 +472,8 @@ const showPermissionSource = async (id: string) => {
   try {
     permissionSource.value = await api.users.permissionSources(id);
     drawerVisible.value = true;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载权限来源失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载权限来源失败'));
   }
 };
 
@@ -480,8 +481,8 @@ const openDetail = async (row: UserRecord) => {
   try {
     detailUser.value = await api.users.detail(row.id);
     detailVisible.value = true;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载用户详情失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载用户详情失败'));
   }
 };
 

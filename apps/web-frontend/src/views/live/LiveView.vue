@@ -60,6 +60,7 @@ import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api, getStoredAccessToken, wsBaseUrl } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'LiveView' });
 
@@ -106,8 +107,8 @@ const sendMessage = async () => {
     const created = await api.live.post(pageState.draft.trim());
     pushMessage(created);
     pageState.draft = '';
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '发送失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '发送失败'));
   }
 };
 
@@ -143,8 +144,8 @@ const connectSocket = () => {
 onMounted(async () => {
   try {
     messages.value = await api.live.history();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载实时消息失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载实时消息失败'));
   }
   connectSocket();
 });

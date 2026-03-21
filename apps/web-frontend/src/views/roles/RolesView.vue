@@ -212,6 +212,7 @@ import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
 
 defineOptions({ name: 'RolesView' });
 
@@ -326,8 +327,8 @@ const loadRoles = async () => {
   try {
     loading.value = true;
     roles.value = sortRoles(await api.roles.list());
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载角色列表失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载角色列表失败'));
   } finally {
     loading.value = false;
   }
@@ -336,8 +337,8 @@ const loadRoles = async () => {
 const loadPermissionOptions = async () => {
   try {
     permissionOptions.value = await api.roles.permissions();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载权限选项失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载权限选项失败'));
   }
 };
 
@@ -398,8 +399,8 @@ const saveRole = async () => {
 
     dialogVisible.value = false;
     await loadRoles();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '保存角色失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '保存角色失败'));
   }
 };
 
@@ -407,8 +408,8 @@ const openDetail = async (row: RoleRecord) => {
   try {
     detailRole.value = await api.roles.detail(row.id);
     detailVisible.value = true;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载角色详情失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载角色详情失败'));
   }
 };
 
@@ -418,11 +419,11 @@ const removeRole = async (row: RoleRecord) => {
     await api.roles.remove(row.id);
     ElMessage.success('角色已删除');
     await loadRoles();
-  } catch (error: any) {
-    if (error === 'cancel' || error === 'close') {
+  } catch (error: unknown) {
+    if (isDialogCancellation(error)) {
       return;
     }
-    ElMessage.error(error?.message ?? '删除角色失败');
+    ElMessage.error(getErrorMessage(error, '删除角色失败'));
   }
 };
 

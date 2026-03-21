@@ -56,8 +56,16 @@ import type {
 
 defineOptions({ inheritAttrs: false });
 
+type ContextMenuSourceItem = ContextMenuItem<never>;
+type ResolvedContextMenuItem = ContextMenuResolvedItem<unknown>;
+type UnknownContextResolver<R> = ContextMenuValueResolver<unknown, R>;
+type UnknownContextSelectHandler = (
+  context: unknown,
+  controls: ContextMenuActionControls<unknown>,
+) => void | Promise<void>;
+
 const props = withDefaults(defineProps<{
-  items: ContextMenuItem<any>[];
+  items: ContextMenuSourceItem[];
   context?: unknown;
   disabled?: boolean;
   manual?: boolean;
@@ -83,7 +91,7 @@ const menuRef = ref<HTMLElement | null>(null);
 const menuItemRefs = ref<HTMLButtonElement[]>([]);
 const visible = ref(false);
 const activeContext = ref<unknown>(undefined);
-const resolvedItems = ref<ContextMenuResolvedItem<any>[]>([]);
+const resolvedItems = ref<ResolvedContextMenuItem[]>([]);
 const rawPoint = ref({ x: 0, y: 0 });
 const position = ref({ left: props.placementPadding, top: props.placementPadding });
 const transformOrigin = ref('left top');
@@ -109,7 +117,7 @@ const trimText = (value?: string) => {
   return nextValue ? nextValue : undefined;
 };
 
-const normalizeResolvedItems = (items: ContextMenuResolvedItem<any>[]) => items.filter((item, index, list) => {
+const normalizeResolvedItems = (items: ResolvedContextMenuItem[]) => items.filter((item, index, list) => {
   if (item.type !== 'divider') {
     return true;
   }
@@ -120,10 +128,10 @@ const normalizeResolvedItems = (items: ContextMenuResolvedItem<any>[]) => items.
 });
 
 const buildResolvedItems = (context: unknown) => {
-  const entries: ContextMenuResolvedItem<any>[] = [];
+  const entries: ResolvedContextMenuItem[] = [];
 
   for (const item of props.items) {
-    if (readValue(item.hidden as ContextMenuValueResolver<unknown, boolean> | undefined, context, false)) {
+    if (readValue(item.hidden as UnknownContextResolver<boolean> | undefined, context, false)) {
       continue;
     }
 
@@ -135,12 +143,12 @@ const buildResolvedItems = (context: unknown) => {
       continue;
     }
 
-    const label = trimText(readValue(item.label as ContextMenuValueResolver<unknown, string>, context, ''));
+    const label = trimText(readValue(item.label as UnknownContextResolver<string>, context, ''));
     if (!label) {
       continue;
     }
 
-    if (readValue(item.divided as ContextMenuValueResolver<unknown, boolean> | undefined, context, false)) {
+    if (readValue(item.divided as UnknownContextResolver<boolean> | undefined, context, false)) {
       entries.push({
         key: `${item.key}__divider`,
         type: 'divider',
@@ -151,11 +159,11 @@ const buildResolvedItems = (context: unknown) => {
       key: item.key,
       type: 'action',
       label,
-      description: trimText(readValue(item.description as ContextMenuValueResolver<unknown, string | undefined> | undefined, context, undefined)),
-      shortcut: trimText(readValue(item.shortcut as ContextMenuValueResolver<unknown, string | undefined> | undefined, context, undefined)),
-      disabled: readValue(item.disabled as ContextMenuValueResolver<unknown, boolean> | undefined, context, false),
-      danger: readValue(item.danger as ContextMenuValueResolver<unknown, boolean> | undefined, context, false),
-      onSelect: (item as ContextMenuActionItem<any>).onSelect,
+      description: trimText(readValue(item.description as UnknownContextResolver<string | undefined> | undefined, context, undefined)),
+      shortcut: trimText(readValue(item.shortcut as UnknownContextResolver<string | undefined> | undefined, context, undefined)),
+      disabled: readValue(item.disabled as UnknownContextResolver<boolean> | undefined, context, false),
+      danger: readValue(item.danger as UnknownContextResolver<boolean> | undefined, context, false),
+      onSelect: (item as ContextMenuActionItem<never>).onSelect as UnknownContextSelectHandler | undefined,
     });
   }
 
@@ -317,7 +325,7 @@ const handleMenuKeydown = (event: KeyboardEvent) => {
   }
 };
 
-const selectItem = async (item: Extract<ContextMenuResolvedItem<any>, { type: 'action' }>) => {
+const selectItem = async (item: Extract<ResolvedContextMenuItem, { type: 'action' }>) => {
   if (item.disabled || activeContext.value === undefined || !item.onSelect) {
     return;
   }

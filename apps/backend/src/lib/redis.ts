@@ -1,11 +1,9 @@
 import Redis from 'ioredis';
 import { env } from '../config/env.js';
 
-const RedisClient = Redis as unknown as new (...args: any[]) => any;
-
 let ready = false;
 
-export const redis = new RedisClient(env.REDIS_URL, {
+export const redis = new Redis(env.REDIS_URL, {
   lazyConnect: true,
   maxRetriesPerRequest: 1,
 });

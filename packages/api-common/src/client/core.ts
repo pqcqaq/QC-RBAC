@@ -22,6 +22,11 @@ export interface ClientOptions {
 const isFormDataLike = (value: unknown) =>
   typeof FormData !== 'undefined' && value instanceof FormData;
 
+const hasStatusCode = (error: unknown): error is { status: number } =>
+  typeof error === 'object'
+  && error !== null
+  && typeof Reflect.get(error, 'status') === 'number';
+
 const buildUrl = (baseUrl: string, url: string, params?: RequestConfig['params']) => {
   const normalized = `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
   if (!params) {
@@ -64,8 +69,8 @@ export const createRequestClient = ({
           ...(config.headers ?? {}),
         },
       }).then((response) => response.data);
-    } catch (error: any) {
-      if (error?.status === 401) {
+    } catch (error: unknown) {
+      if (hasStatusCode(error) && error.status === 401) {
         const shouldRetry = await onUnauthorized?.();
         if (shouldRetry && !retried) {
           return send<T>(config, true);

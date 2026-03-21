@@ -11,6 +11,15 @@ declare const uni: {
   }): void;
 };
 
+const getPayloadMessage = (payload: unknown) => {
+  if (!payload || typeof payload !== 'object') {
+    return undefined;
+  }
+
+  const message = Reflect.get(payload, 'message');
+  return typeof message === 'string' && message ? message : undefined;
+};
+
 export const createUniAdaptor = (): RequestAdaptor => ({
   request<T>({ url, method = 'GET', data, headers }: RequestConfig): Promise<T> {
     return new Promise((resolve, reject) => {
@@ -24,7 +33,7 @@ export const createUniAdaptor = (): RequestAdaptor => ({
             resolve(payload);
             return;
           }
-          const error = new Error((payload as any)?.message ?? 'Request failed') as Error & {
+          const error = new Error(getPayloadMessage(payload) ?? 'Request failed') as Error & {
             status?: number;
             payload?: unknown;
           };

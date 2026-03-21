@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { permissionCatalog } from '@rbac/api-common';
+import type { Permission as PermissionModel, Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
@@ -18,7 +19,15 @@ const permissionPayloadSchema = z.object({
   description: z.string().max(120).optional(),
 });
 
-const toPermissionRecord = (permission: any) => ({
+const permissionWithRolesInclude = {
+  roles: true,
+} satisfies Prisma.PermissionInclude;
+
+type PermissionWithRoles = Prisma.PermissionGetPayload<{
+  include: typeof permissionWithRolesInclude;
+}>;
+
+const toPermissionRecord = (permission: PermissionModel) => ({
   id: permission.id,
   code: permission.code,
   name: permission.name,
@@ -86,9 +95,9 @@ permissionsRouter.put(
     const payload = permissionPayloadSchema.parse(req.body);
     const permissionId = String(req.params.id);
 
-    const current: any = await prisma.permission.findUnique({
+    const current: PermissionWithRoles | null = await prisma.permission.findUnique({
       where: { id: permissionId },
-      include: { roles: true },
+      include: permissionWithRolesInclude,
     });
     if (!current) {
       throw notFound('Permission not found');
@@ -104,7 +113,7 @@ permissionsRouter.put(
       }
     }
 
-    const affectedUserIds = await findAffectedUserIdsByRoleIds((current.roles ?? []).map((item: any) => item.roleId));
+    const affectedUserIds = await findAffectedUserIdsByRoleIds(current.roles.map((item) => item.roleId));
     const permission = await prisma.permission.update({ where: { id: permissionId }, data: payload });
     await invalidatePermissionCache(affectedUserIds);
 
@@ -127,9 +136,9 @@ permissionsRouter.delete(
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const permissionId = String(req.params.id);
-    const permission: any = await prisma.permission.findUnique({
+    const permission: PermissionWithRoles | null = await prisma.permission.findUnique({
       where: { id: permissionId },
-      include: { roles: true },
+      include: permissionWithRolesInclude,
     });
     if (!permission) {
       throw notFound('Permission not found');
@@ -138,7 +147,7 @@ permissionsRouter.delete(
       throw badRequest('Seed permission cannot be deleted');
     }
 
-    const affectedUserIds = await findAffectedUserIdsByRoleIds((permission.roles ?? []).map((item: any) => item.roleId));
+    const affectedUserIds = await findAffectedUserIdsByRoleIds(permission.roles.map((item) => item.roleId));
     await prisma.permission.delete({ where: { id: permissionId } });
     await invalidatePermissionCache(affectedUserIds);
 

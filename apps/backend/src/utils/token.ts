@@ -33,7 +33,7 @@ export const refreshTokenTtlSeconds = parseExpiryToSeconds(env.REFRESH_TOKEN_EXP
 
 export const signAccessToken = (userId: string) =>
   jwt.sign({ sub: userId, type: 'access' } satisfies AccessPayload, env.JWT_ACCESS_SECRET, {
-    expiresIn: env.ACCESS_TOKEN_EXPIRES_IN as any,
+    expiresIn: accessTokenTtlSeconds,
   });
 
 export const signRefreshToken = (userId: string, jti: string) => {
@@ -41,7 +41,7 @@ export const signRefreshToken = (userId: string, jti: string) => {
     { sub: userId, jti, type: 'refresh' } satisfies RefreshPayload,
     env.JWT_REFRESH_SECRET,
     {
-      expiresIn: env.REFRESH_TOKEN_EXPIRES_IN as any,
+      expiresIn: refreshTokenTtlSeconds,
     },
   );
 

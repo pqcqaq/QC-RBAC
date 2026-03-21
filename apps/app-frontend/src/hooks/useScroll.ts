@@ -1,5 +1,5 @@
 import type { Ref } from 'vue'
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, shallowRef } from 'vue'
 
 interface UseScrollOptions<T> {
   fetchData: (page: number, pageSize: number) => Promise<T[]>
@@ -10,7 +10,7 @@ interface UseScrollReturn<T> {
   list: Ref<T[]>
   loading: Ref<boolean>
   finished: Ref<boolean>
-  error: Ref<any>
+  error: Ref<unknown>
   refresh: () => Promise<void>
   loadMore: () => Promise<void>
 }
@@ -19,10 +19,10 @@ export function useScroll<T>({
   fetchData,
   pageSize = 10,
 }: UseScrollOptions<T>): UseScrollReturn<T> {
-  const list = ref<T[]>([]) as Ref<T[]>
+  const list = shallowRef<T[]>([])
   const loading = ref(false)
   const finished = ref(false)
-  const error = ref<any>(null)
+  const error = ref<unknown>(null)
   const page = ref(1)
 
   const loadData = async () => {
@@ -37,7 +37,7 @@ export function useScroll<T>({
       if (data.length < pageSize) {
         finished.value = true
       }
-      list.value.push(...data)
+      list.value = [...list.value, ...data]
       page.value++
     }
     catch (err) {

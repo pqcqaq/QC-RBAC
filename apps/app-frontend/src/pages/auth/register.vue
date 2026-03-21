@@ -1,6 +1,7 @@
 <script lang="ts" setup>
 import { reactive } from 'vue'
 import { useTokenStore } from '@/store/token'
+import { getErrorMessage } from '@/utils/error'
 
 definePage({
   style: {
@@ -21,9 +22,9 @@ async function submit() {
     await tokenStore.register(form)
     uni.switchTab({ url: '/pages/index/index' })
   }
-  catch (error: any) {
+  catch (error: unknown) {
     uni.showToast({
-      title: error?.message || '注册失败',
+      title: getErrorMessage(error, '注册失败'),
       icon: 'none',
     })
   }

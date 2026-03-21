@@ -7,11 +7,9 @@ export interface IFoo {
 
 export function foo() {
   return http.Get<IFoo>('/foo', {
-    params: {
-      name: '菲鸽',
-      page: 1,
-      pageSize: 10,
-    },
+    name: '菲鸽',
+    page: 1,
+    pageSize: 10,
   })
 }
 

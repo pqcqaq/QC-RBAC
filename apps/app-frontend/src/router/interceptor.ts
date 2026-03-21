@@ -125,7 +125,7 @@ export const navigateToInterceptor = {
 
 // 针对 chooseLocation 的特殊处理
 export const chooseLocationInterceptor = {
-  invoke(options: any) {
+  invoke(options: unknown) {
     // 直接放行 chooseLocation 调用
     FG_LOG_ENABLE && console.log('chooseLocation 调用，直接放行:', options)
     return true

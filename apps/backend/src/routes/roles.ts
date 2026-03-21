@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
@@ -17,7 +18,24 @@ const rolePayloadSchema = z.object({
   permissionIds: z.array(z.string()),
 });
 
-const toRoleRecord = (role: any) => ({
+const roleWithRelationsInclude = {
+  permissions: { include: { permission: true } },
+  _count: { select: { users: true, permissions: true } },
+} satisfies Prisma.RoleInclude;
+
+const roleWithUserCountInclude = {
+  _count: { select: { users: true } },
+} satisfies Prisma.RoleInclude;
+
+type RoleWithRelations = Prisma.RoleGetPayload<{
+  include: typeof roleWithRelationsInclude;
+}>;
+
+type RoleWithUserCount = Prisma.RoleGetPayload<{
+  include: typeof roleWithUserCountInclude;
+}>;
+
+const toRoleRecord = (role: RoleWithRelations) => ({
   id: role.id,
   code: role.code,
   name: role.name,
@@ -25,7 +43,7 @@ const toRoleRecord = (role: any) => ({
   isSystem: role.isSystem,
   userCount: role._count?.users ?? 0,
   permissionCount: role._count?.permissions ?? role.permissions?.length ?? 0,
-  permissions: (role.permissions ?? []).map(({ permission }: any) => ({
+  permissions: role.permissions.map(({ permission }) => ({
     id: permission.id,
     code: permission.code,
     name: permission.name,
@@ -73,12 +91,9 @@ rolesRouter.get(
   '/',
   requirePermission('role.read'),
   asyncHandler(async (_req, res) => {
-    const roles: any[] = await prisma.role.findMany({
+    const roles = await prisma.role.findMany({
       orderBy: { createdAt: 'asc' },
-      include: {
-        permissions: { include: { permission: true } },
-        _count: { select: { users: true, permissions: true } },
-      },
+      include: roleWithRelationsInclude,
     });
     return ok(res, roles.map(toRoleRecord), 'Role list');
   }),
@@ -89,12 +104,9 @@ rolesRouter.get(
   requirePermission('role.read'),
   asyncHandler(async (req, res) => {
     const roleId = String(req.params.id);
-    const role: any = await prisma.role.findUnique({
+    const role = await prisma.role.findUnique({
       where: { id: roleId },
-      include: {
-        permissions: { include: { permission: true } },
-        _count: { select: { users: true, permissions: true } },
-      },
+      include: roleWithRelationsInclude,
     });
     if (!role) {
       throw notFound('Role not found');
@@ -114,7 +126,7 @@ rolesRouter.post(
       throw badRequest('Missing permission: role.assign-permission');
     }
 
-    const role: any = await prisma.role.create({
+    const role = await prisma.role.create({
       data: {
         code: payload.code,
         name: payload.name,
@@ -124,10 +136,7 @@ rolesRouter.post(
           create: payload.permissionIds.map((permissionId) => ({ permissionId })),
         },
       },
-      include: {
-        permissions: { include: { permission: true } },
-        _count: { select: { users: true, permissions: true } },
-      },
+      include: roleWithRelationsInclude,
     });
 
     await logActivity({
@@ -168,7 +177,7 @@ rolesRouter.put(
     }
 
     const affectedUserIds = await findAffectedUserIdsByRoleIds([roleId]);
-    const role: any = await prisma.role.update({
+    const role = await prisma.role.update({
       where: { id: roleId },
       data: {
         code: payload.code,
@@ -180,10 +189,7 @@ rolesRouter.put(
           create: payload.permissionIds.map((permissionId) => ({ permissionId })),
         },
       },
-      include: {
-        permissions: { include: { permission: true } },
-        _count: { select: { users: true, permissions: true } },
-      },
+      include: roleWithRelationsInclude,
     });
 
     await invalidatePermissionCache(affectedUserIds);
@@ -207,11 +213,9 @@ rolesRouter.delete(
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const roleId = String(req.params.id);
-    const role: any = await prisma.role.findUnique({
+    const role: RoleWithUserCount | null = await prisma.role.findUnique({
       where: { id: roleId },
-      include: {
-        _count: { select: { users: true } },
-      },
+      include: roleWithUserCountInclude,
     });
 
     if (!role) {

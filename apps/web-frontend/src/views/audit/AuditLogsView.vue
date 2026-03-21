@@ -122,6 +122,7 @@ import type { ActivityLogRecord } from '@rbac/api-common';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
+import { getErrorMessage } from '@/utils/errors';
 
 defineOptions({ name: 'AuditView' });
 
@@ -181,8 +182,8 @@ const loadLogs = async () => {
 
     logs.value = response.items;
     total.value = response.meta.total;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载审计日志失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载审计日志失败'));
   } finally {
     loading.value = false;
   }

@@ -174,6 +174,7 @@ import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
+import { getErrorMessage, isDialogCancellation } from '@/utils/errors';
 
 defineOptions({ name: 'PermissionsView' });
 
@@ -272,8 +273,8 @@ const loadData = async () => {
   try {
     loading.value = true;
     permissions.value = [...await api.permissions.list()].sort((left, right) => left.code.localeCompare(right.code, 'zh-CN'));
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载权限列表失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载权限列表失败'));
   } finally {
     loading.value = false;
   }
@@ -333,8 +334,8 @@ const savePermission = async () => {
 
     dialogVisible.value = false;
     await loadData();
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '保存权限失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '保存权限失败'));
   }
 };
 
@@ -342,8 +343,8 @@ const openDetail = async (row: PermissionRecord) => {
   try {
     detailPermission.value = await api.permissions.detail(row.id);
     detailVisible.value = true;
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '加载权限详情失败');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载权限详情失败'));
   }
 };
 
@@ -353,11 +354,11 @@ const removePermission = async (id: string, code: string) => {
     await api.permissions.remove(id);
     ElMessage.success('权限已删除');
     await loadData();
-  } catch (error: any) {
-    if (error === 'cancel' || error === 'close') {
+  } catch (error: unknown) {
+    if (isDialogCancellation(error)) {
       return;
     }
-    ElMessage.error(error?.message ?? '删除权限失败');
+    ElMessage.error(getErrorMessage(error, '删除权限失败'));
   }
 };
 

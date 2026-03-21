@@ -18,7 +18,7 @@ interface DebounceOptions {
   edges?: Array<'leading' | 'trailing'>
 }
 
-export interface DebouncedFunction<F extends (...args: any[]) => void> {
+export interface DebouncedFunction<F extends (...args: unknown[]) => void> {
   (...args: Parameters<F>): void
 
   /**
@@ -79,12 +79,12 @@ export interface DebouncedFunction<F extends (...args: any[]) => void> {
  * // Will cancel the debounced function call
  * controller.abort();
  */
-export function debounce<F extends (...args: any[]) => void>(
+export function debounce<F extends (...args: unknown[]) => void>(
   func: F,
   debounceMs: number,
   { signal, edges }: DebounceOptions = {},
 ): DebouncedFunction<F> {
-  let pendingThis: any
+  let pendingThis: ThisParameterType<F> | undefined
   let pendingArgs: Parameters<F> | null = null
 
   const leading = edges != null && edges.includes('leading')
@@ -138,7 +138,7 @@ export function debounce<F extends (...args: any[]) => void>(
     invoke()
   }
 
-  const debounced = function (this: any, ...args: Parameters<F>) {
+  const debounced = function (this: ThisParameterType<F>, ...args: Parameters<F>) {
     if (signal?.aborted) {
       return
     }
@@ -162,5 +162,5 @@ export function debounce<F extends (...args: any[]) => void>(
 
   signal?.addEventListener('abort', cancel, { once: true })
 
-  return debounced
+  return debounced as DebouncedFunction<F>
 }

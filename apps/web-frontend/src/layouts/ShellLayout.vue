@@ -143,6 +143,7 @@ import WorkbenchTabs from '@/components/workbench/WorkbenchTabs.vue';
 import { pageRegistry, pageRegistryMap } from '@/meta/pages';
 import { findThemePreset } from '@/themes';
 import { uploadAvatarFile } from '@/utils/direct-upload';
+import { getErrorMessage } from '@/utils/errors';
 import { useAuthStore } from '@/stores/auth';
 import { useWorkbenchStore } from '@/stores/workbench';
 
@@ -160,6 +161,7 @@ const pageMeta = computed(() => pageRegistryMap[route.path] ?? {
   caption: 'RBAC Admin',
 });
 const activeTheme = computed(() => findThemePreset(workbench.themePresetId));
+type UploadError = Parameters<NonNullable<UploadRequestOptions['onError']>>[0];
 
 let clockTimer: ReturnType<typeof setInterval> | null = null;
 
@@ -176,6 +178,16 @@ const logout = async () => {
   await router.push('/login');
 };
 
+const toUploadError = (error: unknown): UploadError => {
+  const message = getErrorMessage(error, '头像上传失败');
+  const uploadError = new Error(message) as Error & UploadError;
+  uploadError.name = 'UploadAjaxError';
+  uploadError.status = 0;
+  uploadError.method = 'POST';
+  uploadError.url = '';
+  return uploadError;
+};
+
 const uploadAvatar = async (options: UploadRequestOptions) => {
   try {
     const result = await uploadAvatarFile(options.file, (percent) => {
@@ -184,9 +196,9 @@ const uploadAvatar = async (options: UploadRequestOptions) => {
     await auth.syncCurrentUser();
     ElMessage.success('头像已更新');
     options.onSuccess?.({ ok: true, url: result.url });
-  } catch (error: any) {
-    ElMessage.error(error?.message ?? '头像上传失败');
-    options.onError?.(error);
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '头像上传失败'));
+    options.onError?.(toUploadError(error));
   }
 };
 

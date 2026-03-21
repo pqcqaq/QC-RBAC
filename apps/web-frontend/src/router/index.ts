@@ -53,6 +53,6 @@ router.afterEach((to) => {
   workbench.bootstrap();
 
   if (to.meta.requiresAuth && pageRegistryMap[to.path]) {
-    workbench.addVisitedTab(to as any);
+    workbench.addVisitedTab(to.path);
   }
 });

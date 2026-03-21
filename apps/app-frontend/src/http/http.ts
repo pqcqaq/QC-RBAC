@@ -1,4 +1,10 @@
-import type { CustomRequestOptions, IResponse } from '@/http/types'
+import type {
+  CustomRequestOptions,
+  IResponse,
+  QueryParams,
+  RequestData,
+  RequestHeaders,
+} from '@/http/types'
 import { nextTick } from 'vue'
 import { useTokenStore } from '@/store/token'
 import { isDoubleTokenMode } from '@/utils'
@@ -8,6 +14,23 @@ import { ResultEnum } from './tools/enum'
 // 刷新 token 状态管理
 let refreshing = false // 防止重复刷新 token 标识
 let taskQueue: (() => void)[] = [] // 刷新 token 请求队列
+
+const getResponseMessage = (response: IResponse<unknown>, fallback = '请求错误') =>
+  response.msg || response.message || fallback
+
+const readMessageFromUnknown = (payload: unknown, fallback = '请求错误') => {
+  if (!payload || typeof payload !== 'object') {
+    return fallback
+  }
+
+  const msg = Reflect.get(payload, 'msg')
+  if (typeof msg === 'string' && msg) {
+    return msg
+  }
+
+  const message = Reflect.get(payload, 'message')
+  return typeof message === 'string' && message ? message : fallback
+}
 
 export function http<T>(options: CustomRequestOptions) {
   // 1. 返回 Promise 对象
@@ -97,7 +120,7 @@ export function http<T>(options: CustomRequestOptions) {
           if (code !== ResultEnum.Success0 && code !== ResultEnum.Success200) {
             uni.showToast({
               icon: 'none',
-              title: responseData.msg || responseData.message || '请求错误',
+              title: getResponseMessage(responseData),
             })
             return reject(responseData.data)
           }
@@ -108,7 +131,7 @@ export function http<T>(options: CustomRequestOptions) {
         !options.hideErrorToast
         && uni.showToast({
           icon: 'none',
-          title: (res.data as any).msg || '请求错误',
+          title: readMessageFromUnknown(res.data),
         })
         reject(res)
       },
@@ -131,7 +154,7 @@ export function http<T>(options: CustomRequestOptions) {
  * @param header 请求头，默认为json格式
  * @returns
  */
-export function httpGet<T>(url: string, query?: Record<string, any>, header?: Record<string, any>, options?: Partial<CustomRequestOptions>) {
+export function httpGet<T>(url: string, query?: QueryParams, header?: RequestHeaders, options?: Partial<CustomRequestOptions>) {
   return http<T>({
     url,
     query,
@@ -149,7 +172,7 @@ export function httpGet<T>(url: string, query?: Record<string, any>, header?: Re
  * @param header 请求头，默认为json格式
  * @returns
  */
-export function httpPost<T>(url: string, data?: Record<string, any>, query?: Record<string, any>, header?: Record<string, any>, options?: Partial<CustomRequestOptions>) {
+export function httpPost<T>(url: string, data?: RequestData, query?: QueryParams, header?: RequestHeaders, options?: Partial<CustomRequestOptions>) {
   return http<T>({
     url,
     query,
@@ -162,7 +185,7 @@ export function httpPost<T>(url: string, data?: Record<string, any>, query?: Rec
 /**
  * PUT 请求
  */
-export function httpPut<T>(url: string, data?: Record<string, any>, query?: Record<string, any>, header?: Record<string, any>, options?: Partial<CustomRequestOptions>) {
+export function httpPut<T>(url: string, data?: RequestData, query?: QueryParams, header?: RequestHeaders, options?: Partial<CustomRequestOptions>) {
   return http<T>({
     url,
     data,
@@ -176,7 +199,7 @@ export function httpPut<T>(url: string, data?: Record<string, any>, query?: Reco
 /**
  * DELETE 请求（无请求体，仅 query）
  */
-export function httpDelete<T>(url: string, query?: Record<string, any>, header?: Record<string, any>, options?: Partial<CustomRequestOptions>) {
+export function httpDelete<T>(url: string, query?: QueryParams, header?: RequestHeaders, options?: Partial<CustomRequestOptions>) {
   return http<T>({
     url,
     query,

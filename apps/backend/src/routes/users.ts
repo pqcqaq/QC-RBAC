@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
@@ -19,7 +20,19 @@ const userPayloadSchema = z.object({
   roleIds: z.array(z.string()).min(1),
 });
 
-const toUserRecord = (user: any) => ({
+const userWithRolesInclude = {
+  roles: {
+    include: {
+      role: true,
+    },
+  },
+} satisfies Prisma.UserInclude;
+
+type UserWithRoles = Prisma.UserGetPayload<{
+  include: typeof userWithRolesInclude;
+}>;
+
+const toUserRecord = (user: UserWithRoles) => ({
   id: user.id,
   username: user.username,
   email: user.email,
@@ -28,7 +41,7 @@ const toUserRecord = (user: any) => ({
   status: user.status,
   createdAt: user.createdAt.toISOString(),
   updatedAt: user.updatedAt.toISOString(),
-  roles: user.roles.map(({ role }: any) => ({
+  roles: user.roles.map(({ role }) => ({
     id: role.id,
     code: role.code,
     name: role.name,
@@ -69,7 +82,7 @@ usersRouter.get(
     const status = String(req.query.status ?? '').trim();
     const roleId = String(req.query.roleId ?? '').trim();
 
-    const where: any = {};
+    const where: Prisma.UserWhereInput = {};
     if (q) {
       where.OR = [
         { username: { contains: q, mode: 'insensitive' } },
@@ -77,7 +90,7 @@ usersRouter.get(
         { nickname: { contains: q, mode: 'insensitive' } },
       ];
     }
-    if (status) {
+    if (status === 'ACTIVE' || status === 'DISABLED') {
       where.status = status;
     }
     if (roleId) {
@@ -91,20 +104,14 @@ usersRouter.get(
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: {
-          roles: {
-            include: {
-              role: true,
-            },
-          },
-        },
+        include: userWithRolesInclude,
       }),
     ]);
 
     return ok(
       res,
       {
-        items: (users as any[]).map(toUserRecord),
+        items: users.map(toUserRecord),
         meta: { page, pageSize, total },
       },
       'User list',
@@ -119,13 +126,7 @@ usersRouter.get(
     const userId = String(req.params.id);
     const user = await prisma.user.findUnique({
       where: { id: userId },
-      include: {
-        roles: {
-          include: {
-            role: true,
-          },
-        },
-      },
+      include: userWithRolesInclude,
     });
 
     if (!user) {
@@ -171,9 +172,7 @@ usersRouter.post(
           create: payload.roleIds.map((roleId) => ({ roleId })),
         },
       },
-      include: {
-        roles: { include: { role: true } },
-      },
+      include: userWithRolesInclude,
     });
 
     await invalidatePermissionCache([user.id]);
@@ -226,9 +225,7 @@ usersRouter.put(
           create: payload.roleIds.map((roleId) => ({ roleId })),
         },
       },
-      include: {
-        roles: { include: { role: true } },
-      },
+      include: userWithRolesInclude,
     });
 
     await invalidatePermissionCache([user.id]);
