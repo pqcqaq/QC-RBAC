@@ -45,64 +45,75 @@
           <h3 class="panel-heading panel-heading--md">用户清单</h3>
         </div>
         <div class="table-panel__meta">
+          <span>支持行右键快捷操作</span>
           <span>共 {{ total }} 条记录</span>
           <span>当前第 {{ pageState.page }} 页</span>
         </div>
       </header>
 
-      <el-table :data="users" stripe v-loading="loading">
-        <el-table-column label="成员" min-width="240">
-          <template #default="{ row }">
-            <div class="table-user">
-              <div v-if="row.avatar" class="table-user__avatar table-user__avatar--image">
-                <img :src="row.avatar" :alt="row.nickname" />
-              </div>
-              <div v-else class="table-user__avatar">
-                {{ row.nickname.slice(0, 1).toUpperCase() }}
-              </div>
-              <div class="table-user__meta">
-                <strong>{{ row.nickname }}</strong>
-                <span>{{ row.email }}</span>
-              </div>
-            </div>
-          </template>
-        </el-table-column>
+      <ContextMenuHost :items="userContextMenuItems" manual>
+        <template #default="{ open }">
+          <el-table
+            :data="users"
+            class="table-context-menu"
+            stripe
+            v-loading="loading"
+            @row-contextmenu="(row, _column, event) => open(event, row)"
+          >
+            <el-table-column label="成员" min-width="240">
+              <template #default="{ row }">
+                <div class="table-user">
+                  <div v-if="row.avatar" class="table-user__avatar table-user__avatar--image">
+                    <img :src="row.avatar" :alt="row.nickname" />
+                  </div>
+                  <div v-else class="table-user__avatar">
+                    {{ row.nickname.slice(0, 1).toUpperCase() }}
+                  </div>
+                  <div class="table-user__meta">
+                    <strong>{{ row.nickname }}</strong>
+                    <span>{{ row.email }}</span>
+                  </div>
+                </div>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="username" label="用户名" min-width="140" />
+            <el-table-column prop="username" label="用户名" min-width="140" />
 
-        <el-table-column label="角色" min-width="260">
-          <template #default="{ row }">
-            <div class="detail-chip-list">
-              <span v-for="role in row.roles" :key="role.id" class="role-pill">{{ role.name }}</span>
-            </div>
-          </template>
-        </el-table-column>
+            <el-table-column label="角色" min-width="260">
+              <template #default="{ row }">
+                <div class="detail-chip-list">
+                  <span v-for="role in row.roles" :key="role.id" class="role-pill">{{ role.name }}</span>
+                </div>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" effect="light" round>
-              {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column label="状态" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.status === 'ACTIVE' ? 'success' : 'info'" effect="light" round>
+                  {{ row.status === 'ACTIVE' ? '启用' : '禁用' }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="更新时间" width="180">
-          <template #default="{ row }">
-            {{ formatTime(row.updatedAt) }}
-          </template>
-        </el-table-column>
+            <el-table-column label="更新时间" width="180">
+              <template #default="{ row }">
+                {{ formatTime(row.updatedAt) }}
+              </template>
+            </el-table-column>
 
-        <el-table-column label="操作" width="290" fixed="right">
-          <template #default="{ row }">
-            <el-space>
-              <el-button link @click="openDetail(row)">详情</el-button>
-              <el-button link :disabled="!canExplore" @click="showPermissionSource(row.id)">权限来源</el-button>
-              <el-button link :disabled="!canEdit" @click="openEdit(row)">编辑</el-button>
-              <el-button link type="danger" :disabled="!canDelete" @click="removeUser(row.id)">删除</el-button>
-            </el-space>
-          </template>
-        </el-table-column>
-      </el-table>
+            <el-table-column label="操作" width="290" fixed="right">
+              <template #default="{ row }">
+                <el-space>
+                  <el-button link @click="openDetail(row)">详情</el-button>
+                  <el-button link :disabled="!canExplore" @click="showPermissionSource(row.id)">权限来源</el-button>
+                  <el-button link :disabled="!canEdit" @click="openEdit(row)">编辑</el-button>
+                  <el-button link type="danger" :disabled="!canDelete" @click="removeUser(row.id)">删除</el-button>
+                </el-space>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
+      </ContextMenuHost>
 
       <el-pagination
         background
@@ -235,6 +246,8 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { UserPermissionSource, UserRecord } from '@rbac/api-common';
+import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
+import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
@@ -287,6 +300,36 @@ const canEdit = computed(() => auth.hasPermission('user.update'));
 const canDelete = computed(() => auth.hasPermission('user.delete'));
 const canAssignRoles = computed(() => auth.hasPermission('user.assign-role'));
 const canExplore = computed(() => auth.hasPermission('rbac.explorer'));
+const userContextMenuItems = [
+  {
+    key: 'detail',
+    label: '查看详情',
+    onSelect: (row) => openDetail(row),
+  },
+  {
+    key: 'permission-source',
+    label: '查看权限来源',
+    disabled: () => !canExplore.value,
+    onSelect: (row) => showPermissionSource(row.id),
+  },
+  {
+    key: 'edit-divider',
+    type: 'divider',
+  },
+  {
+    key: 'edit',
+    label: '编辑用户',
+    disabled: () => !canEdit.value,
+    onSelect: (row) => openEdit(row),
+  },
+  {
+    key: 'delete',
+    label: '删除用户',
+    disabled: () => !canDelete.value,
+    danger: true,
+    onSelect: (row) => removeUser(row.id),
+  },
+] satisfies ContextMenuItem<UserRecord>[];
 
 const stats = computed(() => {
   const activeCount = users.value.filter((item) => item.status === 'ACTIVE').length;

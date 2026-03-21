@@ -50,61 +50,72 @@
           <h3 class="panel-heading panel-heading--md">角色矩阵</h3>
         </div>
         <div class="table-panel__meta">
+          <span>支持行右键快捷操作</span>
           <span>共 {{ filteredRoles.length }} 个角色</span>
           <span>{{ filteredRoles.filter((item) => item.isSystem).length }} 个系统角色</span>
         </div>
       </header>
 
-      <el-table :data="filteredRoles" stripe v-loading="loading">
-        <el-table-column label="角色" min-width="240">
-          <template #default="{ row }">
-            <div class="table-stack">
-              <strong>{{ row.name }}</strong>
-              <span>{{ row.code }}</span>
-            </div>
-          </template>
-        </el-table-column>
+      <ContextMenuHost :items="roleContextMenuItems" manual>
+        <template #default="{ open }">
+          <el-table
+            :data="filteredRoles"
+            class="table-context-menu"
+            stripe
+            v-loading="loading"
+            @row-contextmenu="(row, _column, event) => open(event, row)"
+          >
+            <el-table-column label="角色" min-width="240">
+              <template #default="{ row }">
+                <div class="table-stack">
+                  <strong>{{ row.name }}</strong>
+                  <span>{{ row.code }}</span>
+                </div>
+              </template>
+            </el-table-column>
 
-        <el-table-column prop="description" label="描述" min-width="240" />
+            <el-table-column prop="description" label="描述" min-width="240" />
 
-        <el-table-column label="权限数" width="120">
-          <template #default="{ row }">
-            {{ row.permissionCount }}
-          </template>
-        </el-table-column>
+            <el-table-column label="权限数" width="120">
+              <template #default="{ row }">
+                {{ row.permissionCount }}
+              </template>
+            </el-table-column>
 
-        <el-table-column label="成员数" width="120">
-          <template #default="{ row }">
-            {{ row.userCount }}
-          </template>
-        </el-table-column>
+            <el-table-column label="成员数" width="120">
+              <template #default="{ row }">
+                {{ row.userCount }}
+              </template>
+            </el-table-column>
 
-        <el-table-column label="类型" width="120">
-          <template #default="{ row }">
-            <el-tag :type="row.isSystem ? 'warning' : 'info'" effect="light" round>
-              {{ row.isSystem ? '系统角色' : '自定义' }}
-            </el-tag>
-          </template>
-        </el-table-column>
+            <el-table-column label="类型" width="120">
+              <template #default="{ row }">
+                <el-tag :type="row.isSystem ? 'warning' : 'info'" effect="light" round>
+                  {{ row.isSystem ? '系统角色' : '自定义' }}
+                </el-tag>
+              </template>
+            </el-table-column>
 
-        <el-table-column label="更新时间" width="180">
-          <template #default="{ row }">
-            {{ formatTime(row.updatedAt) }}
-          </template>
-        </el-table-column>
+            <el-table-column label="更新时间" width="180">
+              <template #default="{ row }">
+                {{ formatTime(row.updatedAt) }}
+              </template>
+            </el-table-column>
 
-        <el-table-column label="操作" width="240" fixed="right">
-          <template #default="{ row }">
-            <el-space>
-              <el-button link @click="openDetail(row)">详情</el-button>
-              <el-button link :disabled="!canEdit" @click="openEdit(row)">编辑</el-button>
-              <el-button link type="danger" :disabled="!canDelete || row.isSystem" @click="removeRole(row)">
-                删除
-              </el-button>
-            </el-space>
-          </template>
-        </el-table-column>
-      </el-table>
+            <el-table-column label="操作" width="240" fixed="right">
+              <template #default="{ row }">
+                <el-space>
+                  <el-button link @click="openDetail(row)">详情</el-button>
+                  <el-button link :disabled="!canEdit" @click="openEdit(row)">编辑</el-button>
+                  <el-button link type="danger" :disabled="!canDelete || row.isSystem" @click="removeRole(row)">
+                    删除
+                  </el-button>
+                </el-space>
+              </template>
+            </el-table-column>
+          </el-table>
+        </template>
+      </ContextMenuHost>
     </section>
 
     <el-dialog v-model="dialogVisible" :title="editingId ? '编辑角色' : '新建角色'" width="760px">
@@ -195,6 +206,8 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage, ElMessageBox } from 'element-plus';
 import type { PermissionSummary, RoleRecord } from '@rbac/api-common';
+import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
+import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
@@ -238,6 +251,30 @@ const form = reactive({
 const canCreate = computed(() => auth.hasPermission('role.create'));
 const canEdit = computed(() => auth.hasPermission('role.update'));
 const canDelete = computed(() => auth.hasPermission('role.delete'));
+const roleContextMenuItems = [
+  {
+    key: 'detail',
+    label: '查看详情',
+    onSelect: (row) => openDetail(row),
+  },
+  {
+    key: 'edit-divider',
+    type: 'divider',
+  },
+  {
+    key: 'edit',
+    label: '编辑角色',
+    disabled: () => !canEdit.value,
+    onSelect: (row) => openEdit(row),
+  },
+  {
+    key: 'delete',
+    label: '删除角色',
+    disabled: (row) => !canDelete.value || row.isSystem,
+    danger: true,
+    onSelect: (row) => removeRole(row),
+  },
+] satisfies ContextMenuItem<RoleRecord>[];
 
 const filteredRoles = computed(() => {
   const keyword = pageState.filters.q.trim().toLowerCase();
