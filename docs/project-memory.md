@@ -1,19 +1,18 @@
 # Project Memory
 
-Last updated: 2026-03-20
+Last updated: 2026-03-21
 
 ## 1. Project goal
 
-This repository is a production-oriented RBAC monorepo starter, not a toy demo. The target is a reusable foundation that already includes:
+This repository is a production-oriented RBAC monorepo starter, not a toy CRUD demo. The intended outcome is a reusable admin/business foundation that already includes:
 
-- backend RBAC auth, permission checks, CRUD, audit, upload, realtime
-- a formal Web admin console with scalable frontend architecture
-- a mobile client based on official unibest
-- a shared `api-common` package for Web and uni-app request reuse
+- a real backend RBAC service
+- a professional web admin console
+- an app client that stays on official unibest structure
+- a shared `api-common` package for cross-platform request/type reuse
+- a background jobs package for scheduled tasks
 
-The project should remain easy to continue over multiple sessions without re-explaining the original requirements.
-
-## 2. User requirements that must not be broken
+## 2. Fixed boundaries and stack
 
 ### Monorepo structure
 
@@ -23,247 +22,177 @@ The project should remain easy to continue over multiple sessions without re-exp
 - `apps/web-frontend`
 - `apps/app-frontend`
 
-### Fixed stack constraints
+### Stack constraints
 
 - Web: Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite 8
-- Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + Multer + S3-compatible object storage + Socket.io
-- App: must be based on official unibest structure; do not replace it with a custom uni-app scaffold
-- Shared API: `api-common` must provide a custom request layer usable in both Web and uni-app environments
+- Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + S3-compatible object storage + Socket.io
+- Backend jobs: Node.js + TypeScript + Prisma + S3-compatible SDK
+- App: must remain based on official unibest structure
+- Shared API: `packages/api-common` remains the shared request/type layer for Web and App
 
-### Product expectations
+### Product constraints
 
-- This is not allowed to stay at "simple CRUD demo" quality
-- Web admin must feel like a complete management console
-- RBAC core must be real and database-backed
-- User / Role / Permission / Audit must support real CRUD and practical management flows
-- The interface must support permission-source tracing, role-permission management, and a professional layout system
+- RBAC must stay real and database-backed
+- Web admin must keep evolving as a coherent management framework
+- Menu, permission, upload, and audit flows must remain production-minded
+- Shared abstractions should be preferred over repeated page-local logic
 
 ## 3. Current implemented state
 
-## 3.1 Monorepo
-
-- `apps/backend`: implemented and tested
-- `apps/backend-jobs`: implemented for scheduled upload reconciliation
-- `packages/api-common`: implemented and shared by backend/web/app
-- `apps/web-frontend`: implemented with mature admin-shell direction
-- `apps/app-frontend`: based on unibest and integrated with shared request/token logic
-
-## 3.2 Backend
+### 3.1 Backend
 
 Implemented:
 
-- register / login / refresh / logout / current user
-- RBAC permission guard
-- users / roles / permissions full CRUD
-- user permission-source analysis
-- dashboard summary
-- audit logs
-- avatar upload
-- hourly pending-upload reconciliation worker for S3 single-part uploads
-- Socket.io realtime channel
-- Redis-backed session / permission-related flow
+- auth: register / login / refresh / logout / current user
+- RBAC permission guard and permission-source analysis
+- users / roles / permissions / audit log CRUD and queries
+- menu tree CRUD and current-user accessible menu tree
+- dashboard summary and realtime channel
+- S3-compatible upload flow with pre-sign creation and upload callback
+- file records extended for direct upload and multipart upload tracking
 
-Verification status:
+### 3.2 Backend jobs
 
-- `pnpm --filter @rbac/backend test` passes
+Implemented:
 
-## 3.3 Web admin
+- dedicated hourly upload reconciliation in `apps/backend-jobs`
+- unfinished single-part upload state checking against S3
+- conservative multipart behavior that leaves partial multipart uploads untouched until completed by normal flow
+
+### 3.3 Web admin
 
 Implemented:
 
 - login flow and route guard
-- standard admin shell: header + sidebar or top-nav + tabs + main + footer
-- settings drawer with local persistence
-- theme preset switching
-- layout mode switching
-- keep-alive tab/workbench persistence
-- metadata-driven page registry via `import.meta.glob`
-- unified page scaffold for main admin pages
-- standardized `users / roles / permissions / audit`
-- dashboard / explorer / live pages aligned into the same shell system
+- admin shell with sidebar or top-navigation layout
+- responsive sidebar collapse behavior
+- integrated header + cached tabs workbench model
+- persistent workbench settings:
+  - theme preset
+  - layout mode
+  - sidebar appearance
+  - page transition
+  - cached-tab display mode
+- `definePage(...)` page-local metadata macro with virtual page registry
+- backend-driven menu/navigation tree loaded after login
+- modal-based menu management with permission binding and icon selection
+- generic `ContextMenuHost` abstraction used by list pages and workbench tabs
+- workbench tabs with close-on-context-menu and middle-click close
+- route description shown in header instead of duplicated inside page bodies
+- dev-only Vue devtools plugin integration
 
-Verification status:
+### 3.4 App frontend
 
-- `pnpm --filter @rbac/web-frontend build` passes
+Current direction:
 
-## 3.4 App frontend
-
-Implemented direction:
-
-- unibest-based project structure retained
+- official unibest structure preserved
 - shared `api-common` adaptor integrated
-- token/request customization added on top of unibest
-- mobile login / permission-related entry already connected
-
-Constraint:
-
-- future work must keep following the official unibest organization style
+- token/request customization added without replacing unibest architecture
 
 ## 4. Important architecture decisions
 
-## 4.1 Ports
+### 4.1 Ports
 
 - backend default port is `3300`
-- this was intentionally unified because local `3000` was already occupied
-- Web and App request defaults were already updated to use `3300`
+- Web and App request defaults were aligned to this port
 
-Do not casually switch back to `3000` unless the whole repo config is updated together.
+Do not change ports casually without updating the whole repo together.
 
-## 4.2 Shared request layer
+### 4.2 Shared request layer
 
-`packages/api-common` is the cross-platform request core.
-
-Responsibilities:
+`packages/api-common` owns:
 
 - shared API factory
 - shared DTO/types
 - fetch adaptor for Web
-- uni adaptor for uni-app
-- request-level reuse across Web and App
+- uni adaptor for App
 
-If `api-common` changes, always rebuild it and verify dependents.
+If `api-common` changes, rebuild it and then verify dependents.
 
-## 4.3 Web page metadata system
+### 4.3 Upload architecture
 
-The Web admin now uses page-level metadata as a framework primitive.
+The upload system is now based on direct-to-S3-compatible storage.
 
-Key files:
+Current model:
 
-- `apps/web-frontend/src/meta/pages.ts`
-- `apps/web-frontend/src/meta/pages/*.json`
+- backend creates file records and returns upload instructions
+- browser uploads directly to object storage
+- backend callback finalizes the result
+- background jobs reconcile stuck single-part uploads
 
-The metadata currently drives:
+This architecture should remain the default for future upload features.
 
-- navigation list
-- route registration
-- page title / caption / description / code
-- permission binding
-- keep-alive behavior
+### 4.4 Navigation ownership
 
-Future pages should keep following this pattern instead of hardcoding nav config in multiple places.
+The backend menu table is now the source of truth for:
 
-## 4.4 Web workbench architecture
+- navigation hierarchy
+- menu ordering
+- menu icons
+- route path ownership
+- permission attachment for pages/actions
 
-Key files:
+`definePage(...)` is only for page-local metadata such as title, caption, description, keep-alive, and cache naming. Do not move navigation ownership back into scattered page JSON files.
 
+### 4.5 Web workbench architecture
+
+Key anchors:
+
+- `apps/web-frontend/src/layouts/ShellLayout.vue`
 - `apps/web-frontend/src/stores/workbench.ts`
 - `apps/web-frontend/src/components/workbench/PageScaffold.vue`
-- `apps/web-frontend/src/components/workbench/SurfacePanel.vue`
 - `apps/web-frontend/src/components/workbench/WorkbenchTabs.vue`
 - `apps/web-frontend/src/components/workbench/WorkbenchSettings.vue`
-- `apps/web-frontend/src/composables/use-page-state.ts`
+- `apps/web-frontend/src/components/common/ContextMenuHost.vue`
+- `apps/web-frontend/src/meta/page-definition.ts`
 
-Current responsibilities:
+The workbench owns persistent UI behavior and should remain the place for shell-level preferences and interactions.
 
-- theme preset persistence
-- layout mode persistence
-- visited tabs persistence
-- keep-alive cache control
-- page-local state persistence
-- standardized page skeleton and panel composition
+### 4.6 Theme and layout system
 
-This is an intentional move toward a true admin-template architecture, not one-off pages.
+Key anchors:
 
-## 4.5 Theme system
-
-Key files:
-
-- `apps/web-frontend/src/themes/presets/*.json`
 - `apps/web-frontend/src/themes/index.ts`
-- `apps/web-frontend/vite/theme-presets.ts`
 - `apps/web-frontend/src/themes/styles/_tokens.scss`
-- `apps/web-frontend/src/styles/main.scss`
+- `apps/web-frontend/src/styles/_shell.scss`
+- `apps/web-frontend/src/styles/_workbench.scss`
 
-Current behavior:
+The current direction is a denser, more integrated admin-shell style. When fixing visual rhythm, prefer shared token/shell/workbench changes before page-specific overrides.
 
-- theme presets are defined as JSON
-- Vite virtual module generates the runtime preset list
-- runtime applies CSS variables to `document.documentElement`
-- global styles are split into modular SCSS layers
-
-This should remain the basis for future theme and design-system work.
-
-## 4.6 Element Plus usage
-
-Current direction:
-
-- global visual overrides are applied via token/style architecture
-- `App.vue` uses `el-config-provider`
-- Vite now uses auto-import/component auto-registration for Element Plus
-- Web entry no longer mounts Element Plus as a heavy global plugin
-
-Reason:
-
-- better maintainability
-- smaller build output
-- closer to a reusable admin template baseline
-
-## 5. Current documentation and source of truth
+## 5. Documentation and source of truth
 
 Start here when resuming work:
 
 1. `README.md`
 2. `docs/project-memory.md`
-3. `docs/plans/2026-03-20-rbac-monorepo-design.md`
+3. `docs/implementation-history.md`
+4. `docs/development-guidelines.md`
+5. `docs/plans/2026-03-20-rbac-monorepo-design.md`
 
 Then inspect these implementation anchors if needed:
 
-- backend: `apps/backend`
-- backend jobs: `apps/backend-jobs`
-- shared API: `packages/api-common`
+- backend menu APIs: `apps/backend/src/routes/menus.ts`
+- backend menu service: `apps/backend/src/services/menu-tree.ts`
+- backend jobs entry: `apps/backend-jobs/src/main.ts`
 - web shell: `apps/web-frontend/src/layouts/ShellLayout.vue`
-- page metadata: `apps/web-frontend/src/meta/pages.ts`
+- page definition macro: `apps/web-frontend/src/meta/page-definition.ts`
 - workbench state: `apps/web-frontend/src/stores/workbench.ts`
 
-## 6. Development workflow to continue this project
+## 6. Verification workflow
 
-## 6.1 Before changing code
+- backend: `pnpm --filter @rbac/backend lint` and `pnpm --filter @rbac/backend test`
+- backend jobs: `pnpm --filter @rbac/backend-jobs lint` and `pnpm --filter @rbac/backend-jobs build`
+- web: `pnpm --filter @rbac/web-frontend lint` and `pnpm --filter @rbac/web-frontend build`
+- api-common: `pnpm --filter @rbac/api-common lint` and `pnpm --filter @rbac/api-common build`
+- app: `pnpm --filter @rbac/app-frontend type-check`
 
-- read this document and `README.md`
-- keep the monorepo boundaries intact
-- preserve unibest structure in `apps/app-frontend`
-- preserve metadata-driven Web admin architecture
-- prefer extending the shared abstractions instead of adding duplicated page logic
-
-## 6.2 During implementation
-
-- keep changes small and composable
-- prefer framework-level improvements over page-only patches when repetition appears
-- maintain real backend data flow; do not replace live data with mock data
-- when adding admin pages, register them through metadata JSON first
-- when adding persistent page behavior, use `usePageState`
-
-## 6.3 After implementation
-
-Minimum verification rules:
-
-- if backend changed: run `pnpm --filter @rbac/backend test`
-- if web changed: run `pnpm --filter @rbac/web-frontend build`
-- if `api-common` changed: run `pnpm --filter @rbac/api-common build`, then verify web/backend/app as needed
-- if app changed: run `pnpm --filter @rbac/app-frontend type-check` and related app build/dev verification
-
-Recommended install command:
-
-```bash
-pnpm --store-dir .pnpm-store install
-```
-
-## 7. Known active direction for next work
-
-The project has already moved beyond basic CRUD, but the intended direction is still to make the Web admin more framework-like.
-
-Recommended next steps:
-
-- continue schema/config-driven CRUD abstraction to reduce page duplication
-- further standardize table columns / form items / detail drawer definitions
-- continue improving app-side management experience while keeping unibest conventions
-- expand project docs as architecture grows
-
-## 8. Non-negotiable continuation rules
+## 7. Non-negotiable continuation rules
 
 - backend RBAC must stay real and database-backed
 - app frontend must stay unibest-based
-- Web admin should keep the current formal admin-shell direction
-- page registration should continue using metadata + glob loading
-- shared request/type logic should continue to live in `packages/api-common`
-- verification should always be run on changed subprojects before considering work complete
+- backend menu tree remains the source of truth for navigation and page/action permission binding
+- `definePage(...)` remains the page-local metadata primitive
+- shared request/type logic remains in `packages/api-common`
+- background jobs remain isolated in `apps/backend-jobs`
+- no `any`
+- run the relevant verification commands before considering work complete
