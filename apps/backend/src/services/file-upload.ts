@@ -86,7 +86,7 @@ const resolveS3Config = (): S3Config => ({
   forcePathStyle: env.S3_FORCE_PATH_STYLE,
 });
 
-const hasS3Storage = () => {
+export const hasS3Storage = () => {
   const config = resolveS3Config();
   return Boolean(config.bucket && config.endpoint && config.accessKeyId && config.accessKeySecret);
 };
@@ -99,7 +99,7 @@ const normalizeEndpoint = (endpoint: string) => {
   return /^https?:\/\//i.test(endpoint) ? endpoint : `https://${endpoint}`;
 };
 
-const createS3Client = () => {
+export const createS3Client = () => {
   const config = resolveS3Config();
 
   return new S3Client({
@@ -143,23 +143,25 @@ const stripEtag = (etag?: string | null) => etag?.replace(/^"|"$/g, '') ?? null;
 const buildCopySource = (bucket: string, objectKey: string) =>
   `/${bucket}/${objectKey.split('/').map((segment) => encodeURIComponent(segment)).join('/')}`;
 
-const buildPublicUrl = (provider: StorageProvider, objectKey: string) => {
+const buildPublicUrl = (provider: StorageProvider, objectKey: string, storageBucket?: string) => {
   if (provider === 'local') {
     return `${env.UPLOAD_PUBLIC_BASE_URL.replace(/\/$/, '')}/${objectKey}`;
   }
 
   const config = resolveS3Config();
+  const bucket = storageBucket || config.bucket;
+
   if (config.publicBaseUrl) {
     return `${config.publicBaseUrl.replace(/\/$/, '')}/${objectKey}`;
   }
 
   const endpoint = new URL(normalizeEndpoint(config.endpoint));
   if (config.forcePathStyle) {
-    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/${config.bucket}/${objectKey}`;
+    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/${bucket}/${objectKey}`;
     return endpoint.toString();
   }
 
-  endpoint.hostname = `${config.bucket}.${endpoint.hostname}`;
+  endpoint.hostname = `${bucket}.${endpoint.hostname}`;
   endpoint.pathname = `/${objectKey}`;
   return endpoint.toString();
 };
@@ -511,8 +513,11 @@ export const finalizeUpload = async (input: FinalizeUploadInput) => {
   return finalizeLocalUpload(input);
 };
 
-export const getUploadPublicUrl = (provider: MediaAssetStorageProvider, objectKey: string) =>
-  buildPublicUrl(provider === 'S3' ? 's3' : 'local', objectKey);
+export const getUploadPublicUrl = (
+  provider: MediaAssetStorageProvider,
+  objectKey: string,
+  storageBucket?: string,
+) => buildPublicUrl(provider === 'S3' ? 's3' : 'local', objectKey, storageBucket);
 
 
 

@@ -1,6 +1,13 @@
 import 'dotenv/config';
 import { z } from 'zod';
 
+const booleanFromEnv = (defaultValue: boolean) =>
+  z
+    .union([z.boolean(), z.string()])
+    .optional()
+    .default(defaultValue ? 'true' : 'false')
+    .transform((value) => value === true || value === 'true' || value === '1');
+
 const envSchema = z.object({
   PORT: z.coerce.number().default(3300),
   DATABASE_URL: z.string().min(1),
@@ -19,17 +26,18 @@ const envSchema = z.object({
   S3_ACCESS_KEY_SECRET: z.string().optional().default(''),
   S3_ENDPOINT: z.string().optional().default(''),
   S3_PUBLIC_BASE_URL: z.string().optional().default(''),
-  S3_FORCE_PATH_STYLE: z
-    .union([z.boolean(), z.string()])
-    .optional()
-    .default('false')
-    .transform((value) => value === true || value === 'true' || value === '1'),
+  S3_FORCE_PATH_STYLE: booleanFromEnv(false),
   OSS_REGION: z.string().optional().default(''),
   OSS_BUCKET: z.string().optional().default(''),
   OSS_ACCESS_KEY_ID: z.string().optional().default(''),
   OSS_ACCESS_KEY_SECRET: z.string().optional().default(''),
   OSS_ENDPOINT: z.string().optional().default(''),
   UPLOAD_PUBLIC_BASE_URL: z.string().default('http://localhost:3300/uploads'),
+  UPLOAD_RECONCILE_ENABLED: booleanFromEnv(true),
+  UPLOAD_RECONCILE_RUN_ON_START: booleanFromEnv(true),
+  UPLOAD_RECONCILE_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
+  UPLOAD_PENDING_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(60),
+  UPLOAD_RECONCILE_BATCH_SIZE: z.coerce.number().int().positive().default(100),
   CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
 });
 

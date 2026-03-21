@@ -6,8 +6,7 @@
   "scripts": {
     "postinstall": "pnpm --filter @rbac/api-common build",
     "dev": "pnpm --filter @rbac/api-common build && pnpm -r --parallel dev",
-    "dev:backend": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/backend --filter @rbac/backend-jobs dev",
-    "dev:jobs": "pnpm --filter @rbac/backend-jobs dev",
+    "dev:backend": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/backend dev",
     "dev:web": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/web-frontend dev",
     "dev:app": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/app-frontend dev",
     "build": "pnpm --filter @rbac/api-common build && pnpm -r --filter !@rbac/api-common build",

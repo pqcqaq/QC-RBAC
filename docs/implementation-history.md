@@ -1,6 +1,6 @@
 # Implementation History
 
-Last updated: 2026-03-21
+Last updated: 2026-03-22
 
 This document summarizes the major implementation changes completed across the recent long-running development cycle. It is intended to help future sessions resume work without reconstructing the history from commit diffs.
 
@@ -8,7 +8,6 @@ This document summarizes the major implementation changes completed across the r
 
 - Consolidated the repository into a pnpm monorepo with:
   - `apps/backend`
-  - `apps/backend-jobs`
   - `apps/web-frontend`
   - `apps/app-frontend`
   - `packages/api-common`
@@ -27,14 +26,15 @@ This document summarizes the major implementation changes completed across the r
 - Standardized the backend around S3-compatible libraries so MinIO, OSS, COS, and other S3-adapter providers can be swapped in through compatible configuration.
 - Kept the browser upload mechanism POST-based for the direct-upload flow.
 
-## 3. Dedicated backend scheduled jobs package
+## 3. Backend timer registry and upload reconciliation
 
-- Added `apps/backend-jobs` as a separate package dedicated to scheduled tasks.
+- Added a shared timer registry under `apps/backend/src/timers`, backed by `toad-scheduler`.
+- Moved upload reconciliation into the main backend process as a registered timer instead of a separate worker package.
 - Implemented an hourly upload reconciliation job that checks unfinished file uploads against S3.
 - The reconciliation strategy is intentionally conservative:
   - single-part uploads are checked remotely and marked `SUCCESS` or `FAILED`
   - multipart uploads are skipped when still incomplete, because partial chunks may already exist
-- This isolates background tasks from the request-serving backend process.
+- New backend timers are expected to register through the shared abstraction rather than introducing standalone processes by default.
 
 ## 4. Menu tree and permission model redesign
 
@@ -133,7 +133,7 @@ At the end of this cycle, the project is no longer just a CRUD starter. It now b
 
 - real RBAC backend behavior
 - direct-to-S3 upload infrastructure
-- isolated background jobs
+- integrated backend timer infrastructure
 - server-driven menu/navigation ownership
 - page-local metadata via `definePage`
 - reusable context-menu infrastructure

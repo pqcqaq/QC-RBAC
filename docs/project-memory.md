@@ -1,6 +1,6 @@
 # Project Memory
 
-Last updated: 2026-03-21
+Last updated: 2026-03-22
 
 ## 1. Project goal
 
@@ -10,14 +10,13 @@ This repository is a production-oriented RBAC monorepo starter, not a toy CRUD d
 - a professional web admin console
 - an app client that stays on official unibest structure
 - a shared `api-common` package for cross-platform request/type reuse
-- a background jobs package for scheduled tasks
+- a backend timer registry for scheduled tasks
 
 ## 2. Fixed boundaries and stack
 
 ### Monorepo structure
 
 - `apps/backend`
-- `apps/backend-jobs`
 - `packages/api-common`
 - `apps/web-frontend`
 - `apps/app-frontend`
@@ -26,7 +25,7 @@ This repository is a production-oriented RBAC monorepo starter, not a toy CRUD d
 
 - Web: Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite 8
 - Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + S3-compatible object storage + Socket.io
-- Backend jobs: Node.js + TypeScript + Prisma + S3-compatible SDK
+- Backend timers: `apps/backend/src/timers` + `toad-scheduler`
 - App: must remain based on official unibest structure
 - Shared API: `packages/api-common` remains the shared request/type layer for Web and App
 
@@ -51,11 +50,11 @@ Implemented:
 - S3-compatible upload flow with pre-sign creation and upload callback
 - file records extended for direct upload and multipart upload tracking
 
-### 3.2 Backend jobs
+### 3.2 Backend timers
 
 Implemented:
 
-- dedicated hourly upload reconciliation in `apps/backend-jobs`
+- dedicated hourly upload reconciliation in `apps/backend/src/timers`
 - unfinished single-part upload state checking against S3
 - conservative multipart behavior that leaves partial multipart uploads untouched until completed by normal flow
 
@@ -118,7 +117,7 @@ Current model:
 - backend creates file records and returns upload instructions
 - browser uploads directly to object storage
 - backend callback finalizes the result
-- background jobs reconcile stuck single-part uploads
+- backend timers reconcile stuck single-part uploads
 
 This architecture should remain the default for future upload features.
 
@@ -173,7 +172,7 @@ Then inspect these implementation anchors if needed:
 
 - backend menu APIs: `apps/backend/src/routes/menus.ts`
 - backend menu service: `apps/backend/src/services/menu-tree.ts`
-- backend jobs entry: `apps/backend-jobs/src/main.ts`
+- backend timer registry: `apps/backend/src/timers/index.ts`
 - web shell: `apps/web-frontend/src/layouts/ShellLayout.vue`
 - page definition macro: `apps/web-frontend/src/meta/page-definition.ts`
 - workbench state: `apps/web-frontend/src/stores/workbench.ts`
@@ -181,7 +180,6 @@ Then inspect these implementation anchors if needed:
 ## 6. Verification workflow
 
 - backend: `pnpm --filter @rbac/backend lint` and `pnpm --filter @rbac/backend test`
-- backend jobs: `pnpm --filter @rbac/backend-jobs lint` and `pnpm --filter @rbac/backend-jobs build`
 - web: `pnpm --filter @rbac/web-frontend lint` and `pnpm --filter @rbac/web-frontend build`
 - api-common: `pnpm --filter @rbac/api-common lint` and `pnpm --filter @rbac/api-common build`
 - app: `pnpm --filter @rbac/app-frontend type-check`
@@ -193,6 +191,6 @@ Then inspect these implementation anchors if needed:
 - backend menu tree remains the source of truth for navigation and page/action permission binding
 - `definePage(...)` remains the page-local metadata primitive
 - shared request/type logic remains in `packages/api-common`
-- background jobs remain isolated in `apps/backend-jobs`
+- background timers remain registered inside `apps/backend/src/timers`
 - no `any`
 - run the relevant verification commands before considering work complete

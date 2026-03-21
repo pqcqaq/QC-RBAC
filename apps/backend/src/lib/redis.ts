@@ -43,3 +43,17 @@ export const cacheDel = async (...keys: string[]) => {
   }
   await redis.del(...keys);
 };
+
+export const closeRedisConnection = async () => {
+  ready = false;
+
+  if (redis.status === 'end') {
+    return;
+  }
+
+  try {
+    await redis.quit();
+  } catch {
+    redis.disconnect();
+  }
+};

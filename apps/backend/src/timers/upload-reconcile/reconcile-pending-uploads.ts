@@ -1,69 +1,16 @@
-import { HeadObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { Prisma } from '@prisma/client';
-import { env } from '../config/env.js';
-import { prisma } from '../lib/prisma.js';
+import { env } from '../../config/env.js';
+import { prisma } from '../../lib/prisma.js';
+import {
+  createS3Client,
+  getUploadPublicUrl,
+  hasS3Storage,
+} from '../../services/file-upload.js';
 
-interface S3Config {
-  region: string;
-  bucket: string;
-  endpoint: string;
-  accessKeyId: string;
-  accessKeySecret: string;
-  publicBaseUrl: string;
-  forcePathStyle: boolean;
-}
-
-const resolveS3Config = (): S3Config => ({
-  region: env.S3_REGION || env.OSS_REGION || 'auto',
-  bucket: env.S3_BUCKET || env.OSS_BUCKET,
-  endpoint: env.S3_ENDPOINT || env.OSS_ENDPOINT,
-  accessKeyId: env.S3_ACCESS_KEY_ID || env.OSS_ACCESS_KEY_ID,
-  accessKeySecret: env.S3_ACCESS_KEY_SECRET || env.OSS_ACCESS_KEY_SECRET,
-  publicBaseUrl: env.S3_PUBLIC_BASE_URL,
-  forcePathStyle: env.S3_FORCE_PATH_STYLE,
-});
-
-const normalizeEndpoint = (endpoint: string) =>
-  /^https?:\/\//i.test(endpoint) ? endpoint : `https://${endpoint}`;
-
-const hasS3Config = () => {
-  const config = resolveS3Config();
-  return Boolean(config.bucket && config.endpoint && config.accessKeyId && config.accessKeySecret);
-};
-
-const createS3Client = () => {
-  const config = resolveS3Config();
-
-  return new S3Client({
-    region: config.region,
-    endpoint: normalizeEndpoint(config.endpoint),
-    forcePathStyle: config.forcePathStyle,
-    credentials: {
-      accessKeyId: config.accessKeyId,
-      secretAccessKey: config.accessKeySecret,
-    },
-  });
-};
+const TIMER_ID = 'upload-reconcile';
 
 const stripEtag = (etag?: string | null) => etag?.replace(/^"|"$/g, '') ?? null;
-
-const buildPublicUrl = (objectKey: string) => {
-  const config = resolveS3Config();
-
-  if (config.publicBaseUrl) {
-    return `${config.publicBaseUrl.replace(/\/$/, '')}/${objectKey}`;
-  }
-
-  const endpoint = new URL(normalizeEndpoint(config.endpoint));
-  if (config.forcePathStyle) {
-    endpoint.pathname = `${endpoint.pathname.replace(/\/$/, '')}/${config.bucket}/${objectKey}`;
-    return endpoint.toString();
-  }
-
-  endpoint.hostname = `${config.bucket}.${endpoint.hostname}`;
-  endpoint.pathname = `/${objectKey}`;
-  return endpoint.toString();
-};
 
 const isMissingObjectError = (error: unknown) => {
   if (!(error instanceof Error)) {
@@ -95,7 +42,7 @@ const markAssetCompleted = async (asset: {
   objectKey: string;
   storageBucket: string;
 }, etag: string | null) => {
-  const url = buildPublicUrl(asset.objectKey);
+  const url = getUploadPublicUrl('S3', asset.objectKey, asset.storageBucket);
 
   const operations: Prisma.PrismaPromise<unknown>[] = [
     prisma.mediaAsset.update({
@@ -119,7 +66,6 @@ const markAssetCompleted = async (asset: {
   }
 
   await prisma.$transaction(operations);
-  return url;
 };
 
 const markAssetFailed = async (assetId: string) =>
@@ -131,7 +77,7 @@ const markAssetFailed = async (assetId: string) =>
   });
 
 const reconcileAsset = async (
-  client: S3Client,
+  client: ReturnType<typeof createS3Client>,
   asset: {
     id: string;
     userId: string;
@@ -150,25 +96,25 @@ const reconcileAsset = async (
       }),
     );
 
-    const url = await markAssetCompleted(asset, stripEtag(head.ETag));
-    return { status: 'completed' as const, url };
+    await markAssetCompleted(asset, stripEtag(head.ETag));
+    return 'completed' as const;
   } catch (error) {
     if (!isMissingObjectError(error)) {
       throw error;
     }
 
     if (!shouldMarkFailed(asset.createdAt, now)) {
-      return { status: 'pending' as const };
+      return 'pending' as const;
     }
 
     await markAssetFailed(asset.id);
-    return { status: 'failed' as const };
+    return 'failed' as const;
   }
 };
 
 export const reconcilePendingUploads = async () => {
-  if (!hasS3Config()) {
-    console.log('[backend-jobs] skip reconcile: missing S3 config');
+  if (!hasS3Storage()) {
+    console.log(`[timer:${TIMER_ID}] skip reconcile: missing S3 config`);
     return { checked: 0, completed: 0, failed: 0, pending: 0 };
   }
 
@@ -202,20 +148,21 @@ export const reconcilePendingUploads = async () => {
 
   for (const asset of assets) {
     try {
-      const result = await reconcileAsset(client, asset, now);
-      if (result.status === 'completed') {
+      const status = await reconcileAsset(client, asset, now);
+
+      if (status === 'completed') {
         completed += 1;
         continue;
       }
 
-      if (result.status === 'failed') {
+      if (status === 'failed') {
         failed += 1;
         continue;
       }
 
       pending += 1;
     } catch (error) {
-      console.error(`[backend-jobs] reconcile upload failed: ${asset.id}`, error);
+      console.error(`[timer:${TIMER_ID}] reconcile upload failed: ${asset.id}`, error);
       pending += 1;
     }
   }

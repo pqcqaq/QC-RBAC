@@ -1,6 +1,6 @@
 # Development Guidelines
 
-Last updated: 2026-03-21
+Last updated: 2026-03-22
 
 These guidelines capture the patterns that should now be treated as the default development rules for this repository.
 
@@ -8,7 +8,6 @@ These guidelines capture the patterns that should now be treated as the default 
 
 - Keep the pnpm monorepo boundaries intact:
   - `apps/backend`
-  - `apps/backend-jobs`
   - `apps/web-frontend`
   - `apps/app-frontend`
   - `packages/api-common`
@@ -20,7 +19,7 @@ These guidelines capture the patterns that should now be treated as the default 
 
 - Keep RBAC real and database-backed. Do not downgrade flows to mock data or hardcoded permission checks.
 - Route handlers should stay thin. Put tree assembly, upload state transitions, and similar business logic into services.
-- New scheduled/background jobs belong in `apps/backend-jobs`, not inside the request-serving backend process.
+- New scheduled/background jobs belong in `apps/backend/src/timers`, registered through the shared timer abstraction instead of ad-hoc `setInterval`.
 - S3-compatible storage is the upload abstraction boundary. New storage features should stay compatible with the S3 client/presign model unless there is a strong architectural reason otherwise.
 
 ## 3. Navigation and page metadata rules
@@ -80,9 +79,6 @@ These guidelines capture the patterns that should now be treated as the default 
 - Backend changes:
   - `pnpm --filter @rbac/backend lint`
   - `pnpm --filter @rbac/backend test`
-- Backend jobs changes:
-  - `pnpm --filter @rbac/backend-jobs lint`
-  - `pnpm --filter @rbac/backend-jobs build`
 - Shared API changes:
   - `pnpm --filter @rbac/api-common lint`
   - `pnpm --filter @rbac/api-common build`

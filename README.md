@@ -2,8 +2,7 @@
 
 一个基于 `pnpm workspace` 的 RBAC 基础项目，包含：
 
-- `apps/backend`：Express + Prisma + PostgreSQL + Redis + Socket.io
-- `apps/backend-jobs`：独立上传巡检 worker，按小时修复 S3 直传遗漏状态
+- `apps/backend`：Express + Prisma + PostgreSQL + Redis + Socket.io + 内置 timers
 - `packages/api-common`：跨 Web / uni-app 的请求封装、类型和请求 adaptor
 - `apps/web-frontend`：Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite 8
 - `apps/app-frontend`：基于官方 unibest / wot-ui 的 uni-app 客户端
@@ -32,12 +31,6 @@ pnpm --filter @rbac/backend prisma:seed
 pnpm dev
 ```
 
-如果只需要启动上传巡检 worker，可以单独执行：
-
-```bash
-pnpm dev:jobs
-```
-
 当前仓库默认后端端口已经统一为 `3300`，因为本机 `3000` 常被其他本地服务占用。
 
 如果你需要临时覆盖端口，可以用环境变量，例如：
@@ -48,7 +41,7 @@ set PORT=3300&& set CLIENT_ORIGIN=http://127.0.0.1:4173&& pnpm --filter @rbac/ba
 
 Web 端可参考 `apps/web-frontend/.env.example` 配置 API 与 WebSocket 地址。
 
-`apps/backend-jobs` 默认会优先读取自己目录下的 `.env`，否则回退到 `apps/backend/.env`，这样可以直接复用后端已有的数据库和 S3 配置。
+上传巡检 timer 已经内置在 `apps/backend/src/timers`，默认跟随后端进程一起启动，可通过 `apps/backend/.env` 中的 `UPLOAD_RECONCILE_*` 变量调整。
 
 ## 默认种子账号
 
