@@ -8,6 +8,8 @@ import { authClientMiddleware } from '../middlewares/auth-client.js';
 import { HttpError, unauthorized } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
+import { withSnowflakeId } from '../utils/persistence.js';
+import { setRequestActorId } from '../utils/request-context.js';
 import {
   buildCurrentUser,
   getUserWithRelations,
@@ -80,12 +82,12 @@ const issueSession = async (userId: string, client: NonNullable<Express.Request[
   const refresh = signRefreshToken(userId, jti, client.code);
 
   await prisma.refreshToken.create({
-    data: {
+    data: withSnowflakeId({
       token: refresh.token,
       userId,
       clientId: client.id,
       expiresAt: refresh.expiresAt,
-    },
+    }),
   });
   await cacheSet(`refresh:${jti}`, userId, refreshTokenTtlSeconds);
 
@@ -138,6 +140,7 @@ authRouter.post(
     const client = req.authClient!;
     const payload = registerSchema.parse(req.body);
     const identity = await authService.register(payload);
+    setRequestActorId(identity.user.id);
 
     await invalidatePermissionCache([identity.user.id]);
     await logActivity({
@@ -161,6 +164,7 @@ authRouter.post(
     const client = req.authClient!;
     const payload = loginSchema.parse(req.body);
     const identity = await authService.login(payload);
+    setRequestActorId(identity.user.id);
 
     if (identity.user.status !== 'ACTIVE') {
       throw unauthorized('Account disabled');
@@ -187,6 +191,7 @@ authRouter.post(
     const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
     const payload = verifyRefreshToken(refreshToken);
+    setRequestActorId(payload.sub);
 
     const existed = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
@@ -217,15 +222,21 @@ authRouter.post(
     const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
     let payloadClientCode: string | null = null;
+    let payloadUserId: string | null = null;
 
     try {
-      payloadClientCode = verifyRefreshToken(refreshToken).clientCode;
+      const payload = verifyRefreshToken(refreshToken);
+      payloadClientCode = payload.clientCode;
+      payloadUserId = payload.sub;
     } catch (error) {
       if (error instanceof HttpError) {
         throw error;
       }
     }
 
+    if (payloadUserId) {
+      setRequestActorId(payloadUserId);
+    }
     if (payloadClientCode && payloadClientCode !== client.code) {
       throw unauthorized('Refresh token client mismatch');
     }

@@ -5,10 +5,13 @@ import type {
   Prisma,
   User,
 } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
+import { prisma, prismaRaw } from '../lib/prisma.js';
 import { badRequest, unauthorized } from '../utils/errors.js';
 import { comparePassword, compareSecret, hashPassword, hashSecret } from '../utils/password.js';
+import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence.js';
+import { getRequestActorId } from '../utils/request-context.js';
 import { addSeconds } from '../utils/time.js';
+import { syncUserRoles } from './rbac-write.js';
 
 const verificationCodeTtlSeconds = 60 * 5;
 
@@ -183,32 +186,93 @@ const createRegisteredUser = async (input: {
     ? await resolveEmailCodeStrategy()
     : null;
 
-  return prisma.user.create({
-    data: {
+  const user = await prisma.user.create({
+    data: withSnowflakeId({
       username: input.username,
       email: emailIdentifier,
       nickname: input.nickname,
-      roles: {
-        create: [{ roleId: memberRoleId }],
+    }),
+  });
+
+  await syncUserRoles(user.id, [memberRoleId]);
+  await prisma.userAuthentication.createMany({
+    data: withSnowflakeIds([
+      {
+        userId: user.id,
+        strategyId: input.strategy.id,
+        identifier: input.identifier,
+        credentialHash: input.credentialHash ?? null,
+        salt: input.salt ?? null,
+        verifiedAt: new Date(),
       },
-      authentications: {
-        create: [
-          {
-            strategyId: input.strategy.id,
-            identifier: input.identifier,
-            credentialHash: input.credentialHash ?? null,
-            salt: input.salt ?? null,
-            verifiedAt: new Date(),
-          },
-          ...(emailStrategy
-            ? [{
-              strategyId: emailStrategy.id,
-              identifier: emailIdentifier!,
-            }]
-            : []),
-        ],
-      },
+      ...(emailStrategy
+        ? [{
+            userId: user.id,
+            strategyId: emailStrategy.id,
+            identifier: emailIdentifier!,
+          }]
+        : []),
+    ]),
+  });
+
+  return user;
+};
+
+const upsertUserAuthenticationByUserAndStrategy = async (input: {
+  userId: string;
+  strategyId: string;
+  identifier: string;
+  credentialHash?: string | null;
+  salt?: string | null;
+  verifiedAt?: Date | null;
+}) => {
+  const actorId = getRequestActorId();
+  const record = await prismaRaw.userAuthentication.findFirst({
+    where: {
+      userId: input.userId,
+      strategyId: input.strategyId,
     },
+    select: { id: true },
+  });
+
+  const data: Prisma.UserAuthenticationUncheckedUpdateInput = {
+    identifier: input.identifier,
+    deleteAt: null,
+    updateId: actorId,
+  };
+  if (Object.prototype.hasOwnProperty.call(input, 'credentialHash')) {
+    data.credentialHash = input.credentialHash ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'salt')) {
+    data.salt = input.salt ?? null;
+  }
+  if (Object.prototype.hasOwnProperty.call(input, 'verifiedAt')) {
+    data.verifiedAt = input.verifiedAt ?? null;
+  }
+
+  if (record) {
+    await prismaRaw.userAuthentication.update({
+      where: { id: record.id },
+      data,
+    });
+    return;
+  }
+
+  await prisma.userAuthentication.create({
+    data: withSnowflakeId({
+      userId: input.userId,
+      strategyId: input.strategyId,
+      identifier: input.identifier,
+      ...(Object.prototype.hasOwnProperty.call(input, 'credentialHash')
+        ? { credentialHash: input.credentialHash ?? null }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, 'salt')
+        ? { salt: input.salt ?? null }
+        : {}),
+      ...(Object.prototype.hasOwnProperty.call(input, 'verifiedAt')
+        ? { verifiedAt: input.verifiedAt ?? null }
+        : {}),
+    }),
   });
 };
 
@@ -292,14 +356,14 @@ abstract class BaseVerificationCodeStrategy implements AuthStrategyHandler {
     });
 
     await prisma.verificationCode.create({
-      data: {
+      data: withSnowflakeId({
         strategyId: input.strategy.id,
         identifier: input.identifier,
         purpose: input.purpose,
         codeHash: secret.hash,
         salt: secret.salt,
         expiresAt,
-      },
+      }),
     });
 
     return {
@@ -485,53 +549,29 @@ export class UsernamePasswordStrategy implements AuthStrategyHandler {
   }
 
   async syncUserProfile(input: StrategySyncProfileInput) {
-    const record = await prisma.userAuthentication.findUnique({
-      where: {
-        userId_strategyId: {
-          userId: input.userId,
-          strategyId: input.strategy.id,
-        },
-      },
-      select: { id: true },
-    });
-
     const identifier = normalizeIdentifier('USERNAME', input.username);
-    const nextData: Prisma.UserAuthenticationUncheckedUpdateInput = {
-      identifier,
-    };
     let nextCredentialHash: string | null = null;
     let nextSalt: string | null = null;
+    let verifiedAt: Date | null = null;
 
     if (input.password?.trim()) {
       const secret = await hashPassword(input.password.trim());
-      nextData.credentialHash = secret.hash;
-      nextData.salt = secret.salt;
-      nextData.verifiedAt = new Date();
+      verifiedAt = new Date();
       nextCredentialHash = secret.hash;
       nextSalt = secret.salt;
-    }
-
-    if (record) {
-      await prisma.userAuthentication.update({
-        where: { id: record.id },
-        data: nextData,
-      });
-      return;
     }
 
     if (!input.password?.trim()) {
       return;
     }
 
-    await prisma.userAuthentication.create({
-      data: {
-        userId: input.userId,
-        strategyId: input.strategy.id,
-        identifier,
-        credentialHash: nextCredentialHash,
-        salt: nextSalt,
-        verifiedAt: new Date(),
-      },
+    await upsertUserAuthenticationByUserAndStrategy({
+      userId: input.userId,
+      strategyId: input.strategy.id,
+      identifier,
+      credentialHash: nextCredentialHash,
+      salt: nextSalt,
+      verifiedAt,
     });
   }
 }
@@ -544,14 +584,12 @@ export class EmailCodeStrategy extends BaseVerificationCodeStrategy {
   }
 
   async syncUserProfile(input: StrategySyncProfileInput) {
-    const record = await prisma.userAuthentication.findUnique({
+    const record = await prismaRaw.userAuthentication.findFirst({
       where: {
-        userId_strategyId: {
-          userId: input.userId,
-          strategyId: input.strategy.id,
-        },
+        userId: input.userId,
+        strategyId: input.strategy.id,
       },
-      select: { id: true },
+      select: { id: true, deleteAt: true },
     });
 
     const emailIdentifier = assertOptionalEmail(input.email);
@@ -564,22 +602,10 @@ export class EmailCodeStrategy extends BaseVerificationCodeStrategy {
       return;
     }
 
-    if (record) {
-      await prisma.userAuthentication.update({
-        where: { id: record.id },
-        data: {
-          identifier: emailIdentifier,
-        },
-      });
-      return;
-    }
-
-    await prisma.userAuthentication.create({
-      data: {
-        userId: input.userId,
-        strategyId: input.strategy.id,
-        identifier: emailIdentifier,
-      },
+    await upsertUserAuthenticationByUserAndStrategy({
+      userId: input.userId,
+      strategyId: input.strategy.id,
+      identifier: emailIdentifier,
     });
   }
 }

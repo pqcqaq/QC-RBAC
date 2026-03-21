@@ -1,5 +1,6 @@
 import type { PrismaClient, Permission, Role } from '@prisma/client';
 import { permissionCatalog } from '@rbac/api-common';
+import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence.js';
 
 type SystemRoleSeed = {
   code: string;
@@ -224,8 +225,10 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
 ];
 
 const ensureSeedPermissions = async (prisma: PrismaClient) => {
-  const permissions = await Promise.all(
-    permissionCatalog.map((permission) => prisma.permission.upsert({
+  const permissions: Permission[] = [];
+
+  for (const permission of permissionCatalog) {
+    const persisted = await prisma.permission.upsert({
       where: { code: permission.code },
       update: {
         name: permission.name,
@@ -233,15 +236,17 @@ const ensureSeedPermissions = async (prisma: PrismaClient) => {
         action: permission.action,
         description: `${permission.module} / ${permission.action}`,
       },
-      create: {
+      create: withSnowflakeId({
         code: permission.code,
         name: permission.name,
         module: permission.module,
         action: permission.action,
         description: `${permission.module} / ${permission.action}`,
-      },
-    })),
-  );
+      }),
+    });
+
+    permissions.push(persisted);
+  }
 
   return new Map(permissions.map((permission) => [permission.code, permission]));
 };
@@ -257,12 +262,12 @@ const ensureSystemRoles = async (prisma: PrismaClient, permissionByCode: Map<str
         description: seed.description,
         isSystem: true,
       },
-      create: {
+      create: withSnowflakeId({
         code: seed.code,
         name: seed.name,
         description: seed.description,
         isSystem: true,
-      },
+      }),
     });
 
     roleByCode.set(role.code, role);
@@ -279,10 +284,10 @@ const ensureSystemRoles = async (prisma: PrismaClient, permissionByCode: Map<str
 
     if (missingIds.length) {
       await prisma.rolePermission.createMany({
-        data: missingIds.map((permissionId) => ({
+        data: withSnowflakeIds(missingIds.map((permissionId) => ({
           roleId: role.id,
           permissionId,
-        })),
+        }))),
         skipDuplicates: true,
       });
     }
@@ -299,7 +304,7 @@ const createMenuTree = async (
 ) => {
   for (const node of nodes) {
     const created = await prisma.menuNode.create({
-      data: {
+      data: withSnowflakeId({
         code: node.code,
         type: node.type,
         title: node.title,
@@ -311,7 +316,7 @@ const createMenuTree = async (
         sortOrder: node.sortOrder,
         parentId,
         permissionId: node.permissionCode ? permissionByCode.get(node.permissionCode)?.id : null,
-      },
+      }),
     });
 
     if (node.children?.length) {

@@ -1,4 +1,6 @@
+import type { Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
+import { withSnowflakeId } from './persistence.js';
 
 type AuditPayload = {
   actorId?: string;
@@ -15,13 +17,17 @@ export const logActivity = async ({
   target,
   detail,
 }: AuditPayload) => {
+  const data: Prisma.ActivityLogUncheckedCreateInput = withSnowflakeId({
+    createId: actorId ?? null,
+    updateId: actorId ?? null,
+    actorId: actorId ?? null,
+    actorName,
+    action,
+    target,
+    ...(detail === undefined ? {} : { detail: detail as Prisma.InputJsonValue }),
+  });
+
   await prisma.activityLog.create({
-    data: {
-      actorId,
-      actorName,
-      action,
-      target,
-      detail: detail as never,
-    },
+    data,
   });
 };

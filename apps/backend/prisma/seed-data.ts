@@ -3,22 +3,28 @@ import type { PrismaClient } from '@prisma/client';
 import { env } from '../src/config/env';
 import { bootstrapSystemRbac } from '../src/services/system-rbac';
 import { hashPassword, hashSecret } from '../src/utils/password';
+import { withSnowflakeId, withSnowflakeIds } from '../src/utils/persistence';
+import { syncUserRoles } from '../src/services/rbac-write';
 
 export async function seedDatabase(prisma: PrismaClient) {
-  await prisma.verificationCode.deleteMany();
-  await prisma.userAuthentication.deleteMany();
-  await prisma.authStrategy.deleteMany();
-  await prisma.menuNode.deleteMany();
-  await prisma.rolePermission.deleteMany();
-  await prisma.userRole.deleteMany();
-  await prisma.refreshToken.deleteMany();
-  await prisma.authClient.deleteMany();
-  await prisma.activityLog.deleteMany();
-  await prisma.chatMessage.deleteMany();
-  await prisma.mediaAsset.deleteMany();
-  await prisma.permission.deleteMany();
-  await prisma.role.deleteMany();
-  await prisma.user.deleteMany();
+  await prisma.$executeRawUnsafe(`
+    TRUNCATE TABLE
+      "VerificationCode",
+      "UserAuthentication",
+      "AuthStrategy",
+      "MenuNode",
+      "RolePermission",
+      "UserRole",
+      "RefreshToken",
+      "AuthClient",
+      "ActivityLog",
+      "ChatMessage",
+      "MediaAsset",
+      "Permission",
+      "Role",
+      "User"
+    RESTART IDENTITY CASCADE
+  `);
 
   const { roleByCode } = await bootstrapSystemRbac(prisma);
   const adminRole = roleByCode.get('super-admin');
@@ -35,7 +41,7 @@ export async function seedDatabase(prisma: PrismaClient) {
   ]);
 
   await prisma.authClient.createMany({
-    data: [
+    data: withSnowflakeIds([
       {
         code: 'web-console',
         name: 'Web 管理后台',
@@ -54,12 +60,12 @@ export async function seedDatabase(prisma: PrismaClient) {
         salt: uniMiniappClientSecret.salt,
         enabled: true,
       },
-    ],
+    ]),
   });
 
   const [usernamePasswordStrategy, emailCodeStrategy, phoneCodeStrategy] = await Promise.all([
     prisma.authStrategy.create({
-      data: {
+      data: withSnowflakeId({
         code: 'username-password',
         name: '用户名密码',
         description: '使用用户名与密码完成登录或注册。',
@@ -71,10 +77,10 @@ export async function seedDatabase(prisma: PrismaClient) {
         verificationEnabled: false,
         mockEnabled: true,
         sortOrder: 10,
-      },
+      }),
     }),
     prisma.authStrategy.create({
-      data: {
+      data: withSnowflakeId({
         code: 'email-code',
         name: '邮箱验证码',
         description: '使用邮箱验证码完成登录或注册。',
@@ -87,10 +93,10 @@ export async function seedDatabase(prisma: PrismaClient) {
         mockEnabled: true,
         mockValue: '123456',
         sortOrder: 20,
-      },
+      }),
     }),
     prisma.authStrategy.create({
-      data: {
+      data: withSnowflakeId({
         code: 'phone-code',
         name: '手机号验证码',
         description: '使用手机号验证码完成登录或注册。',
@@ -103,36 +109,36 @@ export async function seedDatabase(prisma: PrismaClient) {
         mockEnabled: true,
         mockValue: '654321',
         sortOrder: 30,
-      },
+      }),
     }),
   ]);
 
   const admin = await prisma.user.create({
-    data: {
+    data: withSnowflakeId({
       username: 'admin',
       email: 'admin@example.com',
       nickname: '系统管理员',
-      roles: { create: [{ roleId: adminRole.id }] },
-    },
+    }),
   });
+  await syncUserRoles(admin.id, [adminRole.id]);
 
   const manager = await prisma.user.create({
-    data: {
+    data: withSnowflakeId({
       username: 'manager',
       email: 'manager@example.com',
       nickname: '运营经理',
-      roles: { create: [{ roleId: managerRole.id }] },
-    },
+    }),
   });
+  await syncUserRoles(manager.id, [managerRole.id]);
 
   const member = await prisma.user.create({
-    data: {
+    data: withSnowflakeId({
       username: 'user',
       email: 'user@example.com',
       nickname: '普通用户',
-      roles: { create: [{ roleId: userRole.id }] },
-    },
+    }),
   });
+  await syncUserRoles(member.id, [userRole.id]);
 
   const passwordSecrets = await Promise.all([
     hashPassword('Admin123!'),
@@ -141,7 +147,7 @@ export async function seedDatabase(prisma: PrismaClient) {
   ]);
 
   await prisma.userAuthentication.createMany({
-    data: [
+    data: withSnowflakeIds([
       {
         userId: admin.id,
         strategyId: usernamePasswordStrategy.id,
@@ -202,14 +208,14 @@ export async function seedDatabase(prisma: PrismaClient) {
         identifier: '13800000002',
         verifiedAt: new Date(),
       },
-    ],
+    ]),
   });
 
   await prisma.chatMessage.createMany({
-    data: [
+    data: withSnowflakeIds([
       { senderId: admin.id, content: '欢迎来到 RBAC 协同频道。' },
       { senderId: manager.id, content: '角色调整后，前端会实时收到权限更新提醒。' },
       { senderId: member.id, content: '移动端也可以复用共享的 API 封装。' },
-    ],
+    ]),
   });
 }

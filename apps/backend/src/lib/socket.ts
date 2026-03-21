@@ -3,6 +3,8 @@ import type { Socket } from 'socket.io';
 import { Server } from 'socket.io';
 import { clientOrigins } from '../config/env.js';
 import { prisma } from './prisma.js';
+import { withSnowflakeId } from '../utils/persistence.js';
+import { runWithRequestContext } from '../utils/request-context.js';
 import { buildCurrentUser } from '../utils/rbac.js';
 import { verifyAccessToken } from '../utils/token.js';
 
@@ -66,31 +68,36 @@ export const initSocket = (server: HttpServer) => {
         return;
       }
 
-      const message = await prisma.chatMessage.create({
-        data: {
-          senderId: currentUser.id,
-          content,
-        },
-        include: {
-          sender: {
+      await runWithRequestContext({ actorId: currentUser.id }, async () => {
+        const message = await prisma.chatMessage.create({
+          data: withSnowflakeId({
+            senderId: currentUser.id,
+            content,
+          }),
+          include: {
+            sender: {
             include: {
               roles: {
+                where: {
+                  deleteAt: null,
+                },
                 include: {
                   role: true,
+                },
                 },
               },
             },
           },
-        },
-      });
+        });
 
-      io?.to('global').emit('chat:new', {
-        id: message.id,
-        senderId: message.senderId,
-        senderName: message.sender.nickname,
-        senderRoles: message.sender.roles.map(({ role }) => role.name),
-        content: message.content,
-        createdAt: message.createdAt.toISOString(),
+        io?.to('global').emit('chat:new', {
+          id: message.id,
+          senderId: message.senderId,
+          senderName: message.sender.nickname,
+          senderRoles: message.sender.roles.map(({ role }) => role.name),
+          content: message.content,
+          createdAt: message.createdAt.toISOString(),
+        });
       });
     });
 

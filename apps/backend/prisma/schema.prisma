@@ -56,58 +56,75 @@ enum MenuNodeType {
 }
 
 model User {
-  id            String         @id @default(cuid())
-  username      String         @unique
-  email         String?        @unique
-  nickname      String
-  avatar        String?
-  status        UserStatus     @default(ACTIVE)
-  createdAt     DateTime       @default(now())
-  updatedAt     DateTime       @updatedAt
-  roles         UserRole[]
+  id              String               @id
+  createId        String?
+  updateId        String?
+  username        String               @unique
+  email           String?              @unique
+  nickname        String
+  avatar          String?
+  status          UserStatus           @default(ACTIVE)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deleteAt        DateTime?
+  roles           UserRole[]
   authentications UserAuthentication[]
-  refreshTokens RefreshToken[]
-  activities    ActivityLog[]  @relation("ActivityActor")
-  uploads       MediaAsset[]
-  messages      ChatMessage[]
+  refreshTokens   RefreshToken[]
+  activities      ActivityLog[]        @relation("ActivityActor")
+  uploads         MediaAsset[]
+  messages        ChatMessage[]
+
+  @@index([deleteAt])
 }
 
 model AuthClient {
-  id           String         @id @default(cuid())
-  code         String         @unique
-  name         String
-  type         AuthClientType
-  description  String?
-  secretHash   String
-  salt         String
-  enabled      Boolean        @default(true)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
+  id            String         @id
+  createId      String?
+  updateId      String?
+  code          String         @unique
+  name          String
+  type          AuthClientType
+  description   String?
+  secretHash    String
+  salt          String
+  enabled       Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deleteAt      DateTime?
   refreshTokens RefreshToken[]
+
+  @@index([deleteAt])
 }
 
 model AuthStrategy {
-  id                 String                  @id @default(cuid())
-  code               String                  @unique
-  name               String
-  description        String?
-  identifierType     AuthIdentifierType
-  credentialType     AuthCredentialType
-  enabled            Boolean                 @default(true)
-  loginEnabled       Boolean                 @default(true)
-  registerEnabled    Boolean                 @default(true)
+  id                  String                 @id
+  createId            String?
+  updateId            String?
+  code                String                 @unique
+  name                String
+  description         String?
+  identifierType      AuthIdentifierType
+  credentialType      AuthCredentialType
+  enabled             Boolean                @default(true)
+  loginEnabled        Boolean                @default(true)
+  registerEnabled     Boolean                @default(true)
   verificationEnabled Boolean                @default(false)
-  mockEnabled        Boolean                 @default(false)
-  mockValue          String?
-  sortOrder          Int                     @default(0)
-  createdAt          DateTime                @default(now())
-  updatedAt          DateTime                @updatedAt
-  authentications    UserAuthentication[]
-  verificationCodes  VerificationCode[]
+  mockEnabled         Boolean                @default(false)
+  mockValue           String?
+  sortOrder           Int                    @default(0)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  deleteAt            DateTime?
+  authentications     UserAuthentication[]
+  verificationCodes   VerificationCode[]
+
+  @@index([deleteAt])
 }
 
 model UserAuthentication {
-  id             String       @id @default(cuid())
+  id             String       @id
+  createId       String?
+  updateId       String?
   userId         String
   strategyId     String
   identifier     String
@@ -116,16 +133,20 @@ model UserAuthentication {
   verifiedAt     DateTime?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
+  deleteAt       DateTime?
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   strategy       AuthStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
   @@unique([strategyId, identifier])
   @@unique([userId, strategyId])
   @@index([userId])
+  @@index([deleteAt])
 }
 
 model VerificationCode {
-  id         String                  @id @default(cuid())
+  id         String                  @id
+  createId   String?
+  updateId   String?
   strategyId String
   identifier String
   purpose    AuthVerificationPurpose
@@ -134,26 +155,36 @@ model VerificationCode {
   expiresAt  DateTime
   consumedAt DateTime?
   createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  deleteAt   DateTime?
   strategy   AuthStrategy            @relation(fields: [strategyId], references: [id], onDelete: Cascade)
 
   @@index([strategyId, identifier, purpose])
   @@index([expiresAt])
+  @@index([deleteAt])
 }
 
 model Role {
-  id          String           @id @default(cuid())
+  id          String           @id
+  createId    String?
+  updateId    String?
   code        String           @unique
   name        String
   description String
   isSystem    Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  deleteAt    DateTime?
   users       UserRole[]
   permissions RolePermission[]
+
+  @@index([deleteAt])
 }
 
 model Permission {
-  id          String           @id @default(cuid())
+  id          String           @id
+  createId    String?
+  updateId    String?
   code        String           @unique
   name        String
   module      String
@@ -161,12 +192,17 @@ model Permission {
   description String?
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
+  deleteAt    DateTime?
   roles       RolePermission[]
   menuNode    MenuNode?
+
+  @@index([deleteAt])
 }
 
 model MenuNode {
-  id           String       @id @default(cuid())
+  id           String       @id
+  createId     String?
+  updateId     String?
   code         String       @unique
   type         MenuNodeType
   title        String
@@ -180,60 +216,93 @@ model MenuNode {
   permissionId String?      @unique
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
+  deleteAt     DateTime?
   parent       MenuNode?    @relation("MenuTree", fields: [parentId], references: [id])
   children     MenuNode[]   @relation("MenuTree")
   permission   Permission?  @relation(fields: [permissionId], references: [id], onDelete: SetNull)
 
   @@index([parentId, sortOrder])
   @@index([type])
+  @@index([deleteAt])
 }
 
 model UserRole {
+  id        String   @id
+  createId  String?
+  updateId  String?
   userId     String
   roleId     String
   assignedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deleteAt   DateTime?
   user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
 
-  @@id([userId, roleId])
+  @@unique([userId, roleId])
+  @@index([userId, deleteAt])
+  @@index([roleId, deleteAt])
+  @@index([deleteAt])
 }
 
 model RolePermission {
+  id           String     @id
+  createId     String?
+  updateId     String?
   roleId       String
   permissionId String
   assignedAt   DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deleteAt     DateTime?
   role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
   permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
 
-  @@id([roleId, permissionId])
+  @@unique([roleId, permissionId])
+  @@index([roleId, deleteAt])
+  @@index([permissionId, deleteAt])
+  @@index([deleteAt])
 }
 
 model RefreshToken {
-  id        String   @id @default(cuid())
-  token     String   @unique
+  id        String     @id
+  createId  String?
+  updateId  String?
+  token     String     @unique
   userId    String
   clientId  String
   expiresAt DateTime
-  createdAt DateTime @default(now())
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deleteAt  DateTime?
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   client    AuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
 
   @@index([userId, clientId])
+  @@index([deleteAt])
 }
 
 model ActivityLog {
-  id        String   @id @default(cuid())
+  id        String   @id
+  createId  String?
+  updateId  String?
   actorId   String?
   actorName String
   action    String
   target    String
   detail    Json?
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleteAt  DateTime?
   actor     User?    @relation("ActivityActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([deleteAt])
 }
 
 model MediaAsset {
-  id              String                    @id @default(cuid())
+  id              String                    @id
+  createId        String?
+  updateId        String?
   userId          String
   kind            String
   originalName    String
@@ -252,16 +321,24 @@ model MediaAsset {
   completedAt     DateTime?
   createdAt       DateTime                  @default(now())
   updatedAt       DateTime                  @updatedAt
+  deleteAt        DateTime?
   user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, kind])
   @@index([uploadStatus])
+  @@index([deleteAt])
 }
 
 model ChatMessage {
-  id         String   @id @default(cuid())
-  senderId   String
-  content    String
-  createdAt  DateTime @default(now())
-  sender     User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  id        String   @id
+  createId  String?
+  updateId  String?
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleteAt  DateTime?
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([deleteAt])
 }

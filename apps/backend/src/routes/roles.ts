@@ -6,9 +6,11 @@ import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
-import { findAffectedUserIdsByRoleIds, invalidatePermissionCache } from '../utils/rbac.js';
+import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { roleWithPermissionSummaryInclude, toPermissionSummary, toRoleRecord } from '../utils/rbac-records.js';
+import { withSnowflakeId } from '../utils/persistence.js';
+import { softDeleteRole, syncRolePermissions } from '../services/rbac-write.js';
 
 const rolePayloadSchema = z.object({
   code: z.string().min(2).max(32),
@@ -21,7 +23,14 @@ const rolePayloadSchema = z.object({
 const roleWithRelationsInclude = roleWithPermissionSummaryInclude;
 
 const roleWithUserCountInclude = {
-  _count: { select: { users: true } },
+  users: {
+    where: {
+      deleteAt: null,
+    },
+    select: {
+      id: true,
+    },
+  },
 } satisfies Prisma.RoleInclude;
 
 type RoleWithUserCount = Prisma.RoleGetPayload<{
@@ -88,27 +97,32 @@ rolesRouter.post(
       throw badRequest('Missing permission: role.assign-permission');
     }
 
+    const nextPermissionIds = [...new Set(payload.permissionIds)];
     const role = await prisma.role.create({
-      data: {
+      data: withSnowflakeId({
         code: payload.code,
         name: payload.name,
         description: payload.description,
         isSystem: payload.isSystem ?? false,
-        permissions: {
-          create: payload.permissionIds.map((permissionId) => ({ permissionId })),
-        },
-      },
+      }),
+    });
+    await syncRolePermissions(role.id, nextPermissionIds);
+    const hydratedRole = await prisma.role.findUnique({
+      where: { id: role.id },
       include: roleWithRelationsInclude,
     });
+    if (!hydratedRole) {
+      throw notFound('Role not found');
+    }
 
     await publishRbacMutation({
       actor,
       action: 'role.create',
       target: role.name,
-      detail: { permissionIds: payload.permissionIds },
+      detail: { permissionIds: nextPermissionIds },
     });
 
-    return ok(res, toRoleRecord(role), 'Role created');
+    return ok(res, toRoleRecord(hydratedRole), 'Role created');
   }),
 );
 
@@ -144,24 +158,27 @@ rolesRouter.put(
         name: payload.name,
         description: payload.description,
         isSystem: current.isSystem,
-        permissions: {
-          deleteMany: {},
-          create: payload.permissionIds.map((permissionId) => ({ permissionId })),
-        },
       },
+    });
+    await syncRolePermissions(roleId, nextPermissionIds);
+    const hydratedRole = await prisma.role.findUnique({
+      where: { id: roleId },
       include: roleWithRelationsInclude,
     });
+    if (!hydratedRole) {
+      throw notFound('Role not found');
+    }
 
     await publishRbacMutation({
       actor,
       action: 'role.update',
       target: role.name,
-      detail: { permissionIds: payload.permissionIds },
+      detail: { permissionIds: nextPermissionIds },
       affectedUserIds,
       reason: `Role changed: ${role.name}`,
     });
 
-    return ok(res, toRoleRecord(role), 'Role updated');
+    return ok(res, toRoleRecord(hydratedRole), 'Role updated');
   }),
 );
 
@@ -182,11 +199,11 @@ rolesRouter.delete(
     if (role.isSystem) {
       throw badRequest('System role cannot be deleted');
     }
-    if (role._count.users > 0) {
+    if (role.users.length > 0) {
       throw badRequest('Role is assigned to users and cannot be deleted');
     }
 
-    await prisma.role.delete({ where: { id: roleId } });
+    await softDeleteRole(roleId);
     await publishRbacMutation({
       actor,
       action: 'role.delete',

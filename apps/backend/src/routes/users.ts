@@ -6,10 +6,12 @@ import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { getPermissionSource, invalidatePermissionCache } from '../utils/rbac.js';
+import { getPermissionSource } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { toRoleSummary, toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records.js';
+import { withSnowflakeId } from '../utils/persistence.js';
 import { authService } from '../services/auth-service.js';
+import { softDeleteUser, syncUserRoles } from '../services/rbac-write.js';
 
 const userPayloadSchema = z.object({
   username: z.string().min(3).max(24),
@@ -69,7 +71,7 @@ usersRouter.get(
       where.status = status;
     }
     if (roleId) {
-      where.roles = { some: { roleId } };
+      where.roles = { some: { roleId, deleteAt: null } };
     }
 
     const [total, users] = await prisma.$transaction([
@@ -136,35 +138,40 @@ usersRouter.post(
       throw badRequest('Password is required');
     }
 
+    const nextRoleIds = [...new Set(payload.roleIds)];
     const user = await prisma.user.create({
-      data: {
+      data: withSnowflakeId({
         username: payload.username,
         email: payload.email,
         nickname: payload.nickname,
         status: payload.status,
-        roles: {
-          create: payload.roleIds.map((roleId) => ({ roleId })),
-        },
-      },
-      include: userWithRolesInclude,
+      }),
     });
+    await syncUserRoles(user.id, nextRoleIds);
     await authService.syncManagedUserAuthentications({
       userId: user.id,
       username: user.username,
       email: user.email,
       password: payload.password,
     });
+    const hydratedUser = await prisma.user.findUnique({
+      where: { id: user.id },
+      include: userWithRolesInclude,
+    });
+    if (!hydratedUser) {
+      throw notFound('User not found');
+    }
 
     await publishRbacMutation({
       actor,
       action: 'user.create',
       target: resolveUserTarget(user),
-      detail: { roleIds: payload.roleIds },
+      detail: { roleIds: nextRoleIds },
       affectedUserIds: [user.id],
       reason: 'User created',
     });
 
-    return ok(res, toUserRecord(user), 'User created');
+    return ok(res, toUserRecord(hydratedUser), 'User created');
   }),
 );
 
@@ -197,30 +204,33 @@ usersRouter.put(
         email: payload.email,
         nickname: payload.nickname,
         status: payload.status,
-        roles: {
-          deleteMany: {},
-          create: payload.roleIds.map((roleId) => ({ roleId })),
-        },
       },
-      include: userWithRolesInclude,
     });
+    await syncUserRoles(userId, nextRoleIds);
     await authService.syncManagedUserAuthentications({
       userId: user.id,
       username: user.username,
       email: user.email,
       password: payload.password,
     });
+    const hydratedUser = await prisma.user.findUnique({
+      where: { id: userId },
+      include: userWithRolesInclude,
+    });
+    if (!hydratedUser) {
+      throw notFound('User not found');
+    }
 
     await publishRbacMutation({
       actor,
       action: 'user.update',
       target: resolveUserTarget(user),
-      detail: { roleIds: payload.roleIds },
+      detail: { roleIds: nextRoleIds },
       affectedUserIds: [user.id],
       reason: 'User profile updated',
     });
 
-    return ok(res, toUserRecord(user), 'User updated');
+    return ok(res, toUserRecord(hydratedUser), 'User updated');
   }),
 );
 
@@ -239,7 +249,7 @@ usersRouter.delete(
       throw notFound('User not found');
     }
 
-    await prisma.user.delete({ where: { id: userId } });
+    await softDeleteUser(userId);
     await publishRbacMutation({
       actor,
       action: 'user.delete',

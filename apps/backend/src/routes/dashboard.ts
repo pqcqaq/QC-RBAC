@@ -20,7 +20,12 @@ dashboardRouter.get(
         prisma.chatMessage.count(),
         prisma.role.findMany({
           include: {
-            _count: { select: { users: true } },
+            users: {
+              where: {
+                deleteAt: null,
+              },
+              select: { id: true },
+            },
           },
         }),
         prisma.permission.findMany(),
@@ -28,7 +33,12 @@ dashboardRouter.get(
           take: 5,
           orderBy: { createdAt: 'desc' },
           include: {
-            roles: { include: { role: true } },
+            roles: {
+              where: {
+                deleteAt: null,
+              },
+              include: { role: true },
+            },
           },
         }),
         prisma.activityLog.findMany({
@@ -53,7 +63,7 @@ dashboardRouter.get(
           { label: '权限节点', value: permissionCount, trend: '覆盖全链路管理' },
           { label: '实时消息', value: liveMessageCount, trend: '协同频道在线' },
         ],
-        roleDistribution: roles.map((role) => ({ roleName: role.name, count: role._count.users })),
+        roleDistribution: roles.map((role) => ({ roleName: role.name, count: role.users.length })),
         moduleCoverage,
         latestUsers: latestUsers.map((user) => ({
           id: user.id,

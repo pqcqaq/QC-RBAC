@@ -6,6 +6,7 @@ import morgan from 'morgan';
 import path from 'node:path';
 import { clientOrigins } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
+import { requestContextMiddleware } from './middlewares/request-context.js';
 import { apiRouter } from './routes/index.js';
 
 export const createApp = () => {
@@ -18,6 +19,7 @@ export const createApp = () => {
     }),
   );
   app.use(helmet());
+  app.use(requestContextMiddleware);
   app.use(express.json({ limit: '3mb' }));
   app.use(express.urlencoded({ extended: true }));
   app.use(cookieParser());

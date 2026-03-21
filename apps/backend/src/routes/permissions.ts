@@ -9,7 +9,9 @@ import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
 import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
+import { withSnowflakeId } from '../utils/persistence.js';
 import { toPermissionRecord } from '../utils/rbac-records.js';
+import { softDeletePermission } from '../services/rbac-write.js';
 
 const permissionPayloadSchema = z.object({
   code: z.string().min(3).max(48),
@@ -48,7 +50,7 @@ permissionsRouter.post(
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const payload = permissionPayloadSchema.parse(req.body);
-    const permission = await prisma.permission.create({ data: payload });
+    const permission = await prisma.permission.create({ data: withSnowflakeId(payload) });
 
     await publishRbacMutation({
       actor,
@@ -132,7 +134,7 @@ permissionsRouter.delete(
     }
 
     const affectedUserIds = await findAffectedUserIdsByRoleIds(permission.roles.map((item) => item.roleId));
-    await prisma.permission.delete({ where: { id: permissionId } });
+    await softDeletePermission(permissionId);
     await publishRbacMutation({
       actor,
       action: 'permission.delete',

@@ -7,10 +7,16 @@ import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records.
 
 const userInclude = {
   roles: {
+    where: {
+      deleteAt: null,
+    },
     include: {
       role: {
         include: {
           permissions: {
+            where: {
+              deleteAt: null,
+            },
             include: {
               permission: true,
             },

@@ -12,6 +12,7 @@ import {
 import { logActivity } from '../utils/audit.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
+import { withSnowflakeId } from '../utils/persistence.js';
 
 const localUpload = multer({
   storage: multer.memoryStorage(),
@@ -86,7 +87,7 @@ filesRouter.post(
     });
 
     const asset = await prisma.mediaAsset.create({
-      data: {
+      data: withSnowflakeId({
         userId: actor.id,
         kind: normalized.kind,
         originalName: normalized.fileName,
@@ -100,7 +101,7 @@ filesRouter.post(
         uploadStrategy: normalized.strategy === 'chunked' ? 'CHUNKED' : 'SINGLE',
         chunkSize: normalized.chunkSize,
         chunkCount: normalized.chunkCount,
-      },
+      }),
     });
 
     const requestOrigin = `${req.protocol}://${req.get('host')}`;

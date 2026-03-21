@@ -9,6 +9,8 @@ const envSchema = z.object({
   JWT_REFRESH_SECRET: z.string().min(16),
   ACCESS_TOKEN_EXPIRES_IN: z.string().default('2h'),
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
+  SNOWFLAKE_NODE_ID: z.coerce.number().int().min(0).max(1023).default(1),
+  SNOWFLAKE_EPOCH: z.coerce.number().int().positive().default(1704067200000),
   AUTH_WEB_CLIENT_SECRET: z.string().min(16).default('rbac-web-client-secret'),
   AUTH_UNI_WECHAT_MINIAPP_CLIENT_SECRET: z.string().min(16).default('rbac-uni-miniapp-secret'),
   S3_REGION: z.string().optional().default(''),

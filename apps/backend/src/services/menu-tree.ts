@@ -2,6 +2,7 @@ import type { MenuNodeFormPayload, MenuNodeRecord } from '@rbac/api-common';
 import type { MenuNodeType, Permission, Prisma } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { badRequest, notFound } from '../utils/errors.js';
+import { withSnowflakeId } from '../utils/persistence.js';
 import { toPermissionSummary } from '../utils/rbac-records.js';
 
 const menuNodeInclude = {
@@ -264,7 +265,7 @@ const validateMenuPayload = async (
     sortOrder: payload.sortOrder,
     parentId,
     permissionId: payload.type === 'DIRECTORY' ? null : permissionId,
-  } satisfies Prisma.MenuNodeUncheckedCreateInput;
+  };
 };
 
 export const getMenuTree = async () => {
@@ -325,7 +326,9 @@ export const getMenuNodeOrThrow = async (menuId: string) => {
 
 export const createMenuNode = async (payload: MenuNodeFormPayload) => {
   const data = await validateMenuPayload(payload);
-  const created = await prisma.menuNode.create({ data });
+  const created = await prisma.menuNode.create({
+    data: withSnowflakeId(data),
+  });
   return getMenuNodeOrThrow(created.id);
 };
 

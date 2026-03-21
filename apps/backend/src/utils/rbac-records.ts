@@ -9,6 +9,9 @@ import type { Permission, Prisma, Role } from '@prisma/client';
 
 export const userRoleSummaryInclude = {
   roles: {
+    where: {
+      deleteAt: null,
+    },
     include: {
       role: true,
     },
@@ -16,8 +19,20 @@ export const userRoleSummaryInclude = {
 } satisfies Prisma.UserInclude;
 
 export const roleWithPermissionSummaryInclude = {
-  permissions: { include: { permission: true } },
-  _count: { select: { users: true, permissions: true } },
+  permissions: {
+    where: {
+      deleteAt: null,
+    },
+    include: { permission: true },
+  },
+  users: {
+    where: {
+      deleteAt: null,
+    },
+    select: {
+      id: true,
+    },
+  },
 } satisfies Prisma.RoleInclude;
 
 type PermissionSummaryInput = Pick<
@@ -76,8 +91,8 @@ export const toRoleRecord = (role: RoleWithPermissionSummaryRelations): RoleReco
   name: role.name,
   description: role.description,
   isSystem: role.isSystem,
-  userCount: role._count.users,
-  permissionCount: role._count.permissions,
+  userCount: role.users.length,
+  permissionCount: role.permissions.length,
   permissions: role.permissions.map(({ permission }) => toPermissionSummary(permission)),
   createdAt: role.createdAt.toISOString(),
   updatedAt: role.updatedAt.toISOString(),

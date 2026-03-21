@@ -6,6 +6,7 @@ import { authMiddleware } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/require-permission.js';
 import { ok, asyncHandler } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
+import { withSnowflakeId } from '../utils/persistence.js';
 
 const messageSchema = z.object({
   content: z.string().min(1).max(240),
@@ -26,6 +27,9 @@ realtimeRouter.get(
         sender: {
           include: {
             roles: {
+              where: {
+                deleteAt: null,
+              },
               include: {
                 role: true,
               },
@@ -59,14 +63,17 @@ realtimeRouter.post(
     const actor = req.auth!;
     const payload = messageSchema.parse(req.body);
     const message = await prisma.chatMessage.create({
-      data: {
+      data: withSnowflakeId({
         senderId: actor.id,
         content: payload.content,
-      },
+      }),
       include: {
         sender: {
           include: {
             roles: {
+              where: {
+                deleteAt: null,
+              },
               include: {
                 role: true,
               },

@@ -1,6 +1,7 @@
 import type { RequestHandler } from 'express';
 import { buildCurrentUser } from '../utils/rbac.js';
 import { HttpError, unauthorized } from '../utils/errors.js';
+import { setRequestActorId } from '../utils/request-context.js';
 import { verifyAccessToken } from '../utils/token.js';
 
 export type AuthContext = Awaited<ReturnType<typeof buildCurrentUser>>;
@@ -39,6 +40,7 @@ export const authMiddleware: RequestHandler = async (req, _res, next) => {
     }
 
     req.auth = auth;
+    setRequestActorId(auth.id);
     next();
   } catch (error) {
     if (error instanceof HttpError) {
