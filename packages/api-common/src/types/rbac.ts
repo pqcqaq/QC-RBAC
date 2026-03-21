@@ -4,7 +4,7 @@ import type { PaginatedResult } from './common.js';
 export interface UserRecord {
   id: string;
   username: string;
-  email: string;
+  email: string | null;
   nickname: string;
   avatar?: string | null;
   status: UserStatus;

@@ -47,7 +47,7 @@ function handleLogout() {
         {{ userInfo.nickname || '未登录' }}
       </view>
       <view class="mt-2 text-3.6 text-[#4e6572]">
-        {{ userInfo.email }}
+        {{ userInfo.email || '未设置邮箱' }}
       </view>
     </view>
 

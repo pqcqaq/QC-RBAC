@@ -12,7 +12,7 @@ definePage({
 
 const tokenStore = useTokenStore()
 const form = reactive({
-  account: 'admin@example.com',
+  account: 'admin',
   password: 'Admin123!',
 })
 
@@ -59,7 +59,7 @@ function toRegister() {
           <view class="mb-2 text-3 text-[#607581]">
             账号
           </view>
-          <input v-model="form.account" class="text-4 text-[#17384a]" placeholder="邮箱或用户名" />
+          <input v-model="form.account" class="text-4 text-[#17384a]" placeholder="用户名" />
         </view>
         <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
           <view class="mb-2 text-3 text-[#607581]">
@@ -77,7 +77,7 @@ function toRegister() {
       </button>
 
       <view class="mt-6 text-3 text-[#607581]">
-        默认账号：admin@example.com / Admin123!
+        默认账号：admin / Admin123!
       </view>
     </view>
   </view>

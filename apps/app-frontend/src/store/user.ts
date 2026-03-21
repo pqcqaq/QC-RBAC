@@ -7,7 +7,7 @@ const userInfoState: CurrentUser = {
   id: '',
   username: '',
   nickname: '',
-  email: '',
+  email: null,
   avatar: '/static/images/default-avatar.png',
   status: 'ACTIVE',
   roles: [],

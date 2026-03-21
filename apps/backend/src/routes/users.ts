@@ -6,10 +6,10 @@ import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
 import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { hashPassword } from '../utils/password.js';
 import { getPermissionSource, invalidatePermissionCache } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { toRoleSummary, toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records.js';
+import { authService } from '../services/auth-service.js';
 
 const userPayloadSchema = z.object({
   username: z.string().min(3).max(24),
@@ -31,6 +31,8 @@ const sameStringSet = (left: string[], right: string[]) => {
 };
 
 const usersRouter = Router();
+
+const resolveUserTarget = (user: { username: string; email?: string | null }) => user.email ?? user.username;
 
 usersRouter.use(authMiddleware);
 
@@ -140,18 +142,23 @@ usersRouter.post(
         email: payload.email,
         nickname: payload.nickname,
         status: payload.status,
-        passwordHash: await hashPassword(payload.password),
         roles: {
           create: payload.roleIds.map((roleId) => ({ roleId })),
         },
       },
       include: userWithRolesInclude,
     });
+    await authService.syncManagedUserAuthentications({
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      password: payload.password,
+    });
 
     await publishRbacMutation({
       actor,
       action: 'user.create',
-      target: user.email,
+      target: resolveUserTarget(user),
       detail: { roleIds: payload.roleIds },
       affectedUserIds: [user.id],
       reason: 'User created',
@@ -190,7 +197,6 @@ usersRouter.put(
         email: payload.email,
         nickname: payload.nickname,
         status: payload.status,
-        ...(payload.password ? { passwordHash: await hashPassword(payload.password) } : {}),
         roles: {
           deleteMany: {},
           create: payload.roleIds.map((roleId) => ({ roleId })),
@@ -198,11 +204,17 @@ usersRouter.put(
       },
       include: userWithRolesInclude,
     });
+    await authService.syncManagedUserAuthentications({
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+      password: payload.password,
+    });
 
     await publishRbacMutation({
       actor,
       action: 'user.update',
-      target: user.email,
+      target: resolveUserTarget(user),
       detail: { roleIds: payload.roleIds },
       affectedUserIds: [user.id],
       reason: 'User profile updated',
@@ -231,7 +243,7 @@ usersRouter.delete(
     await publishRbacMutation({
       actor,
       action: 'user.delete',
-      target: existed.email,
+      target: resolveUserTarget(existed),
       affectedUserIds: [userId],
       reason: 'User deleted',
     });

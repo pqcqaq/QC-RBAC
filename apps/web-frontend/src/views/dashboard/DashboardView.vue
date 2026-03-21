@@ -41,7 +41,7 @@
           <div v-for="user in summary.latestUsers" :key="user.id" class="audit-row">
             <div>
               <strong>{{ user.nickname }}</strong>
-              <span class="muted">{{ user.email }}</span>
+              <span class="muted">{{ user.email || '未设置邮箱' }}</span>
             </div>
             <div class="role-pill-row">
               <span v-for="role in user.roles" :key="role.id" class="role-pill">{{ role.name }}</span>

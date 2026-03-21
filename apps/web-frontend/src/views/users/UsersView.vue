@@ -203,7 +203,7 @@ const {
   getId: (row) => row.id,
   assignForm: (currentForm, row) => {
     currentForm.username = row.username;
-    currentForm.email = row.email;
+    currentForm.email = row.email ?? '';
     currentForm.nickname = row.nickname;
     currentForm.password = '';
     currentForm.status = row.status;

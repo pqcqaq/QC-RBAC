@@ -11,7 +11,7 @@
         <el-option
           v-for="user in userOptions"
           :key="user.id"
-          :label="`${user.nickname} (${user.email})`"
+          :label="resolveUserLabel(user)"
           :value="user.id"
         />
       </el-select>
@@ -43,4 +43,6 @@ const emit = defineEmits<{
 const handleChange = (value: string | undefined) => {
   emit('change', value);
 };
+
+const resolveUserLabel = (user: UserRecord) => `${user.nickname} (${user.email || '未设置邮箱'})`;
 </script>

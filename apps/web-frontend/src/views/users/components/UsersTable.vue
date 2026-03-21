@@ -32,7 +32,7 @@
                 </div>
                 <div class="table-user__meta">
                   <strong>{{ row.nickname }}</strong>
-                  <span>{{ row.email }}</span>
+                  <span>{{ row.email || '未设置邮箱' }}</span>
                 </div>
               </div>
             </template>

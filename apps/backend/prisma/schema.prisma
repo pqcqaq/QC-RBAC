@@ -12,6 +12,22 @@ enum UserStatus {
   DISABLED
 }
 
+enum AuthIdentifierType {
+  USERNAME
+  EMAIL
+  PHONE
+}
+
+enum AuthCredentialType {
+  PASSWORD
+  VERIFICATION_CODE
+}
+
+enum AuthVerificationPurpose {
+  LOGIN
+  REGISTER
+}
+
 enum MediaAssetStorageProvider {
   LOCAL
   S3
@@ -37,18 +53,72 @@ enum MenuNodeType {
 model User {
   id            String         @id @default(cuid())
   username      String         @unique
-  email         String         @unique
-  passwordHash  String
+  email         String?        @unique
   nickname      String
   avatar        String?
   status        UserStatus     @default(ACTIVE)
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
   roles         UserRole[]
+  authentications UserAuthentication[]
   refreshTokens RefreshToken[]
   activities    ActivityLog[]  @relation("ActivityActor")
   uploads       MediaAsset[]
   messages      ChatMessage[]
+}
+
+model AuthStrategy {
+  id                 String                  @id @default(cuid())
+  code               String                  @unique
+  name               String
+  description        String?
+  identifierType     AuthIdentifierType
+  credentialType     AuthCredentialType
+  enabled            Boolean                 @default(true)
+  loginEnabled       Boolean                 @default(true)
+  registerEnabled    Boolean                 @default(true)
+  verificationEnabled Boolean                @default(false)
+  mockEnabled        Boolean                 @default(false)
+  mockValue          String?
+  sortOrder          Int                     @default(0)
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  authentications    UserAuthentication[]
+  verificationCodes  VerificationCode[]
+}
+
+model UserAuthentication {
+  id             String       @id @default(cuid())
+  userId         String
+  strategyId     String
+  identifier     String
+  credentialHash String?
+  salt           String?
+  verifiedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategy       AuthStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@unique([strategyId, identifier])
+  @@unique([userId, strategyId])
+  @@index([userId])
+}
+
+model VerificationCode {
+  id         String                  @id @default(cuid())
+  strategyId String
+  identifier String
+  purpose    AuthVerificationPurpose
+  codeHash   String
+  salt       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime                @default(now())
+  strategy   AuthStrategy            @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId, identifier, purpose])
+  @@index([expiresAt])
 }
 
 model Role {

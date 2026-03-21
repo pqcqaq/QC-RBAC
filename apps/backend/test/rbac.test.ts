@@ -120,6 +120,204 @@ describe('RBAC backend', () => {
       .expect(200);
   });
 
+  it('supports strategy discovery, verification and code-based auth flows', async () => {
+    const strategiesResponse = await request(app)
+      .get('/api/auth/strategies')
+      .expect(200);
+
+    assert.deepEqual(
+      strategiesResponse.body.data.loginStrategies.map((item: { code: string }) => item.code),
+      ['username-password', 'email-code', 'phone-code'],
+    );
+
+    const emailCodeSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        purpose: 'LOGIN',
+      })
+      .expect(200);
+
+    assert.equal(emailCodeSend.body.data.mockCode, '123456');
+
+    const emailCodeVerify = await request(app)
+      .post('/api/auth/verification-codes/verify')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        purpose: 'LOGIN',
+        code: '123456',
+      })
+      .expect(200);
+
+    assert.equal(emailCodeVerify.body.data.valid, true);
+
+    const emailCodeLogin = await request(app)
+      .post('/api/auth/login')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        code: '123456',
+      })
+      .expect(200);
+
+    assert.equal(emailCodeLogin.body.data.user.email, 'admin@example.com');
+
+    const phoneIdentifier = '13800000999';
+    const phoneRegisterSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'phone-code',
+        identifier: phoneIdentifier,
+        purpose: 'REGISTER',
+      })
+      .expect(200);
+
+    assert.equal(phoneRegisterSend.body.data.mockCode, '654321');
+
+    await request(app)
+      .post('/api/auth/verification-codes/verify')
+      .send({
+        strategyCode: 'phone-code',
+        identifier: phoneIdentifier,
+        purpose: 'REGISTER',
+        code: '654321',
+      })
+      .expect(200);
+
+    const phoneRegister = await request(app)
+      .post('/api/auth/register')
+      .send({
+        strategyCode: 'phone-code',
+        identifier: phoneIdentifier,
+        username: 'phonejoiner',
+        nickname: '手机号注册用户',
+        code: '654321',
+      })
+      .expect(200);
+
+    assert.equal(phoneRegister.body.data.user.email, null);
+    assert.equal(phoneRegister.body.data.user.username, 'phonejoiner');
+
+    const phoneLoginSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'phone-code',
+        identifier: phoneIdentifier,
+        purpose: 'LOGIN',
+      })
+      .expect(200);
+
+    assert.equal(phoneLoginSend.body.data.mockCode, '654321');
+
+    const phoneLogin = await request(app)
+      .post('/api/auth/login')
+      .send({
+        strategyCode: 'phone-code',
+        identifier: phoneIdentifier,
+        code: '654321',
+      })
+      .expect(200);
+
+    assert.equal(phoneLogin.body.data.user.username, 'phonejoiner');
+  });
+
+  it('links email-code auth to password accounts and respects login toggles', async () => {
+    const selfRegisteredEmail = 'emailbridge@example.com';
+    await request(app)
+      .post('/api/auth/register')
+      .send({
+        username: 'emailbridge',
+        email: selfRegisteredEmail,
+        nickname: '邮箱桥接',
+        password: 'Bridge123!',
+      })
+      .expect(200);
+
+    const selfRegisterSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'email-code',
+        identifier: selfRegisteredEmail,
+        purpose: 'LOGIN',
+      })
+      .expect(200);
+
+    assert.equal(selfRegisterSend.body.data.mockCode, '123456');
+
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+    const memberRole = await prisma.role.findUnique({
+      where: { code: 'member' },
+      select: { id: true },
+    });
+
+    assert.ok(memberRole);
+
+    await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        username: 'managedmail',
+        email: 'managedmail@example.com',
+        nickname: '后台建号用户',
+        password: 'Managed123!',
+        status: 'ACTIVE',
+        roleIds: [memberRole.id],
+      })
+      .expect(200);
+
+    const managedSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'managedmail@example.com',
+        purpose: 'LOGIN',
+      })
+      .expect(200);
+
+    assert.equal(managedSend.body.data.mockCode, '123456');
+
+    await prisma.authStrategy.update({
+      where: { code: 'email-code' },
+      data: { loginEnabled: false },
+    });
+
+    const disabledSend = await request(app)
+      .post('/api/auth/verification-codes/send')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        purpose: 'LOGIN',
+      })
+      .expect(400);
+
+    assert.match(disabledSend.body.message, /Login is not enabled/);
+
+    const disabledVerify = await request(app)
+      .post('/api/auth/verification-codes/verify')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        purpose: 'LOGIN',
+        code: '123456',
+      })
+      .expect(400);
+
+    assert.match(disabledVerify.body.message, /Login is not enabled/);
+
+    const disabledLogin = await request(app)
+      .post('/api/auth/login')
+      .send({
+        strategyCode: 'email-code',
+        identifier: 'admin@example.com',
+        code: '123456',
+      })
+      .expect(400);
+
+    assert.match(disabledLogin.body.message, /Login is not enabled/);
+  });
+
   it('prevents ordinary members from reading admin resources', async () => {
     const memberSession = await loginAs('user@example.com', 'User123!');
 

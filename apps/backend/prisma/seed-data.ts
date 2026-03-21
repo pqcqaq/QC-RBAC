@@ -1,9 +1,12 @@
 import 'dotenv/config';
-import bcrypt from 'bcryptjs';
 import type { PrismaClient } from '@prisma/client';
-import { bootstrapSystemRbac } from '../src/services/system-rbac.js';
+import { bootstrapSystemRbac } from '../src/services/system-rbac';
+import { hashPassword } from '../src/utils/password';
 
 export async function seedDatabase(prisma: PrismaClient) {
+  await prisma.verificationCode.deleteMany();
+  await prisma.userAuthentication.deleteMany();
+  await prisma.authStrategy.deleteMany();
   await prisma.menuNode.deleteMany();
   await prisma.rolePermission.deleteMany();
   await prisma.userRole.deleteMany();
@@ -24,18 +27,61 @@ export async function seedDatabase(prisma: PrismaClient) {
     throw new Error('System roles bootstrap failed');
   }
 
-  const passwordHashes = {
-    admin: await bcrypt.hash('Admin123!', 10),
-    manager: await bcrypt.hash('Manager123!', 10),
-    user: await bcrypt.hash('User123!', 10),
-  };
+  const [usernamePasswordStrategy, emailCodeStrategy, phoneCodeStrategy] = await Promise.all([
+    prisma.authStrategy.create({
+      data: {
+        code: 'username-password',
+        name: '用户名密码',
+        description: '使用用户名与密码完成登录或注册。',
+        identifierType: 'USERNAME',
+        credentialType: 'PASSWORD',
+        enabled: true,
+        loginEnabled: true,
+        registerEnabled: true,
+        verificationEnabled: false,
+        mockEnabled: true,
+        sortOrder: 10,
+      },
+    }),
+    prisma.authStrategy.create({
+      data: {
+        code: 'email-code',
+        name: '邮箱验证码',
+        description: '使用邮箱验证码完成登录或注册。',
+        identifierType: 'EMAIL',
+        credentialType: 'VERIFICATION_CODE',
+        enabled: true,
+        loginEnabled: true,
+        registerEnabled: true,
+        verificationEnabled: true,
+        mockEnabled: true,
+        mockValue: '123456',
+        sortOrder: 20,
+      },
+    }),
+    prisma.authStrategy.create({
+      data: {
+        code: 'phone-code',
+        name: '手机号验证码',
+        description: '使用手机号验证码完成登录或注册。',
+        identifierType: 'PHONE',
+        credentialType: 'VERIFICATION_CODE',
+        enabled: true,
+        loginEnabled: true,
+        registerEnabled: true,
+        verificationEnabled: true,
+        mockEnabled: true,
+        mockValue: '654321',
+        sortOrder: 30,
+      },
+    }),
+  ]);
 
   const admin = await prisma.user.create({
     data: {
       username: 'admin',
       email: 'admin@example.com',
       nickname: '系统管理员',
-      passwordHash: passwordHashes.admin,
       roles: { create: [{ roleId: adminRole.id }] },
     },
   });
@@ -45,7 +91,6 @@ export async function seedDatabase(prisma: PrismaClient) {
       username: 'manager',
       email: 'manager@example.com',
       nickname: '运营经理',
-      passwordHash: passwordHashes.manager,
       roles: { create: [{ roleId: managerRole.id }] },
     },
   });
@@ -55,9 +100,79 @@ export async function seedDatabase(prisma: PrismaClient) {
       username: 'user',
       email: 'user@example.com',
       nickname: '普通用户',
-      passwordHash: passwordHashes.user,
       roles: { create: [{ roleId: userRole.id }] },
     },
+  });
+
+  const passwordSecrets = await Promise.all([
+    hashPassword('Admin123!'),
+    hashPassword('Manager123!'),
+    hashPassword('User123!'),
+  ]);
+
+  await prisma.userAuthentication.createMany({
+    data: [
+      {
+        userId: admin.id,
+        strategyId: usernamePasswordStrategy.id,
+        identifier: 'admin',
+        credentialHash: passwordSecrets[0].hash,
+        salt: passwordSecrets[0].salt,
+        verifiedAt: new Date(),
+      },
+      {
+        userId: manager.id,
+        strategyId: usernamePasswordStrategy.id,
+        identifier: 'manager',
+        credentialHash: passwordSecrets[1].hash,
+        salt: passwordSecrets[1].salt,
+        verifiedAt: new Date(),
+      },
+      {
+        userId: member.id,
+        strategyId: usernamePasswordStrategy.id,
+        identifier: 'user',
+        credentialHash: passwordSecrets[2].hash,
+        salt: passwordSecrets[2].salt,
+        verifiedAt: new Date(),
+      },
+      {
+        userId: admin.id,
+        strategyId: emailCodeStrategy.id,
+        identifier: 'admin@example.com',
+        verifiedAt: new Date(),
+      },
+      {
+        userId: manager.id,
+        strategyId: emailCodeStrategy.id,
+        identifier: 'manager@example.com',
+        verifiedAt: new Date(),
+      },
+      {
+        userId: member.id,
+        strategyId: emailCodeStrategy.id,
+        identifier: 'user@example.com',
+        verifiedAt: new Date(),
+      },
+      {
+        userId: admin.id,
+        strategyId: phoneCodeStrategy.id,
+        identifier: '13800000000',
+        verifiedAt: new Date(),
+      },
+      {
+        userId: manager.id,
+        strategyId: phoneCodeStrategy.id,
+        identifier: '13800000001',
+        verifiedAt: new Date(),
+      },
+      {
+        userId: member.id,
+        strategyId: phoneCodeStrategy.id,
+        identifier: '13800000002',
+        verifiedAt: new Date(),
+      },
+    ],
   });
 
   await prisma.chatMessage.createMany({

@@ -10,7 +10,7 @@
           <div>
             <p class="panel-caption">Effective Set</p>
             <h3 class="panel-heading panel-heading--lg">{{ source.user.nickname }}</h3>
-            <p class="muted">{{ source.user.email }}</p>
+            <p class="muted">{{ source.user.email || '未设置邮箱' }}</p>
           </div>
           <el-tag round>{{ source.effectivePermissions.length }} 项权限</el-tag>
         </div>

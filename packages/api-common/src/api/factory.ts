@@ -1,12 +1,17 @@
 import type { ClientOptions } from '../client/core.js';
 import { createRequestClient } from '../client/core.js';
 import type {
+  AuthStrategyCollection,
   AuthSession,
   CurrentUser,
   LoginPayload,
   PermissionSummary,
   RegisterPayload,
   RoleSummary,
+  SendVerificationCodePayload,
+  VerificationCodeSendResult,
+  VerificationCodeVerifyResult,
+  VerifyVerificationCodePayload,
 } from '../types/auth.js';
 import type {
   UploadCallbackPayload,
@@ -64,6 +69,11 @@ export const createApiFactory = (options: ClientOptions) => {
 
   return {
     auth: {
+      strategies: () => client.request<AuthStrategyCollection>({ url: '/auth/strategies' }),
+      sendVerificationCode: (payload: SendVerificationCodePayload) =>
+        client.request<VerificationCodeSendResult>({ url: '/auth/verification-codes/send', method: 'POST', data: payload }),
+      verifyVerificationCode: (payload: VerifyVerificationCodePayload) =>
+        client.request<VerificationCodeVerifyResult>({ url: '/auth/verification-codes/verify', method: 'POST', data: payload }),
       login: (payload: LoginPayload) => client.request<AuthSession>({ url: '/auth/login', method: 'POST', data: payload }),
       register: (payload: RegisterPayload) => client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
       me: () => client.request<CurrentUser>({ url: '/auth/me' }),

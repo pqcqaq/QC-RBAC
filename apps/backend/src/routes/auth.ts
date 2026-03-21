@@ -4,9 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { cacheDel, cacheSet } from '../lib/redis.js';
 import { authMiddleware } from '../middlewares/auth.js';
-import { badRequest, unauthorized } from '../utils/errors.js';
+import { unauthorized } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
-import { comparePassword, hashPassword } from '../utils/password.js';
 import { logActivity } from '../utils/audit.js';
 import {
   buildCurrentUser,
@@ -20,17 +19,50 @@ import {
   signRefreshToken,
   verifyRefreshToken,
 } from '../utils/token.js';
+import { authService } from '../services/auth-service.js';
 
-const loginSchema = z.object({
-  account: z.string().min(3),
-  password: z.string().min(6),
+const loginSchema = z.union([
+  z.object({
+    account: z.string().min(3),
+    password: z.string().min(6),
+  }),
+  z.object({
+    strategyCode: z.string().min(1),
+    identifier: z.string().min(1),
+    password: z.string().min(1).optional(),
+    code: z.string().min(1).optional(),
+  }),
+]);
+
+const registerSchema = z.union([
+  z.object({
+    username: z.string().min(3).max(24),
+    email: z.string().email(),
+    password: z.string().min(8).max(32),
+    nickname: z.string().min(2).max(24),
+  }),
+  z.object({
+    strategyCode: z.string().min(1),
+    identifier: z.string().min(1),
+    username: z.string().min(3).max(24),
+    nickname: z.string().min(2).max(24),
+    password: z.string().min(8).max(32).optional(),
+    code: z.string().min(1).optional(),
+    email: z.string().email().nullable().optional(),
+  }),
+]);
+
+const sendVerificationCodeSchema = z.object({
+  strategyCode: z.string().min(1),
+  identifier: z.string().min(1),
+  purpose: z.enum(['LOGIN', 'REGISTER']),
 });
 
-const registerSchema = z.object({
-  username: z.string().min(3).max(24),
-  email: z.string().email(),
-  password: z.string().min(8).max(32),
-  nickname: z.string().min(2).max(24),
+const verifyVerificationCodeSchema = z.object({
+  strategyCode: z.string().min(1),
+  identifier: z.string().min(1),
+  purpose: z.enum(['LOGIN', 'REGISTER']),
+  code: z.string().min(1),
 });
 
 const refreshSchema = z.object({
@@ -67,53 +99,52 @@ const revokeRefreshToken = async (refreshToken: string) => {
     const payload = verifyRefreshToken(refreshToken);
     await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     await cacheDel(`refresh:${payload.jti}`);
-  } catch (error) {
+  } catch {
     await prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
   }
 };
+
+authRouter.get(
+  '/strategies',
+  asyncHandler(async (_req, res) => {
+    return ok(res, await authService.listStrategies(), 'Auth strategies');
+  }),
+);
+
+authRouter.post(
+  '/verification-codes/send',
+  asyncHandler(async (req, res) => {
+    const payload = sendVerificationCodeSchema.parse(req.body);
+    return ok(res, await authService.sendVerificationCode(payload), 'Verification code sent');
+  }),
+);
+
+authRouter.post(
+  '/verification-codes/verify',
+  asyncHandler(async (req, res) => {
+    const payload = verifyVerificationCodeSchema.parse(req.body);
+    return ok(res, await authService.verifyVerificationCode(payload), 'Verification code verified');
+  }),
+);
 
 authRouter.post(
   '/register',
   asyncHandler(async (req, res) => {
     const payload = registerSchema.parse(req.body);
+    const identity = await authService.register(payload);
 
-    const existed = await prisma.user.findFirst({
-      where: {
-        OR: [{ username: payload.username }, { email: payload.email }],
-      },
-      select: { id: true },
-    });
-
-    if (existed) {
-      throw badRequest('Username or email already exists');
-    }
-
-    const memberRole = await prisma.role.findFirst({ where: { code: 'member' } });
-    if (!memberRole) {
-      throw badRequest('Default role not initialized');
-    }
-
-    const user = await prisma.user.create({
-      data: {
-        username: payload.username,
-        email: payload.email,
-        nickname: payload.nickname,
-        passwordHash: await hashPassword(payload.password),
-        roles: {
-          create: [{ roleId: memberRole.id }],
-        },
-      },
-    });
-
-    await invalidatePermissionCache([user.id]);
+    await invalidatePermissionCache([identity.user.id]);
     await logActivity({
-      actorId: user.id,
-      actorName: payload.nickname,
+      actorId: identity.user.id,
+      actorName: identity.user.nickname,
       action: 'auth.register',
-      target: payload.email,
+      target: identity.identifier,
+      detail: {
+        strategyCode: identity.strategy.code,
+      },
     });
 
-    return ok(res, await issueSession(user.id), 'Register success');
+    return ok(res, await issueSession(identity.user.id), 'Register success');
   }),
 );
 
@@ -121,32 +152,23 @@ authRouter.post(
   '/login',
   asyncHandler(async (req, res) => {
     const payload = loginSchema.parse(req.body);
-    const user = await prisma.user.findFirst({
-      where: {
-        OR: [{ email: payload.account }, { username: payload.account }],
-      },
-    });
+    const identity = await authService.login(payload);
 
-    if (!user) {
-      throw unauthorized('Account not found');
-    }
-    if (user.status !== 'ACTIVE') {
+    if (identity.user.status !== 'ACTIVE') {
       throw unauthorized('Account disabled');
     }
 
-    const matched = await comparePassword(payload.password, user.passwordHash);
-    if (!matched) {
-      throw unauthorized('Incorrect password');
-    }
-
     await logActivity({
-      actorId: user.id,
-      actorName: user.nickname,
+      actorId: identity.user.id,
+      actorName: identity.user.nickname,
       action: 'auth.login',
-      target: user.email,
+      target: identity.identifier,
+      detail: {
+        strategyCode: identity.strategy.code,
+      },
     });
 
-    return ok(res, await issueSession(user.id), 'Login success');
+    return ok(res, await issueSession(identity.user.id), 'Login success');
   }),
 );
 
@@ -196,5 +218,3 @@ authRouter.get(
 );
 
 export { authRouter };
-
-

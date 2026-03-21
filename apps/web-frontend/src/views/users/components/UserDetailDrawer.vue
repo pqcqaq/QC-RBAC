@@ -24,7 +24,7 @@
           </div>
           <div class="detail-kv">
             <span>邮箱</span>
-            <strong>{{ user.email }}</strong>
+            <strong>{{ user.email || '未设置邮箱' }}</strong>
           </div>
           <div class="detail-kv">
             <span>创建时间</span>
