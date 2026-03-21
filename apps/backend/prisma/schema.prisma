@@ -28,6 +28,11 @@ enum AuthVerificationPurpose {
   REGISTER
 }
 
+enum AuthClientType {
+  WEB
+  UNI_WECHAT_MINIAPP
+}
+
 enum MediaAssetStorageProvider {
   LOCAL
   S3
@@ -65,6 +70,20 @@ model User {
   activities    ActivityLog[]  @relation("ActivityActor")
   uploads       MediaAsset[]
   messages      ChatMessage[]
+}
+
+model AuthClient {
+  id           String         @id @default(cuid())
+  code         String         @unique
+  name         String
+  type         AuthClientType
+  description  String?
+  secretHash   String
+  salt         String
+  enabled      Boolean        @default(true)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  refreshTokens RefreshToken[]
 }
 
 model AuthStrategy {
@@ -193,9 +212,13 @@ model RefreshToken {
   id        String   @id @default(cuid())
   token     String   @unique
   userId    String
+  clientId  String
   expiresAt DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    AuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([userId, clientId])
 }
 
 model ActivityLog {

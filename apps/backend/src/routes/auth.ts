@@ -4,7 +4,8 @@ import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { cacheDel, cacheSet } from '../lib/redis.js';
 import { authMiddleware } from '../middlewares/auth.js';
-import { unauthorized } from '../utils/errors.js';
+import { authClientMiddleware } from '../middlewares/auth-client.js';
+import { HttpError, unauthorized } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
 import {
@@ -71,15 +72,18 @@ const refreshSchema = z.object({
 
 const authRouter = Router();
 
-const issueSession = async (userId: string) => {
+authRouter.use(authClientMiddleware);
+
+const issueSession = async (userId: string, client: NonNullable<Express.Request['authClient']>) => {
   const jti = randomUUID();
-  const accessToken = signAccessToken(userId);
-  const refresh = signRefreshToken(userId, jti);
+  const accessToken = signAccessToken(userId, client.code);
+  const refresh = signRefreshToken(userId, jti, client.code);
 
   await prisma.refreshToken.create({
     data: {
       token: refresh.token,
       userId,
+      clientId: client.id,
       expiresAt: refresh.expiresAt,
     },
   });
@@ -91,6 +95,7 @@ const issueSession = async (userId: string) => {
       refreshToken: refresh.token,
     },
     user: await buildCurrentUser(userId),
+    client,
   };
 };
 
@@ -130,6 +135,7 @@ authRouter.post(
 authRouter.post(
   '/register',
   asyncHandler(async (req, res) => {
+    const client = req.authClient!;
     const payload = registerSchema.parse(req.body);
     const identity = await authService.register(payload);
 
@@ -141,16 +147,18 @@ authRouter.post(
       target: identity.identifier,
       detail: {
         strategyCode: identity.strategy.code,
+        clientCode: client.code,
       },
     });
 
-    return ok(res, await issueSession(identity.user.id), 'Register success');
+    return ok(res, await issueSession(identity.user.id, client), 'Register success');
   }),
 );
 
 authRouter.post(
   '/login',
   asyncHandler(async (req, res) => {
+    const client = req.authClient!;
     const payload = loginSchema.parse(req.body);
     const identity = await authService.login(payload);
 
@@ -165,36 +173,63 @@ authRouter.post(
       target: identity.identifier,
       detail: {
         strategyCode: identity.strategy.code,
+        clientCode: client.code,
       },
     });
 
-    return ok(res, await issueSession(identity.user.id), 'Login success');
+    return ok(res, await issueSession(identity.user.id, client), 'Login success');
   }),
 );
 
 authRouter.post(
   '/refresh',
   asyncHandler(async (req, res) => {
+    const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
     const payload = verifyRefreshToken(refreshToken);
 
     const existed = await prisma.refreshToken.findUnique({
       where: { token: refreshToken },
+      include: {
+        client: {
+          select: {
+            code: true,
+          },
+        },
+      },
     });
 
     if (!existed || existed.expiresAt.getTime() < Date.now()) {
       throw unauthorized('Refresh token expired');
     }
+    if (payload.clientCode !== client.code || existed.client.code !== client.code) {
+      throw unauthorized('Refresh token client mismatch');
+    }
 
     await revokeRefreshToken(refreshToken);
-    return ok(res, await issueSession(payload.sub), 'Refresh success');
+    return ok(res, await issueSession(payload.sub, client), 'Refresh success');
   }),
 );
 
 authRouter.post(
   '/logout',
   asyncHandler(async (req, res) => {
+    const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
+    let payloadClientCode: string | null = null;
+
+    try {
+      payloadClientCode = verifyRefreshToken(refreshToken).clientCode;
+    } catch (error) {
+      if (error instanceof HttpError) {
+        throw error;
+      }
+    }
+
+    if (payloadClientCode && payloadClientCode !== client.code) {
+      throw unauthorized('Refresh token client mismatch');
+    }
+
     await revokeRefreshToken(refreshToken);
     return ok(res, { ok: true }, 'Logout success');
   }),

@@ -1,9 +1,10 @@
-import type { CurrentUser } from '@rbac/api-common';
+import type { AuthClientSummary, CurrentUser } from '@rbac/api-common';
 
 declare global {
   namespace Express {
     interface Request {
       auth?: CurrentUser;
+      authClient?: AuthClientSummary;
     }
   }
 }

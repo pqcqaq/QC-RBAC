@@ -4,9 +4,11 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { before, beforeEach, after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { AUTH_CLIENT_CODE_HEADER, AUTH_CLIENT_SECRET_HEADER } from '@rbac/api-common';
 import type { PrismaClient } from '@prisma/client';
 import type { Express } from 'express';
 import request from 'supertest';
+import { verifyAccessToken } from '../src/utils/token.js';
 
 const deriveTestDatabaseUrl = () => {
   const source = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -30,6 +32,20 @@ let seedDatabase: (prisma: PrismaClient) => Promise<void>;
 let createApp: typeof import('../src/app.ts').createApp;
 let redis: { disconnect: () => Promise<unknown> | void };
 
+const webClient = {
+  code: 'web-console',
+  secret: process.env.AUTH_WEB_CLIENT_SECRET ?? 'rbac-web-client-secret',
+};
+
+const uniClient = {
+  code: 'uni-wechat-miniapp',
+  secret: process.env.AUTH_UNI_WECHAT_MINIAPP_CLIENT_SECRET ?? 'rbac-uni-miniapp-secret',
+};
+
+const withClientAuth = (target: request.Test, client = webClient) => target
+  .set(AUTH_CLIENT_CODE_HEADER, client.code)
+  .set(AUTH_CLIENT_SECRET_HEADER, client.secret);
+
 const execPrisma = (...args: string[]) => {
   const result = spawnSync(`pnpm exec prisma ${args.join(' ')}`, {
     cwd: backendRoot,
@@ -43,20 +59,20 @@ const execPrisma = (...args: string[]) => {
   }
 };
 
-const loginAs = async (account: string, password: string) => {
-  const response = await request(app)
-    .post('/api/auth/login')
+const loginAs = async (account: string, password: string, client = webClient) => {
+  const response = await withClientAuth(request(app).post('/api/auth/login'), client)
     .send({ account, password })
     .expect(200);
 
   return response.body.data as {
     tokens: { accessToken: string; refreshToken: string };
+    client: { code: string; name: string; type: string };
     user: { id: string; permissions: string[] };
   };
 };
 
 before(async () => {
-  execPrisma('db', 'push', '--skip-generate', '--accept-data-loss');
+  execPrisma('db', 'push', '--skip-generate', '--force-reset');
   ({ createApp } = await import('../src/app.ts'));
   ({ prisma } = await import('../src/lib/prisma.ts'));
   ({ redis } = await import('../src/lib/redis.ts'));
@@ -73,9 +89,48 @@ after(async () => {
 });
 
 describe('RBAC backend', () => {
+  it('requires valid client credentials for auth routes and stamps tokens with client identity', async () => {
+    await request(app)
+      .get('/api/auth/strategies')
+      .expect(401);
+
+    const invalidClientResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
+      code: webClient.code,
+      secret: 'wrong-client-secret',
+    })
+      .expect(401);
+
+    assert.match(invalidClientResponse.body.message, /client/i);
+
+    const webSession = await loginAs('admin@example.com', 'Admin123!', webClient);
+    const uniSession = await loginAs('admin@example.com', 'Admin123!', uniClient);
+
+    assert.equal(webSession.client.code, webClient.code);
+    assert.equal(verifyAccessToken(webSession.tokens.accessToken).clientCode, webClient.code);
+    assert.equal(verifyAccessToken(uniSession.tokens.accessToken).clientCode, uniClient.code);
+
+    const crossClientMe = await withClientAuth(request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${webSession.tokens.accessToken}`), uniClient)
+      .expect(401);
+
+    assert.match(crossClientMe.body.message, /Invalid or expired token/);
+
+    const crossClientRefresh = await withClientAuth(request(app).post('/api/auth/refresh'), uniClient)
+      .send({ refreshToken: webSession.tokens.refreshToken })
+      .expect(401);
+
+    assert.match(crossClientRefresh.body.message, /client/i);
+
+    const crossClientLogout = await withClientAuth(request(app).post('/api/auth/logout'), uniClient)
+      .send({ refreshToken: webSession.tokens.refreshToken })
+      .expect(401);
+
+    assert.match(crossClientLogout.body.message, /client/i);
+  });
+
   it('supports register, me, refresh and logout', async () => {
-    const registerResponse = await request(app)
-      .post('/api/auth/register')
+    const registerResponse = await withClientAuth(request(app).post('/api/auth/register'))
       .send({
         username: 'newmember',
         email: 'newmember@example.com',
@@ -94,35 +149,33 @@ describe('RBAC backend', () => {
     const accessToken = registerResponse.body.data.tokens.accessToken as string;
     const refreshToken = registerResponse.body.data.tokens.refreshToken as string;
 
-    const meResponse = await request(app)
+    const meResponse = await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${accessToken}`)
+      .set('Authorization', `Bearer ${accessToken}`))
       .expect(200);
 
     assert.equal(meResponse.body.data.email, 'newmember@example.com');
     assert.deepEqual(meResponse.body.data.permissions, ['dashboard.view']);
 
-    const refreshResponse = await request(app)
-      .post('/api/auth/refresh')
+    const refreshResponse = await withClientAuth(request(app).post('/api/auth/refresh'))
       .send({ refreshToken })
       .expect(200);
 
     assert.notEqual(refreshResponse.body.data.tokens.refreshToken, refreshToken);
+    assert.equal(refreshResponse.body.data.client.code, webClient.code);
 
-    await request(app)
+    await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${refreshResponse.body.data.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${refreshResponse.body.data.tokens.accessToken}`))
       .expect(200);
 
-    await request(app)
-      .post('/api/auth/logout')
+    await withClientAuth(request(app).post('/api/auth/logout'))
       .send({ refreshToken: refreshResponse.body.data.tokens.refreshToken })
       .expect(200);
   });
 
   it('supports strategy discovery, verification and code-based auth flows', async () => {
-    const strategiesResponse = await request(app)
-      .get('/api/auth/strategies')
+    const strategiesResponse = await withClientAuth(request(app).get('/api/auth/strategies'))
       .expect(200);
 
     assert.deepEqual(
@@ -130,8 +183,7 @@ describe('RBAC backend', () => {
       ['username-password', 'email-code', 'phone-code'],
     );
 
-    const emailCodeSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const emailCodeSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -141,8 +193,7 @@ describe('RBAC backend', () => {
 
     assert.equal(emailCodeSend.body.data.mockCode, '123456');
 
-    const emailCodeVerify = await request(app)
-      .post('/api/auth/verification-codes/verify')
+    const emailCodeVerify = await withClientAuth(request(app).post('/api/auth/verification-codes/verify'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -153,8 +204,7 @@ describe('RBAC backend', () => {
 
     assert.equal(emailCodeVerify.body.data.valid, true);
 
-    const emailCodeLogin = await request(app)
-      .post('/api/auth/login')
+    const emailCodeLogin = await withClientAuth(request(app).post('/api/auth/login'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -165,8 +215,7 @@ describe('RBAC backend', () => {
     assert.equal(emailCodeLogin.body.data.user.email, 'admin@example.com');
 
     const phoneIdentifier = '13800000999';
-    const phoneRegisterSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const phoneRegisterSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'phone-code',
         identifier: phoneIdentifier,
@@ -176,8 +225,7 @@ describe('RBAC backend', () => {
 
     assert.equal(phoneRegisterSend.body.data.mockCode, '654321');
 
-    await request(app)
-      .post('/api/auth/verification-codes/verify')
+    await withClientAuth(request(app).post('/api/auth/verification-codes/verify'))
       .send({
         strategyCode: 'phone-code',
         identifier: phoneIdentifier,
@@ -186,8 +234,7 @@ describe('RBAC backend', () => {
       })
       .expect(200);
 
-    const phoneRegister = await request(app)
-      .post('/api/auth/register')
+    const phoneRegister = await withClientAuth(request(app).post('/api/auth/register'))
       .send({
         strategyCode: 'phone-code',
         identifier: phoneIdentifier,
@@ -200,8 +247,7 @@ describe('RBAC backend', () => {
     assert.equal(phoneRegister.body.data.user.email, null);
     assert.equal(phoneRegister.body.data.user.username, 'phonejoiner');
 
-    const phoneLoginSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const phoneLoginSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'phone-code',
         identifier: phoneIdentifier,
@@ -211,8 +257,7 @@ describe('RBAC backend', () => {
 
     assert.equal(phoneLoginSend.body.data.mockCode, '654321');
 
-    const phoneLogin = await request(app)
-      .post('/api/auth/login')
+    const phoneLogin = await withClientAuth(request(app).post('/api/auth/login'))
       .send({
         strategyCode: 'phone-code',
         identifier: phoneIdentifier,
@@ -225,8 +270,7 @@ describe('RBAC backend', () => {
 
   it('links email-code auth to password accounts and respects login toggles', async () => {
     const selfRegisteredEmail = 'emailbridge@example.com';
-    await request(app)
-      .post('/api/auth/register')
+    await withClientAuth(request(app).post('/api/auth/register'))
       .send({
         username: 'emailbridge',
         email: selfRegisteredEmail,
@@ -235,8 +279,7 @@ describe('RBAC backend', () => {
       })
       .expect(200);
 
-    const selfRegisterSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const selfRegisterSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'email-code',
         identifier: selfRegisteredEmail,
@@ -267,8 +310,7 @@ describe('RBAC backend', () => {
       })
       .expect(200);
 
-    const managedSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const managedSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'email-code',
         identifier: 'managedmail@example.com',
@@ -283,8 +325,7 @@ describe('RBAC backend', () => {
       data: { loginEnabled: false },
     });
 
-    const disabledSend = await request(app)
-      .post('/api/auth/verification-codes/send')
+    const disabledSend = await withClientAuth(request(app).post('/api/auth/verification-codes/send'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -294,8 +335,7 @@ describe('RBAC backend', () => {
 
     assert.match(disabledSend.body.message, /Login is not enabled/);
 
-    const disabledVerify = await request(app)
-      .post('/api/auth/verification-codes/verify')
+    const disabledVerify = await withClientAuth(request(app).post('/api/auth/verification-codes/verify'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -306,8 +346,7 @@ describe('RBAC backend', () => {
 
     assert.match(disabledVerify.body.message, /Login is not enabled/);
 
-    const disabledLogin = await request(app)
-      .post('/api/auth/login')
+    const disabledLogin = await withClientAuth(request(app).post('/api/auth/login'))
       .send({
         strategyCode: 'email-code',
         identifier: 'admin@example.com',
@@ -383,9 +422,9 @@ describe('RBAC backend', () => {
     assert.equal(sourceResponse.body.data.groups[0].role.code, 'report-operator');
 
     const memberSession = await loginAs('reporter@example.com', 'Reporter123!');
-    const meResponse = await request(app)
+    const meResponse = await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`))
       .expect(200);
 
     assert.ok(meResponse.body.data.permissions.includes('report.export'));
@@ -443,9 +482,9 @@ describe('RBAC backend', () => {
       .expect(200);
 
     const userSession = await loginAs('cachetester@example.com', 'Cache123!');
-    const beforeUpdate = await request(app)
+    const beforeUpdate = await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${userSession.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${userSession.tokens.accessToken}`))
       .expect(200);
 
     assert.ok(beforeUpdate.body.data.permissions.includes('custom.read-a'));
@@ -462,9 +501,9 @@ describe('RBAC backend', () => {
       })
       .expect(200);
 
-    const afterUpdate = await request(app)
+    const afterUpdate = await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${userSession.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${userSession.tokens.accessToken}`))
       .expect(200);
 
     assert.equal(afterUpdate.body.data.permissions.includes('custom.read-a'), false);
@@ -674,9 +713,9 @@ describe('RBAC backend', () => {
 
     assert.match(uploadResponse.body.data.url, /avatars\//);
 
-    const currentAdmin = await request(app)
+    const currentAdmin = await withClientAuth(request(app)
       .get('/api/auth/me')
-      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`))
       .expect(200);
 
     assert.match(currentAdmin.body.data.avatar, /avatars\//);

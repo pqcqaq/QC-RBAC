@@ -1,5 +1,10 @@
 import type { ApiEnvelope, AuthSession } from '@rbac/api-common'
-import { createApiFactory, createUniAdaptor } from '@rbac/api-common'
+import {
+  AUTH_CLIENT_CODE_HEADER,
+  AUTH_CLIENT_SECRET_HEADER,
+  createApiFactory,
+  createUniAdaptor,
+} from '@rbac/api-common'
 import {
   clearAuthStorage,
   getStoredAccessToken,
@@ -8,6 +13,12 @@ import {
 } from '@/utils/auth-storage'
 
 const baseUrl = import.meta.env.VITE_SERVER_BASEURL || 'http://localhost:3300/api'
+export const authClientCode = import.meta.env.VITE_AUTH_CLIENT_CODE || 'uni-wechat-miniapp'
+export const authClientSecret = import.meta.env.VITE_AUTH_CLIENT_SECRET || 'rbac-uni-miniapp-secret'
+export const getClientCredentialHeaders = () => ({
+  [AUTH_CLIENT_CODE_HEADER]: authClientCode,
+  [AUTH_CLIENT_SECRET_HEADER]: authClientSecret,
+})
 let refreshPromise: Promise<boolean> | null = null
 
 const refreshSession = async () => {
@@ -25,6 +36,7 @@ const refreshSession = async () => {
         data: { refreshToken },
         header: {
           'Content-Type': 'application/json',
+          ...getClientCredentialHeaders(),
         },
         success: ({ statusCode, data }) => {
           const payload = data as ApiEnvelope<AuthSession>
@@ -53,6 +65,7 @@ export const appApi = createApiFactory({
   baseUrl,
   adaptor: createUniAdaptor(),
   getAccessToken: getStoredAccessToken,
+  getDefaultHeaders: getClientCredentialHeaders,
   onUnauthorized: async () => {
     const refreshed = await refreshSession()
     if (!refreshed) {

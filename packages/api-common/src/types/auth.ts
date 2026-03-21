@@ -5,6 +5,11 @@ export type AuthStrategyCode = 'username-password' | 'email-code' | 'phone-code'
 export type AuthIdentifierType = 'USERNAME' | 'EMAIL' | 'PHONE';
 export type AuthCredentialType = 'PASSWORD' | 'VERIFICATION_CODE';
 export type AuthVerificationPurpose = 'LOGIN' | 'REGISTER';
+export type AuthClientCode = 'web-console' | 'uni-wechat-miniapp' | string;
+export type AuthClientType = 'WEB' | 'UNI_WECHAT_MINIAPP';
+
+export const AUTH_CLIENT_CODE_HEADER = 'X-RBAC-Client-Code';
+export const AUTH_CLIENT_SECRET_HEADER = 'X-RBAC-Client-Secret';
 
 export interface LegacyLoginPayload {
   account: string;
@@ -84,6 +89,13 @@ export interface VerificationCodeVerifyResult {
   expiresAt: string;
 }
 
+export interface AuthClientSummary {
+  id: string;
+  code: AuthClientCode;
+  name: string;
+  type: AuthClientType;
+}
+
 export interface TokenPair {
   accessToken: string;
   refreshToken: string;
@@ -119,4 +131,5 @@ export interface CurrentUser {
 export interface AuthSession {
   tokens: TokenPair;
   user: CurrentUser;
+  client: AuthClientSummary;
 }

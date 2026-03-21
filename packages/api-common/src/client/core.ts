@@ -16,6 +16,7 @@ export interface ClientOptions {
   baseUrl: string;
   adaptor: RequestAdaptor;
   getAccessToken?: () => string | null | undefined;
+  getDefaultHeaders?: () => Record<string, string> | undefined;
   onUnauthorized?: () => boolean | void | Promise<boolean | void>;
 }
 
@@ -46,11 +47,13 @@ export const createRequestClient = ({
   adaptor,
   baseUrl,
   getAccessToken,
+  getDefaultHeaders,
   onUnauthorized,
 }: ClientOptions) => {
   const send = async <T>(config: RequestConfig, retried = false): Promise<T> => {
     try {
       const accessToken = getAccessToken?.();
+      const defaultHeaders = getDefaultHeaders?.() ?? {};
       const isFormData = isFormDataLike(config.data);
       return await adaptor.request<ApiEnvelope<T>>({
         ...config,
@@ -66,6 +69,7 @@ export const createRequestClient = ({
                 Authorization: `Bearer ${accessToken}`,
               }
             : {}),
+          ...defaultHeaders,
           ...(config.headers ?? {}),
         },
       }).then((response) => response.data);
