@@ -148,11 +148,21 @@ strong {
   font-size: 12px;
 }
 
-.page-form-grid,
+.page-form-grid {
+  display: grid;
+  column-gap: 12px;
+  row-gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .detail-kv-grid {
   display: grid;
   gap: 12px;
   grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.page-form-grid > .el-form-item {
+  margin-bottom: 0;
 }
 
 .page-form-grid__full,

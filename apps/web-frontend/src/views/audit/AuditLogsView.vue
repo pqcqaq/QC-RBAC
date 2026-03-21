@@ -5,113 +5,29 @@
     </template>
 
     <template #toolbar>
-      <el-form label-position="top" class="page-toolbar">
-        <el-form-item label="关键词" class="page-toolbar__field page-toolbar__field--wide">
-          <el-input
-            v-model="pageState.filters.q"
-            clearable
-            placeholder="操作者 / 动作 / 目标"
-            @keyup.enter="applyFilters"
-          />
-        </el-form-item>
-
-        <el-form-item label="动作" class="page-toolbar__field">
-          <el-input
-            v-model="pageState.filters.action"
-            clearable
-            placeholder="如 user.update"
-            @keyup.enter="applyFilters"
-          />
-        </el-form-item>
-
-        <div class="page-toolbar__actions">
-          <el-button @click="resetFilters">重置</el-button>
-          <el-button type="primary" plain @click="applyFilters">查询</el-button>
-        </div>
-      </el-form>
+      <AuditToolbar
+        :filters="pageState.filters"
+        @apply="applyFilters"
+        @reset="resetFilters"
+      />
     </template>
 
-    <section class="table-panel surface-card">
-      <header class="table-panel__header">
-        <div>
-          <p class="panel-caption">Trace Records</p>
-          <h3 class="panel-heading panel-heading--md">审计流</h3>
-        </div>
-        <div class="table-panel__meta">
-          <span>共 {{ total }} 条记录</span>
-          <span>第 {{ pageState.page }} 页</span>
-        </div>
-      </header>
+    <AuditTable
+      :logs="logs"
+      :loading="loading"
+      :total="total"
+      :page="pageState.page"
+      :page-size="pageSize"
+      :summarize-detail="summarizeDetail"
+      @detail="openDetail"
+      @page-change="changePage"
+    />
 
-      <el-table :data="logs" stripe v-loading="loading">
-        <el-table-column prop="actorName" label="操作者" width="180" />
-        <el-table-column prop="action" label="动作" min-width="180" />
-        <el-table-column prop="target" label="目标" min-width="220" />
-        <el-table-column label="上下文" width="120">
-          <template #default="{ row }">
-            {{ summarizeDetail(row.detail) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="时间" width="180">
-          <template #default="{ row }">
-            {{ formatTime(row.createdAt) }}
-          </template>
-        </el-table-column>
-        <el-table-column label="详情" width="120" fixed="right">
-          <template #default="{ row }">
-            <el-button link @click="openDetail(row)">查看</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-
-      <el-pagination
-        background
-        layout="prev, pager, next, total"
-        :current-page="pageState.page"
-        :page-size="pageSize"
-        :total="total"
-        @current-change="changePage"
-      />
-    </section>
-
-    <el-drawer v-model="drawerVisible" :title="selectedLog ? `${selectedLog.action} · 审计详情` : '审计详情'" size="42%">
-      <div v-if="selectedLog" class="detail-stack">
-        <section class="detail-section">
-          <div class="detail-section__header">
-            <div>
-              <p class="panel-caption">Event</p>
-              <h3 class="panel-heading panel-heading--md">{{ selectedLog.action }}</h3>
-            </div>
-            <el-tag type="info" round>{{ formatTime(selectedLog.createdAt) }}</el-tag>
-          </div>
-
-          <div class="detail-kv-grid">
-            <div class="detail-kv">
-              <span>操作者</span>
-              <strong>{{ selectedLog.actorName }}</strong>
-            </div>
-            <div class="detail-kv">
-              <span>目标</span>
-              <strong>{{ selectedLog.target }}</strong>
-            </div>
-            <div class="detail-kv detail-kv--full">
-              <span>上下文摘要</span>
-              <strong>{{ summarizeDetail(selectedLog.detail) }}</strong>
-            </div>
-          </div>
-        </section>
-
-        <section class="detail-section">
-          <div class="detail-section__header">
-            <div>
-              <p class="panel-caption">Payload</p>
-              <h3 class="panel-heading panel-heading--md">事件载荷</h3>
-            </div>
-          </div>
-          <pre class="audit-json">{{ detailJson }}</pre>
-        </section>
-      </div>
-    </el-drawer>
+    <AuditDetailDrawer
+      v-model:visible="drawerVisible"
+      :log="selectedLog"
+      :summarize-detail="summarizeDetail"
+    />
   </PageScaffold>
 </template>
 
@@ -123,6 +39,9 @@ import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
 import { getErrorMessage } from '@/utils/errors';
+import AuditDetailDrawer from './components/AuditDetailDrawer.vue';
+import AuditTable from './components/AuditTable.vue';
+import AuditToolbar from './components/AuditToolbar.vue';
 
 defineOptions({ name: 'AuditView' });
 
@@ -154,7 +73,6 @@ const { state: pageState } = usePageState<AuditPageState>('page:audit', {
   page: 1,
 });
 
-const detailJson = computed(() => JSON.stringify(selectedLog.value?.detail ?? {}, null, 2));
 const uniqueActors = computed(() => new Set(logs.value.map((item) => item.actorName)).size);
 const activeKeyword = computed(() => pageState.filters.q || pageState.filters.action || '无');
 const stats = computed(() => [
@@ -163,8 +81,6 @@ const stats = computed(() => [
   { label: '当前页操作者', value: uniqueActors.value },
   { label: '当前过滤', value: activeKeyword.value },
 ]);
-
-const formatTime = (value: string) => new Date(value).toLocaleString();
 
 const summarizeDetail = (detail: unknown) => {
   if (!detail || typeof detail !== 'object') {

@@ -40,7 +40,12 @@
 .el-form-item__label {
   color: var(--ink-2);
   font-weight: 500;
-  padding-bottom: 6px;
+  padding-bottom: 4px;
+  line-height: 1.35;
+}
+
+.el-form--label-top .el-form-item {
+  margin-bottom: 14px;
 }
 
 .el-input__wrapper.is-focus,
