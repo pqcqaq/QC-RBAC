@@ -5,6 +5,7 @@ node_modules
 !.env.example
 dist
 .vitepress/cache
+apps/docs/.vitepress/cache
 coverage
 .DS_Store
 .vscode
