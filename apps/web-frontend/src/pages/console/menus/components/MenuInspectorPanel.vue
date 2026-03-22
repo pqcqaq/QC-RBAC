@@ -1,8 +1,8 @@
 <template>
   <SurfacePanel
-    caption="Inspector"
+    caption="详情"
     :title="selectedNode ? selectedNode.title : '选择一个节点'"
-    :description="selectedNode ? description : '从左侧选择一个节点，右侧查看结构信息并发起新增、编辑、删除。'"
+    :description="selectedNode ? description : '从左侧选择节点后查看详情。'"
   >
     <template v-if="selectedNode" #actions>
       <el-space wrap>
@@ -29,7 +29,7 @@
 
         <div class="menu-inspector__hero-copy">
           <div class="menu-inspector__eyebrow">
-            <p class="panel-caption">{{ resolveTypeLabel(selectedNode.type) }} Node</p>
+            <p class="panel-caption">节点类型</p>
             <span class="menu-tree-node__type" :class="`is-${selectedNode.type.toLowerCase()}`">
               {{ resolveTypeLabel(selectedNode.type) }}
             </span>
@@ -267,3 +267,4 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   }
 }
 </style>
+

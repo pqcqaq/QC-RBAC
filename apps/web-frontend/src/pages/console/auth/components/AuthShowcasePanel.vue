@@ -2,11 +2,10 @@
   <section class="auth-showcase-panel">
     <div class="auth-showcase-panel__inner">
       <div class="auth-showcase-panel__masthead">
-        <span class="auth-showcase-panel__eyebrow">Console Access</span>
-        <h1>认证入口应该是正式的控制台门厅，而不是一块拼起来的表单。</h1>
+        <span class="auth-showcase-panel__eyebrow">控制台登录</span>
+        <h1>欢迎使用权限控制台</h1>
         <p>
-          当前认证体系由后端策略驱动，登录、注册、验证码发送与校验全部从同一套策略配置派生。
-          前端只负责呈现启用方式，避免页面和业务规则绑死。
+          登录后可管理用户、角色、权限和审计信息。
         </p>
       </div>
 
@@ -20,8 +19,8 @@
 
       <div class="auth-showcase-panel__brief">
         <div class="auth-showcase-panel__brief-head">
-          <span>联调凭据</span>
-          <strong>当前默认策略预置</strong>
+          <span>演示信息</span>
+          <strong>本地测试可用</strong>
         </div>
 
         <div class="auth-showcase-panel__brief-grid">

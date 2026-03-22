@@ -2,24 +2,23 @@
   <footer class="frontend-footer">
     <div class="frontend-footer__inner">
       <section class="frontend-footer__intro">
-        <p class="frontend-footer__eyebrow">RBAC Demo</p>
-        <h2>把前台介绍页和控制台真正拆开，项目表达会清晰很多。</h2>
+        <p class="frontend-footer__eyebrow">权限控制台</p>
+        <h2>简洁的入口，明确的操作区。</h2>
         <p>
-          默认 / 命名空间承接说明、介绍、接入引导；/console 则只负责已登录用户的工作台体验，
-          两者职责边界清晰，后续继续扩展也不会互相污染。
+          首页用于概览和入口，控制台用于实际管理。路径简单，信息清楚，适合继续扩展。
         </p>
       </section>
 
       <section class="frontend-footer__links">
         <div>
-          <span>Explore</span>
+          <span>页面</span>
           <RouterLink v-for="item in navItems" :key="item.to" :to="item.to">{{ item.label }}</RouterLink>
         </div>
 
         <div>
-          <span>Console</span>
+          <span>入口</span>
           <RouterLink :to="consoleTarget">{{ consoleLabel }}</RouterLink>
-          <RouterLink to="/login">认证入口</RouterLink>
+          <RouterLink to="/login">登录页</RouterLink>
         </div>
       </section>
     </div>

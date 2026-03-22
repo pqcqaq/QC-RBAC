@@ -2,12 +2,12 @@
   <section class="table-panel surface-card">
     <header class="table-panel__header">
       <div>
-        <p class="panel-caption">Capability Ledger</p>
+        <p class="panel-caption">权限列表</p>
         <h3 class="panel-heading panel-heading--md">权限目录</h3>
       </div>
       <div class="table-panel__meta">
-        <span>支持行右键快捷操作</span>
-        <span>共 {{ total }} 项能力</span>
+        <span>支持右键快捷操作</span>
+        <span>共 {{ total }} 项权限</span>
         <span>第 {{ page }} 页</span>
         <span>当前页 {{ seedCount }} 项系统种子</span>
       </div>
@@ -100,3 +100,4 @@ const emit = defineEmits<{
 const formatTime = (value: string) => new Date(value).toLocaleString();
 const contextMenuSourceItems = computed(() => props.contextMenuItems as unknown as HostContextMenuItem[]);
 </script>
+

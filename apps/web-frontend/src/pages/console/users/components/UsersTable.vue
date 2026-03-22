@@ -2,13 +2,13 @@
   <section class="table-panel surface-card">
     <header class="table-panel__header">
       <div>
-        <p class="panel-caption">Member Directory</p>
+        <p class="panel-caption">用户列表</p>
         <h3 class="panel-heading panel-heading--md">用户清单</h3>
       </div>
       <div class="table-panel__meta">
-        <span>支持行右键快捷操作</span>
+        <span>支持右键快捷操作</span>
         <span>共 {{ total }} 条记录</span>
-        <span>当前第 {{ page }} 页</span>
+        <span>第 {{ page }} 页</span>
       </div>
     </header>
 
@@ -21,7 +21,7 @@
           v-loading="loading"
           @row-contextmenu="(row, _column, event) => open(event, row)"
         >
-          <el-table-column label="成员" min-width="240">
+          <el-table-column label="用户" min-width="240">
             <template #default="{ row }">
               <div class="table-user">
                 <div v-if="row.avatar" class="table-user__avatar table-user__avatar--image">
@@ -115,3 +115,4 @@ const emit = defineEmits<{
 const formatTime = (value: string) => new Date(value).toLocaleString();
 const contextMenuSourceItems = computed(() => props.contextMenuItems as unknown as HostContextMenuItem[]);
 </script>
+

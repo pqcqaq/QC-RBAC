@@ -1,8 +1,8 @@
 <template>
   <section class="frontend-page__section-grid">
     <article class="frontend-card principle-panel">
-      <span class="frontend-card__eyebrow">Operating Principles</span>
-      <h2>这次重构不是只改目录，而是顺手把职责边界校正过来。</h2>
+      <span class="frontend-card__eyebrow">页面约定</span>
+      <h2>信息分层更清楚，操作入口更直接。</h2>
 
       <ol class="principle-list">
         <li v-for="item in principles" :key="item">{{ item }}</li>

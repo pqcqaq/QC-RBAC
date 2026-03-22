@@ -1,8 +1,8 @@
 <template>
   <section class="frontend-page__section-grid">
     <article class="frontend-card journey-panel">
-      <span class="frontend-card__eyebrow">Strategy Journey</span>
-      <h2>前端只负责消费策略，不再自己发明认证流程。</h2>
+      <span class="frontend-card__eyebrow">认证流程</span>
+      <h2>进入系统的四个步骤。</h2>
 
       <div class="journey-list">
         <article v-for="(item, index) in items" :key="item.title" class="journey-item">

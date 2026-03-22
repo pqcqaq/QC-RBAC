@@ -4,8 +4,8 @@
       <RouterLink to="/" class="frontend-brand">
         <span class="frontend-brand__mark">RB</span>
         <span class="frontend-brand__copy">
-          <strong>RBAC Demo</strong>
-          <small>Frontend / Console Split</small>
+          <strong>权限控制台</strong>
+          <small>访问管理示例</small>
         </span>
       </RouterLink>
 
@@ -17,7 +17,6 @@
           class="frontend-nav__item"
           :class="{ 'is-active': route.path === item.to }"
         >
-          <small>{{ item.eyebrow }}</small>
           <span>{{ item.label }}</span>
         </RouterLink>
       </nav>
@@ -110,20 +109,14 @@ const route = useRoute();
 }
 
 .frontend-nav__item {
-  display: grid;
-  gap: 3px;
-  min-width: 108px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 92px;
   padding: 10px 14px;
   border-radius: 16px;
   color: #445963;
   transition: background 0.18s ease, color 0.18s ease, transform 0.18s ease;
-}
-
-.frontend-nav__item small {
-  color: #8a989f;
-  font-size: 10px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
 }
 
 .frontend-nav__item span {

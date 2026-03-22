@@ -1,11 +1,10 @@
 <template>
   <div class="frontend-page">
     <section class="frontend-page__hero">
-      <p class="frontend-page__eyebrow">Authentication</p>
-      <h1>同一个登录页，只是策略的承载体，不再是认证规则本身。</h1>
+      <p class="frontend-page__eyebrow">登录方式</p>
+      <h1>同一个入口，支持多种登录方式。</h1>
       <p>
-        后端决定启用什么策略、如何发送验证码、是否允许 mock、如何写认证记录；
-        前端负责读取这些策略并渲染合适的交互。这样登录与注册不再是硬编码页面，而是一个可持续扩展的认证入口。
+        系统会根据当前配置展示可用的登录和注册方式，流程保持一致，使用上更直接。
       </p>
     </section>
 

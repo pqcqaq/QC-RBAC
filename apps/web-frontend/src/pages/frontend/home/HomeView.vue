@@ -3,11 +3,10 @@
     <HomeHero :console-target="consoleTarget" :console-label="consoleLabel" :signals="signals" />
 
     <section class="frontend-card intro-card">
-      <span class="frontend-card__eyebrow">Why This Split Matters</span>
-      <h2>先有清晰的结构，再有长期可维护的控制台。</h2>
+      <span class="frontend-card__eyebrow">使用方式</span>
+      <h2>首页看概览，控制台做操作。</h2>
       <p>
-        公开前台承担认知建立、技术说明和入口引导；控制台承担高密度操作、权限控制和业务维护。
-        这两块如果不拆开，最终往往会让路由、布局和页面职责都变得混乱。
+        公开页面用于说明系统和提供入口，控制台用于实际管理。信息更少，路径更清楚，操作也更直接。
       </p>
     </section>
 
@@ -31,7 +30,7 @@ const signals = projectSignals.map((item) => ({ ...item }));
 const cards = capabilityCards.map((item) => ({ ...item, bullets: [...item.bullets] }));
 const highlights = consoleHighlights.map((item) => ({ ...item }));
 const consoleTarget = computed(() => auth.isAuthenticated ? (menus.ready ? menus.homePath : '/console') : '/login');
-const consoleLabel = computed(() => auth.isAuthenticated ? '直接进入控制台' : '登录后进入控制台');
+const consoleLabel = computed(() => auth.isAuthenticated ? '进入控制台' : '登录控制台');
 </script>
 
 <style scoped lang="scss">

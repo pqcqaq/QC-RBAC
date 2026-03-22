@@ -2,11 +2,11 @@
   <section class="table-panel surface-card">
     <header class="table-panel__header">
       <div>
-        <p class="panel-caption">Role Matrix</p>
+        <p class="panel-caption">角色列表</p>
         <h3 class="panel-heading panel-heading--md">角色矩阵</h3>
       </div>
       <div class="table-panel__meta">
-        <span>支持行右键快捷操作</span>
+        <span>支持右键快捷操作</span>
         <span>共 {{ total }} 个角色</span>
         <span>第 {{ page }} 页</span>
       </div>
@@ -111,3 +111,4 @@ const emit = defineEmits<{
 const formatTime = (value: string) => new Date(value).toLocaleString();
 const contextMenuSourceItems = computed(() => props.contextMenuItems as unknown as HostContextMenuItem[]);
 </script>
+

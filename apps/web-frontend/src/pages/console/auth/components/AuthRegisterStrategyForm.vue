@@ -2,16 +2,16 @@
   <el-form label-position="top" class="page-form-grid auth-form-grid" @submit.prevent="emit('submit')">
     <div class="auth-form-banner page-form-grid__full">
       <span class="auth-form-banner__eyebrow">{{ strategy.name }}</span>
-      <strong>{{ strategy.credentialType === 'PASSWORD' ? '创建成员并设置主认证凭据' : '完成验证码校验后自动入场' }}</strong>
-      <small>注册完成后会直接生成会话并进入控制台。</small>
+      <strong>{{ strategy.credentialType === 'PASSWORD' ? '填写信息后创建账号' : '验证通过后完成注册' }}</strong>
+      <small>注册后会自动进入控制台。</small>
     </div>
 
     <el-form-item label="用户名">
-      <el-input v-model="form.username" placeholder="后续在系统内展示的唯一用户名" />
+      <el-input v-model="form.username" placeholder="请输入用户名" />
     </el-form-item>
 
     <el-form-item label="昵称">
-      <el-input v-model="form.nickname" placeholder="团队内显示名称" />
+      <el-input v-model="form.nickname" placeholder="请输入昵称" />
     </el-form-item>
 
     <el-form-item
@@ -27,7 +27,7 @@
     </el-form-item>
 
     <el-form-item v-if="strategy.identifierType === 'USERNAME'" label="联系邮箱" class="page-form-grid__full">
-      <el-input v-model="form.email" placeholder="可选，用于补充资料" />
+      <el-input v-model="form.email" placeholder="选填" />
     </el-form-item>
 
     <el-form-item v-if="strategy.credentialType === 'PASSWORD'" label="密码" class="page-form-grid__full">
@@ -39,13 +39,13 @@
     </el-form-item>
 
     <div v-if="form.mockCode || form.expiresAt" class="auth-form-hint page-form-grid__full">
-      <strong>Mock 回执</strong>
+      <strong>测试验证码</strong>
       <span v-if="form.mockCode">当前验证码：{{ form.mockCode }}</span>
       <span v-if="form.expiresAt">有效期至：{{ formatTime(form.expiresAt) }}</span>
     </div>
 
     <el-button type="primary" class="auth-form-submit page-form-grid__full" :loading="submitting" @click="emit('submit')">
-      创建成员并登录
+      注册并登录
     </el-button>
   </el-form>
 </template>

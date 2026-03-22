@@ -10,12 +10,11 @@
         :key="metric.label"
         :label="metric.label"
         :value="metric.value"
-        :trend="metric.trend"
       />
     </div>
 
     <div class="split-grid">
-      <SurfacePanel caption="Role Mix" title="角色负载分布">
+      <SurfacePanel caption="角色" title="角色分布">
         <div>
           <div v-for="item in summary.roleDistribution" :key="item.roleName" class="chart-row">
             <strong>{{ item.roleName }}</strong>
@@ -25,7 +24,7 @@
         </div>
       </SurfacePanel>
 
-      <SurfacePanel caption="Module Coverage" title="权限模块覆盖">
+      <SurfacePanel caption="权限" title="权限模块覆盖">
         <div>
           <div v-for="item in summary.moduleCoverage" :key="item.module" class="chart-row">
             <strong>{{ item.module }}</strong>
@@ -36,7 +35,7 @@
     </div>
 
     <div class="split-grid">
-      <SurfacePanel caption="Recent Members" title="新加入用户">
+      <SurfacePanel caption="用户" title="新加入用户">
         <div v-if="summary.latestUsers.length">
           <div v-for="user in summary.latestUsers" :key="user.id" class="audit-row">
             <div>
@@ -51,7 +50,7 @@
         <el-empty v-else description="暂无用户数据" />
       </SurfacePanel>
 
-      <SurfacePanel caption="Audit Feed" title="最近审计动作">
+      <SurfacePanel caption="审计" title="最近操作">
         <div v-if="summary.auditFeed.length">
           <div v-for="log in summary.auditFeed" :key="log.id" class="audit-row">
             <div>

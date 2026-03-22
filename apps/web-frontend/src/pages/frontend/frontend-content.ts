@@ -1,121 +1,121 @@
 export const frontendNavItems = [
-  { label: '项目首页', to: '/', eyebrow: 'Overview' },
-  { label: '系统架构', to: '/architecture', eyebrow: 'Architecture' },
-  { label: '认证策略', to: '/authentication', eyebrow: 'Identity' },
+  { label: '项目首页', to: '/', eyebrow: '概览' },
+  { label: '系统结构', to: '/architecture', eyebrow: '结构' },
+  { label: '登录方式', to: '/authentication', eyebrow: '认证' },
 ] as const;
 
 export const projectSignals = [
-  { label: '登录方式', value: '3', note: '用户名密码、邮箱验证码、手机号验证码' },
-  { label: '客户端', value: '2', note: 'Web 控制台与 Uni 微信小程序接入位点' },
-  { label: '审计字段', value: '6', note: 'id / createId / updateId / createAt / updateAt / deleteAt' },
-  { label: '核心目标', value: 'RBAC', note: '权限、菜单、角色、认证统一到一套控制台里' },
+  { label: '登录方式', value: '3', note: '账号密码、邮箱验证码、手机验证码' },
+  { label: '客户端', value: '2', note: '支持 Web 控制台与小程序接入' },
+  { label: '管理对象', value: '4', note: '用户、角色、权限、菜单统一管理' },
+  { label: '审计支持', value: '全链路', note: '关键操作可追踪' },
 ] as const;
 
 export const capabilityCards = [
   {
-    title: '动态控制台',
-    eyebrow: 'Console Namespace',
-    description: '控制台页面不再直接占据根路径，而是统一挂到 /console 下，通过菜单树动态注入实际业务页面。',
-    bullets: ['保留运行时菜单装配能力', '菜单、面包屑、标签页继续基于同一套元数据工作'],
+    title: '控制台工作区',
+    eyebrow: '工作台',
+    description: '统一承载菜单、用户、角色和权限管理。',
+    bullets: ['支持动态菜单装配', '页面、面包屑和标签页保持一致'],
   },
   {
-    title: '策略认证',
-    eyebrow: 'Authentication Strategy',
-    description: '登录、注册、验证码发送与校验不再写死在前端表单里，而是完全受后端策略配置驱动。',
-    bullets: ['前端先读取启用策略，再决定渲染哪些表单片段', '支持 Mock 形态联调，不阻塞前后端并行开发'],
+    title: '多种登录方式',
+    eyebrow: '认证',
+    description: '根据当前配置展示可用的登录和注册方式。',
+    bullets: ['支持账号密码、邮箱验证码、手机验证码', '本地环境可直接查看测试验证码'],
   },
   {
-    title: '生产级审计',
-    eyebrow: 'Reliability',
-    description: 'ORM 与业务层统一审计字段与软删除语义，删除操作映射为 deleteAt 更新，保证可回溯性。',
-    bullets: ['雪花 id 统一主键生成策略', 'create / update / delete 行为天然具备追踪上下文'],
+    title: '审计与追踪',
+    eyebrow: '审计',
+    description: '关键操作保留记录，便于排查和复核。',
+    bullets: ['统一记录时间与操作人', '支持逻辑删除留痕'],
   },
 ] as const;
 
 export const consoleHighlights = [
   {
-    title: '菜单与页面双向映射',
-    description: '菜单结构管理页负责节点、路径、权限绑定；前端根据 viewKey 注册真实页面组件。',
+    title: '菜单与页面联动',
+    description: '菜单配置完成后，可直接映射到控制台页面。',
   },
   {
-    title: '角色与权限矩阵',
-    description: '角色、权限、用户列表都已拆成统一页面规范，支持搜索表单、列表、详情与编辑抽离。',
+    title: '角色与权限管理',
+    description: '用户、角色、权限支持统一维护、检索和编辑。',
   },
   {
-    title: '前端权限指令',
-    description: '通过 v-permission 和 v-role 在展示层隐藏无权限操作，同时保留后端鉴权的最终裁决。',
+    title: '按权限展示功能',
+    description: '无权限操作会自动隐藏，减少误操作。',
   },
 ] as const;
 
 export const architectureLayers = [
   {
-    title: 'Public Frontend',
-    summary: '默认 / 命名空间用于说明系统能力、接入模式、认证思路，并承接控制台入口。',
-    details: ['公共 Header / Footer 统一在布局层处理', '介绍页切换不依赖登录状态即可访问'],
+    title: '公开页面',
+    summary: '用于展示系统概览并提供控制台入口。',
+    details: ['可直接访问首页、结构页和登录方式页', '统一承载导航和入口信息'],
   },
   {
-    title: 'Console Workbench',
-    summary: '控制台所有业务页面移动到 console 域，实际路由统一投放到 /console/** 下。',
-    details: ['动态菜单决定可访问页面', 'Breadcrumb、Tabs、主题与布局偏好继续生效'],
+    title: '控制台',
+    summary: '承载实际业务操作和权限管理。',
+    details: ['页面访问由菜单和权限共同决定', '保留标签页和面包屑等工作台能力'],
   },
   {
-    title: 'Auth & Client Strategy',
-    summary: '客户端 secret、认证策略、验证码记录、mock 能力全部由后端策略模式承载。',
-    details: ['前端只消费可用策略配置', '登录后可区分来自哪个 client'],
+    title: '认证入口',
+    summary: '统一提供登录、注册和验证码校验能力。',
+    details: ['按配置展示可用方式', '支持区分不同客户端来源'],
   },
   {
-    title: 'Audit & Soft Delete',
-    summary: '数据层标准化审计字段和逻辑删除，保证操作可追踪、可恢复、可审计。',
-    details: ['delete 映射为 deleteAt 更新', '实体字段规范更利于后续扩展与治理'],
+    title: '审计记录',
+    summary: '保留关键操作和数据变更的追踪信息。',
+    details: ['关键动作可回看', '支持逻辑删除留痕'],
   },
 ] as const;
 
 export const operatingPrinciples = [
-  '公共前台负责介绍、引导与信任建立，避免用户一进站点就落到后台壳子里。',
-  '控制台路由集中在 /console，避免和面向用户的页面语义混杂。',
-  '业务页面继续维持页面组件只做 orchestration、细节下沉到 components 的规范。',
-  '权限、菜单、认证、审计几块都围绕“后端定义，前端消费”的原则收拢。',
+  '首页只保留概览和入口，不堆叠说明性文案。',
+  '控制台只聚焦实际操作，不混入介绍页内容。',
+  '登录入口统一展示可用方式，流程保持简洁。',
+  '关键权限与操作都要可追踪、可复核。',
 ] as const;
 
 export const authStrategies = [
   {
     title: '用户名密码',
     code: 'username-password',
-    identifier: 'USERNAME',
-    credential: 'PASSWORD',
-    description: '适合管理员、内部运营等固定身份体系，登录路径直接、认知成本最低。',
+    identifier: '账号',
+    credential: '密码',
+    description: '适合固定账号的后台用户。',
   },
   {
     title: '邮箱验证码',
     code: 'email-code',
-    identifier: 'EMAIL',
-    credential: 'VERIFICATION_CODE',
-    description: '更适合中后台外部协作者、邀请制接入或需要弱密码依赖的场景。',
+    identifier: '邮箱',
+    credential: '验证码',
+    description: '适合需要邮箱确认的场景。',
   },
   {
     title: '手机验证码',
     code: 'phone-code',
-    identifier: 'PHONE',
-    credential: 'VERIFICATION_CODE',
-    description: '适合移动端触达链路，后续可自然延伸到小程序和短信场景。',
+    identifier: '手机号',
+    credential: '验证码',
+    description: '适合移动端或短信触达场景。',
   },
 ] as const;
 
 export const authJourney = [
   {
-    title: '读取后端启用策略',
-    body: '登录页加载时先拿到策略集合，前端据此渲染登录、注册、验证码相关组件，不再把流程写死。',
+    title: '查看可用方式',
+    body: '页面会根据当前配置展示可用的登录或注册方式。',
   },
   {
-    title: '按策略发送验证码',
-    body: '发送验证码接口只关心 strategyCode、identifier、purpose，底层实现由后端策略类决定。',
+    title: '发送验证码',
+    body: '需要验证码时，可直接发送并填写校验。',
   },
   {
-    title: '校验凭据并返回 token',
-    body: '密码或验证码都统一映射到认证记录与认证策略，校验通过后返回带 client 语义的 token。',
+    title: '完成身份校验',
+    body: '账号或验证码校验通过后即可进入控制台。',
   },
   {
-    title: '前端按角色和权限裁剪 UI',
-    body: '进入控制台后，用户角色和权限列表用于驱动导航、按钮、右键菜单和展示层指令。',
+    title: '按权限展示内容',
+    body: '登录后仅展示当前角色可用的菜单和操作。',
   },
 ] as const;

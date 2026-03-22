@@ -1,7 +1,6 @@
 <template>
   <section class="frontend-page__section-grid">
     <article v-for="item in strategies" :key="item.code" class="frontend-card strategy-card">
-      <span class="frontend-card__eyebrow">{{ item.code }}</span>
       <h3>{{ item.title }}</h3>
       <div class="strategy-meta">
         <span>{{ item.identifier }}</span>
@@ -27,6 +26,7 @@ defineProps<{
 <style scoped lang="scss">
 .strategy-card {
   grid-column: span 4;
+  align-content: start;
 }
 
 .strategy-meta {

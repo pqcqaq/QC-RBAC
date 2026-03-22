@@ -1,11 +1,10 @@
 <template>
   <div class="frontend-page">
     <section class="frontend-page__hero">
-      <p class="frontend-page__eyebrow">Architecture</p>
-      <h1>路由分域之后，前台、控制台、认证入口终于各司其职。</h1>
+      <p class="frontend-page__eyebrow">系统结构</p>
+      <h1>页面结构更清晰，入口更直接。</h1>
       <p>
-        这次调整的关键不只是把页面放进不同目录，而是把“默认访问者”和“已登录操作者”放进不同的路由空间里，
-        让两类体验都能为自己的目标服务，而不是互相迁就。
+        公开页面负责概览和入口，认证页负责登录与注册，控制台负责业务操作。不同场景各自独立，使用起来更直接。
       </p>
     </section>
 
@@ -22,3 +21,4 @@ import ArchitectureOperatingModel from './components/ArchitectureOperatingModel.
 const layers = architectureLayers.map((item) => ({ ...item, details: [...item.details] }));
 const principles = [...operatingPrinciples];
 </script>
+

@@ -1,15 +1,14 @@
 <template>
   <section class="frontend-page__hero">
-    <p class="frontend-page__eyebrow">Public Frontend</p>
-    <h1>让默认 / 负责表达产品，让 /console 只负责工作台。</h1>
+    <p class="frontend-page__eyebrow">产品概览</p>
+    <h1>简洁的权限管理控制台。</h1>
     <p>
-      这个项目不再把用户一进站点就直接扔进后台壳子里。公开前台先解释系统边界、认证策略和控制台能力，
-      真正需要操作的人再进入控制台，这样路由语义、用户预期和后续扩展都会更干净。
+      统一管理用户、角色、权限、菜单和审计信息，支持多种登录方式，适合后台权限与访问控制场景。
     </p>
 
     <div class="frontend-page__hero-actions">
       <RouterLink class="frontend-page__button is-primary" :to="consoleTarget">{{ consoleLabel }}</RouterLink>
-      <RouterLink class="frontend-page__button is-secondary" to="/architecture">查看架构拆分</RouterLink>
+      <RouterLink class="frontend-page__button is-secondary" to="/architecture">查看系统结构</RouterLink>
     </div>
 
     <div class="hero-signal-grid">

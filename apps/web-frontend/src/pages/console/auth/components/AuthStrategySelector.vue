@@ -10,9 +10,9 @@
     >
       <div class="auth-strategy-pill__head">
         <strong>{{ strategy.name }}</strong>
-        <span v-if="strategy.mockEnabled" class="auth-strategy-pill__badge">Mock</span>
+        <span v-if="strategy.mockEnabled" class="auth-strategy-pill__badge">测试</span>
       </div>
-      <span>{{ strategy.description || resolveStrategySummary(strategy) }}</span>
+      <span>{{ resolveStrategySummary(strategy) }}</span>
     </button>
 
     <el-empty v-if="!strategies.length" :description="emptyText" />
@@ -34,10 +34,18 @@ const emit = defineEmits<{
 
 const resolveStrategySummary = (strategy: AuthStrategyDescriptor) => {
   if (strategy.credentialType === 'PASSWORD') {
-    return '使用静态凭据完成认证';
+    return '输入账号和密码登录';
   }
 
-  return '先发送验证码，再校验身份';
+  if (strategy.identifierType === 'EMAIL') {
+    return '通过邮箱验证码登录';
+  }
+
+  if (strategy.identifierType === 'PHONE') {
+    return '通过手机验证码登录';
+  }
+
+  return '通过验证码登录';
 };
 </script>
 

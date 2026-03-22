@@ -18,7 +18,7 @@
     </template>
 
     <div class="split-grid">
-      <SurfacePanel caption="Live Messages" title="协同频道" description="历史消息走分页接口，第一页持续接入实时新消息。">
+      <SurfacePanel caption="消息" title="协同频道" description="历史消息支持分页，第一页持续接收新消息。">
         <div v-loading="historyLoading">
           <div v-if="messages.length" class="message-feed">
             <div v-for="message in messages" :key="message.id" class="message-row">
@@ -46,7 +46,7 @@
         />
       </SurfacePanel>
 
-      <SurfacePanel caption="Realtime Events" title="在线事件流" description="当前会话内的实时通知，前端按页查看最新事件。">
+      <SurfacePanel caption="事件" title="实时通知" description="展示当前会话收到的实时通知。">
         <div v-if="pagedEventFeed.length" class="message-feed">
           <div v-for="item in pagedEventFeed" :key="item.id" class="message-row">
             <div>
@@ -238,3 +238,4 @@ onUnmounted(() => {
   socketConnected.value = false;
 });
 </script>
+

@@ -1,11 +1,10 @@
 <template>
   <section class="frontend-page__section-grid">
     <article class="frontend-card console-preview console-preview--lead">
-      <span class="frontend-card__eyebrow">Console Preview</span>
-      <h2>控制台仍然是系统核心，但它不应该承担“项目介绍页”的职责。</h2>
+      <span class="frontend-card__eyebrow">控制台</span>
+      <h2>控制台聚焦实际管理。</h2>
       <p>
-        当默认 / 负责解释系统是什么、能做什么、为什么这样设计之后，控制台本身就可以更专注于操作密度、
-        权限边界和工作流效率。
+        页面内容围绕用户、角色、权限和审计，进入后就可以直接开始操作。
       </p>
     </article>
 
@@ -45,3 +44,4 @@ defineProps<{
   }
 }
 </style>
+

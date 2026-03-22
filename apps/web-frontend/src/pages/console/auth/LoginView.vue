@@ -8,7 +8,7 @@
           <AuthStrategySelector
             v-model="selectedLoginStrategyCode"
             :strategies="authConfig.loginStrategies"
-            empty-text="当前没有可用登录策略"
+            empty-text="当前没有可用登录方式"
           />
 
           <AuthLoginStrategyForm
@@ -28,7 +28,7 @@
           <AuthStrategySelector
             v-model="selectedRegisterStrategyCode"
             :strategies="authConfig.registerStrategies"
-            empty-text="当前没有可用注册策略"
+            empty-text="当前没有可用注册方式"
           />
 
           <AuthRegisterStrategyForm
@@ -108,31 +108,31 @@ const registerForms = reactive<Record<string, StrategyFormState>>({});
 const sendingCodes = reactive<Record<string, boolean>>({});
 const capabilityItems = [
   {
-    eyebrow: 'Identity Strategy',
-    title: '同一入口，多种认证方式',
-    copy: '用户名密码、邮箱验证码、手机号验证码都走策略模式，不再把登录页和流程耦死。',
+    eyebrow: '认证',
+    title: '支持多种登录方式',
+    copy: '可按当前配置使用账号密码、邮箱验证码或手机验证码登录。',
   },
   {
-    eyebrow: 'Client Security',
-    title: '客户端身份纳入校验',
-    copy: 'Web 控制台与其他系统级 client 通过 secret 参与认证链路，token 也能追溯登录来源。',
+    eyebrow: '权限',
+    title: '登录后按权限展示功能',
+    copy: '进入系统后仅显示当前角色可用的页面和操作。',
   },
   {
-    eyebrow: 'Audit Reliability',
-    title: '认证与操作全程可审计',
-    copy: '策略、验证码、认证记录和软删除字段共同构成完整追踪面，适合继续向生产演进。',
+    eyebrow: '审计',
+    title: '关键操作可追踪',
+    copy: '登录、授权和变更记录可在控制台中统一查看。',
   },
 ];
 const credentialItems = [
   {
-    label: 'Username Password',
+    label: '管理员账号',
     value: 'admin / Admin123!',
-    note: '适合直接进入控制台的管理员账号。',
+    note: '用于本地演示登录。',
   },
   {
-    label: 'Mock Verification',
+    label: '测试验证码',
     value: '邮箱 123456 / 手机 654321',
-    note: '验证码发送后会返回 mock 回执，用于本地联调。',
+    note: '发送验证码后可直接填写。',
   },
 ];
 
@@ -221,7 +221,7 @@ const sendVerificationCode = async (purpose: AuthVerificationPurpose) => {
     });
     form.expiresAt = result.expiresAt;
     form.mockCode = result.mockCode ?? '';
-    ElMessage.success(result.mockCode ? `验证码已发送，Mock 验证码：${result.mockCode}` : '验证码已发送');
+    ElMessage.success(result.mockCode ? `验证码已发送，测试验证码：${result.mockCode}` : '验证码已发送');
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '发送验证码失败'));
   } finally {

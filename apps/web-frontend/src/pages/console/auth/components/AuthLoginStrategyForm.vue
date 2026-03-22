@@ -2,7 +2,7 @@
   <el-form label-position="top" class="page-form-grid auth-form-grid" @submit.prevent="emit('submit')">
     <div class="auth-form-banner page-form-grid__full">
       <span class="auth-form-banner__eyebrow">{{ strategy.name }}</span>
-      <strong>{{ strategy.credentialType === 'PASSWORD' ? '使用固定凭据进入控制台' : '使用一次性验证码完成登录' }}</strong>
+      <strong>{{ strategy.credentialType === 'PASSWORD' ? '输入账号和密码后登录' : '获取验证码后登录' }}</strong>
       <small>{{ resolveIdentifierPlaceholder(strategy) }}</small>
     </div>
 
@@ -26,13 +26,13 @@
     </el-form-item>
 
     <div v-if="form.mockCode || form.expiresAt" class="auth-form-hint page-form-grid__full">
-      <strong>Mock 回执</strong>
+      <strong>测试验证码</strong>
       <span v-if="form.mockCode">当前验证码：{{ form.mockCode }}</span>
       <span v-if="form.expiresAt">有效期至：{{ formatTime(form.expiresAt) }}</span>
     </div>
 
     <el-button type="primary" class="auth-form-submit page-form-grid__full" :loading="submitting" @click="emit('submit')">
-      进入系统
+      登录
     </el-button>
   </el-form>
 </template>

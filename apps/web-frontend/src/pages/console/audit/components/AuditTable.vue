@@ -2,8 +2,8 @@
   <section class="table-panel surface-card">
     <header class="table-panel__header">
       <div>
-        <p class="panel-caption">Trace Records</p>
-        <h3 class="panel-heading panel-heading--md">审计流</h3>
+        <p class="panel-caption">审计记录</p>
+        <h3 class="panel-heading panel-heading--md">审计记录</h3>
       </div>
       <div class="table-panel__meta">
         <span>共 {{ total }} 条记录</span>
@@ -62,3 +62,4 @@ const emit = defineEmits<{
 
 const formatTime = (value: string) => new Date(value).toLocaleString();
 </script>
+

@@ -1,5 +1,5 @@
 <template>
-  <SurfacePanel caption="Traceability" title="权限来源分析" description="按用户拆解实际生效权限，直接看到每个权限是通过哪个角色继承而来。">
+  <SurfacePanel caption="权限来源" title="权限来源分析" description="查看用户当前生效的权限及角色来源。">
     <div v-if="loading" class="surface-panel__placeholder">
       <el-skeleton :rows="6" animated />
     </div>
@@ -8,7 +8,7 @@
       <section class="detail-section">
         <div class="detail-section__header">
           <div>
-            <p class="panel-caption">Effective Set</p>
+            <p class="panel-caption">当前用户</p>
             <h3 class="panel-heading panel-heading--lg">{{ source.user.nickname }}</h3>
             <p class="muted">{{ source.user.email || '未设置邮箱' }}</p>
           </div>

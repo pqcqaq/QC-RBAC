@@ -2,19 +2,14 @@
   <section class="auth-access-panel">
     <div class="auth-access-panel__shell">
       <div class="auth-access-panel__topbar">
-        <RouterLink to="/" class="auth-access-panel__back">返回项目前台</RouterLink>
-        <div class="auth-access-panel__chips">
-          <span>策略驱动</span>
-          <span>客户端校验</span>
-          <span>RBAC Console</span>
-        </div>
+        <RouterLink to="/" class="auth-access-panel__back">返回首页</RouterLink>
       </div>
 
       <div class="auth-access-panel__intro">
-        <p class="auth-access-panel__eyebrow">Secure Entry</p>
+        <p class="auth-access-panel__eyebrow">身份验证</p>
         <h2>登录与注册</h2>
         <p class="auth-access-panel__copy">
-          选择当前启用的认证策略后继续。右侧只负责进入系统，认证规则本身由后端维护。
+          选择当前可用的方式后继续。
         </p>
       </div>
 
@@ -79,35 +74,12 @@ const currentTab = computed({
 .auth-access-panel__topbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 14px;
 }
 
 .auth-access-panel__back {
   color: #375a6d;
   font-size: 13px;
   font-weight: 700;
-}
-
-.auth-access-panel__chips {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 8px;
-}
-
-.auth-access-panel__chips span {
-  display: inline-flex;
-  align-items: center;
-  min-height: 28px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(23, 56, 74, 0.06);
-  color: #4b6675;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
 }
 
 .auth-access-panel__intro {
@@ -174,17 +146,6 @@ const currentTab = computed({
     width: 100%;
     padding: 22px 18px;
     border-radius: 24px;
-  }
-}
-
-@media (max-width: 640px) {
-  .auth-access-panel__topbar {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-
-  .auth-access-panel__chips {
-    justify-content: flex-start;
   }
 }
 </style>

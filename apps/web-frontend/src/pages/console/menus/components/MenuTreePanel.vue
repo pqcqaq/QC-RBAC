@@ -1,8 +1,8 @@
 <template>
   <SurfacePanel
-    caption="Navigation Graph"
+    caption="菜单树"
     title="菜单结构树"
-    description="单击查看节点详情，双击直接进入编辑，右键打开快捷菜单。展开状态改为显式控制，避免深层结构把页面整体拖长。"
+    description="单击查看详情，双击编辑，右键打开快捷操作。"
   >
     <template #actions>
       <el-space wrap :size="8">
@@ -553,3 +553,4 @@ watch(
   }
 }
 </style>
+
