@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
+import AppButton from '@/components/app-button/app-button.vue'
+import AppInput from '@/components/app-input/app-input.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import { LOGIN_PAGE } from '@/router/config'
 import { isPageTabbar } from '@/tabbar/store'
@@ -94,23 +96,23 @@ function toLogin() {
   <AppPageShell auth title="注册" description="创建账号后将直接登录当前设备。">
     <view class="app-auth-sheet">
       <view class="app-auth-form">
-        <wd-input v-model="form.username" label="用户名" clearable placeholder="请输入用户名" custom-class="app-auth-input" />
-        <wd-input v-model="form.nickname" label="昵称" clearable placeholder="请输入昵称" custom-class="app-auth-input" />
-        <wd-input v-model="form.email" label="邮箱" clearable placeholder="请输入邮箱" custom-class="app-auth-input" />
-        <wd-input
+        <AppInput v-model="form.username" label="用户名" clearable placeholder="请输入用户名" class="app-auth-input" />
+        <AppInput v-model="form.nickname" label="昵称" clearable placeholder="请输入昵称" class="app-auth-input" />
+        <AppInput v-model="form.email" label="邮箱" clearable placeholder="请输入邮箱" class="app-auth-input" />
+        <AppInput
           v-model="form.password"
           label="密码"
           show-password
           placeholder="请设置密码"
           confirm-type="done"
-          custom-class="app-auth-input"
+          class="app-auth-input"
           @confirm="submit"
         />
       </view>
 
-      <wd-button block size="large" :loading="submitting" custom-class="app-auth-submit" @click="submit">
+      <AppButton block size="large" :loading="submitting" class="app-auth-submit" @click="submit">
         注册
-      </wd-button>
+      </AppButton>
 
       <view class="app-inline-action">
         <text class="app-inline-action__label">已有账号？</text>

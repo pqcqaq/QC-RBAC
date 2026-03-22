@@ -1,5 +1,7 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
+import AppButton from '@/components/app-button/app-button.vue'
+import AppInput from '@/components/app-input/app-input.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import { REGISTER_PAGE } from '@/router/config'
 import { isPageTabbar } from '@/tabbar/store'
@@ -94,28 +96,28 @@ function toRegister() {
   <AppPageShell auth title="登录" description="使用账号和密码进入系统。">
     <view class="app-auth-sheet">
       <view class="app-auth-form">
-        <wd-input
+        <AppInput
           v-model="form.account"
           label="账号"
           clearable
           placeholder="用户名或邮箱"
           confirm-type="next"
-          custom-class="app-auth-input"
+          class="app-auth-input"
         />
-        <wd-input
+        <AppInput
           v-model="form.password"
           label="密码"
           show-password
           placeholder="请输入密码"
           confirm-type="done"
-          custom-class="app-auth-input"
+          class="app-auth-input"
           @confirm="doLogin"
         />
       </view>
 
-      <wd-button block size="large" :loading="submitting" custom-class="app-auth-submit" @click="doLogin">
+      <AppButton block size="large" :loading="submitting" class="app-auth-submit" @click="doLogin">
         登录
-      </wd-button>
+      </AppButton>
 
       <view class="app-inline-action">
         <text class="app-inline-action__label">没有账号？</text>

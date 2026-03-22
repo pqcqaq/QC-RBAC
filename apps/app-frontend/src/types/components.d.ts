@@ -7,7 +7,14 @@ export {}
 
 declare module 'vue' {
   export interface GlobalComponents {
+    AppAvatar: typeof import('./../components/app-avatar/app-avatar.vue')['default']
+    AppButton: typeof import('./../components/app-button/app-button.vue')['default']
+    AppInput: typeof import('./../components/app-input/app-input.vue')['default']
+    AppList: typeof import('./../components/app-list/app-list.vue')['default']
+    AppListItem: typeof import('./../components/app-list-item/app-list-item.vue')['default']
     AppPageShell: typeof import('./../components/app-page-shell/app-page-shell.vue')['default']
     AppSection: typeof import('./../components/app-section/app-section.vue')['default']
+    AppStatus: typeof import('./../components/app-status/app-status.vue')['default']
+    AppTag: typeof import('./../components/app-tag/app-tag.vue')['default']
   }
 }

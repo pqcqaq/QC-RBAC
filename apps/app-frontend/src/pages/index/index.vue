@@ -2,8 +2,12 @@
 import type { DashboardSummary } from '@rbac/api-common'
 import dayjs from 'dayjs'
 import { computed, reactive, ref } from 'vue'
+import AppList from '@/components/app-list/app-list.vue'
+import AppListItem from '@/components/app-list-item/app-list-item.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import AppSection from '@/components/app-section/app-section.vue'
+import AppStatus from '@/components/app-status/app-status.vue'
+import AppTag from '@/components/app-tag/app-tag.vue'
 import { getDashboardSummary } from '@/api/login'
 import { useTokenStore, useUserStore } from '@/store'
 import { getErrorMessage } from '@/utils/error'
@@ -89,91 +93,91 @@ onPullDownRefresh(() => {
   <AppPageShell title="工作台" :description="headerDescription">
     <template #extra>
       <view v-if="roleTags.length" class="app-tag-row app-tag-row--compact">
-        <wd-tag v-for="role in roleTags" :key="role.id" plain round type="primary" custom-class="app-tag">
+        <AppTag v-for="role in roleTags" :key="role.id" type="primary">
           {{ role.name }}
-        </wd-tag>
+        </AppTag>
       </view>
     </template>
 
     <AppSection title="快捷入口" description="常用功能入口。">
-      <wd-cell-group custom-class="app-list-group">
-        <wd-cell title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
-        <wd-cell title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
-      </wd-cell-group>
+      <AppList>
+        <AppListItem title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
+        <AppListItem title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
+      </AppList>
     </AppSection>
 
     <AppSection title="概览" description="核心指标摘要。">
-      <wd-cell-group v-if="summary.metrics.length" custom-class="app-list-group">
-        <wd-cell
+      <AppList v-if="summary.metrics.length">
+        <AppListItem
           v-for="metric in summary.metrics"
           :key="metric.label"
           :title="metric.label"
           :label="metric.trend"
           :value="String(metric.value)"
-          custom-value-class="app-kv-emphasis"
+          value-emphasis
         />
-      </wd-cell-group>
+      </AppList>
       <view v-else class="app-status-wrap">
-        <wd-loadmore v-if="loading" state="loading" custom-class="app-loadmore" />
-        <wd-status-tip v-else tip="暂无概览数据" image="content" custom-class="app-status-tip" />
+        <AppStatus v-if="loading" mode="loading" text="加载中" />
+        <AppStatus v-else text="暂无概览数据" />
       </view>
     </AppSection>
 
     <AppSection title="角色分布">
-      <wd-cell-group v-if="summary.roleDistribution.length" custom-class="app-list-group">
-        <wd-cell
+      <AppList v-if="summary.roleDistribution.length">
+        <AppListItem
           v-for="item in summary.roleDistribution"
           :key="item.roleName"
           :title="item.roleName"
           :value="`${item.count} 人`"
         />
-      </wd-cell-group>
+      </AppList>
       <view v-else class="app-status-wrap">
-        <wd-status-tip tip="暂无角色分布数据" image="content" custom-class="app-status-tip" />
+        <AppStatus text="暂无角色分布数据" />
       </view>
     </AppSection>
 
     <AppSection title="模块覆盖">
-      <wd-cell-group v-if="summary.moduleCoverage.length" custom-class="app-list-group">
-        <wd-cell
+      <AppList v-if="summary.moduleCoverage.length">
+        <AppListItem
           v-for="item in summary.moduleCoverage"
           :key="item.module"
           :title="item.module"
           :value="`${item.count} 项`"
         />
-      </wd-cell-group>
+      </AppList>
       <view v-else class="app-status-wrap">
-        <wd-status-tip tip="暂无模块覆盖数据" image="content" custom-class="app-status-tip" />
+        <AppStatus text="暂无模块覆盖数据" />
       </view>
     </AppSection>
 
     <AppSection title="最近成员">
-      <wd-cell-group v-if="latestUsers.length" custom-class="app-list-group">
-        <wd-cell
+      <AppList v-if="latestUsers.length">
+        <AppListItem
           v-for="item in latestUsers"
           :key="item.id"
           :title="item.nickname || item.username"
           :label="item.email || '未设置邮箱'"
           :value="formatTime(item.createdAt)"
         />
-      </wd-cell-group>
+      </AppList>
       <view v-else class="app-status-wrap">
-        <wd-status-tip tip="暂无成员数据" image="content" custom-class="app-status-tip" />
+        <AppStatus text="暂无成员数据" />
       </view>
     </AppSection>
 
     <AppSection title="最近动态">
-      <wd-cell-group v-if="latestAuditFeed.length" custom-class="app-list-group">
-        <wd-cell
+      <AppList v-if="latestAuditFeed.length">
+        <AppListItem
           v-for="item in latestAuditFeed"
           :key="item.id"
           :title="item.action"
           :label="`${item.actor} · ${item.target}`"
           :value="formatTime(item.createdAt)"
         />
-      </wd-cell-group>
+      </AppList>
       <view v-else class="app-status-wrap">
-        <wd-status-tip tip="暂无动态" image="content" custom-class="app-status-tip" />
+        <AppStatus text="暂无动态" />
       </view>
     </AppSection>
   </AppPageShell>

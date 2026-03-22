@@ -1,16 +1,23 @@
 :root,
 page {
-  --app-bg: #f5f7fa;
+  --app-bg: #f4f6f9;
   --app-surface: #ffffff;
+  --app-surface-soft: #f8fafc;
   --app-border: #dde3eb;
   --app-border-light: #edf1f5;
-  --app-text: #111827;
-  --app-text-secondary: #4b5563;
-  --app-text-muted: #8b96a6;
-  --app-accent: #111827;
-  --app-accent-soft: #eff3f8;
+  --app-border-strong: #cfd7e2;
+  --app-text: #121a27;
+  --app-text-secondary: #4e5a6b;
+  --app-text-muted: #7e8a9a;
+  --app-accent: #1c2431;
+  --app-accent-pressed: #0f1724;
+  --app-accent-soft: #eef2f6;
   --app-success: #0f766e;
+  --app-success-soft: #ecfdf5;
+  --app-warning: #b45309;
+  --app-warning-soft: #fff7ed;
   --app-danger: #dc2626;
+  --app-danger-soft: #fef2f2;
 }
 
 page,
@@ -28,8 +35,8 @@ image {
   box-sizing: border-box;
 }
 
-button {
-  margin: 0;
+image {
+  display: block;
 }
 
 .app-root {
@@ -41,7 +48,8 @@ button {
 .app-page {
   min-height: 100vh;
   background: var(--app-bg);
-  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+  padding-bottom: calc(40rpx + constant(safe-area-inset-bottom));
+  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
 }
 
 .app-page--auth {
@@ -53,13 +61,15 @@ button {
 }
 
 .app-page-shell--auth .app-page-shell__head {
-  padding: calc(72rpx + env(safe-area-inset-top)) 40rpx 24rpx;
+  padding: 84rpx 40rpx 28rpx;
+  padding-top: calc(84rpx + constant(safe-area-inset-top));
+  padding-top: calc(84rpx + env(safe-area-inset-top));
 }
 
 .app-page-shell__title {
-  font-size: 54rpx;
-  line-height: 1.18;
-  font-weight: 600;
+  font-size: 52rpx;
+  line-height: 1.2;
+  font-weight: 650;
   letter-spacing: -0.02em;
   color: var(--app-text);
 }
@@ -87,7 +97,6 @@ button {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 16rpx;
   padding: 0 32rpx 12rpx;
 }
 
@@ -110,49 +119,18 @@ button {
   color: var(--app-text-muted);
 }
 
-.app-list-group {
-  background: transparent !important;
-}
-
-.app-list-group .wd-cell-group__body {
-  background: var(--app-surface);
-  border-top: 1rpx solid var(--app-border);
-  border-bottom: 1rpx solid var(--app-border);
-}
-
-.app-list-group .wd-cell {
-  background: var(--app-surface);
-}
-
-.app-list-group .wd-cell__wrapper {
-  padding: 26rpx 32rpx;
-}
-
-.app-list-group .wd-cell__left {
-  align-items: flex-start;
-}
-
-.app-list-group .wd-cell__label {
-  margin-top: 8rpx;
-  line-height: 1.55;
-}
-
-.app-list-group .wd-cell__value {
-  line-height: 1.55;
-}
-
-.app-list-group .wd-cell.is-hover {
-  background: #fafbfc;
-}
-
 .app-hero {
   display: flex;
   align-items: center;
-  gap: 24rpx;
   padding: 28rpx 32rpx;
   background: var(--app-surface);
   border-top: 1rpx solid var(--app-border);
   border-bottom: 1rpx solid var(--app-border);
+}
+
+.app-hero__avatar {
+  margin-right: 24rpx;
+  flex-shrink: 0;
 }
 
 .app-hero__body {
@@ -178,16 +156,18 @@ button {
 .app-tag-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 12rpx;
   margin-top: 18rpx;
+  margin-left: -12rpx;
+  margin-bottom: -12rpx;
+}
+
+.app-tag-row > * {
+  margin-left: 12rpx;
+  margin-bottom: 12rpx;
 }
 
 .app-tag-row--compact {
   margin-top: 0;
-}
-
-.app-tag {
-  margin: 0;
 }
 
 .app-status-wrap {
@@ -201,20 +181,6 @@ button {
   padding: 40rpx 0 24rpx;
 }
 
-.app-status-tip {
-  background: transparent;
-}
-
-.app-status-tip .wd-status-tip__text {
-  color: var(--app-text-muted);
-  font-size: 24rpx;
-}
-
-.app-loadmore {
-  background: transparent;
-  padding: 24rpx 0 8rpx;
-}
-
 .app-auth-sheet {
   padding: 0 32rpx;
 }
@@ -223,23 +189,11 @@ button {
   background: var(--app-surface);
   border-top: 1rpx solid var(--app-border);
   border-bottom: 1rpx solid var(--app-border);
-  padding: 0 8rpx;
+  padding: 0;
 }
 
 .app-auth-input + .app-auth-input {
   border-top: 1rpx solid var(--app-border-light);
-}
-
-.app-auth-input.wd-input {
-  background: transparent;
-}
-
-.app-auth-input .wd-input__inner {
-  font-size: 32rpx;
-}
-
-.app-auth-input .wd-input__label {
-  min-width: 112rpx;
 }
 
 .app-auth-submit {
@@ -250,7 +204,6 @@ button {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 12rpx;
   margin-top: 28rpx;
   font-size: 26rpx;
   line-height: 1.5;
@@ -261,6 +214,7 @@ button {
 }
 
 .app-inline-action__link {
+  margin-left: 12rpx;
   color: var(--app-text);
   font-weight: 500;
 }
@@ -269,7 +223,7 @@ button {
   padding: 0 32rpx;
 }
 
-.app-action-block .wd-button + .wd-button {
+.app-action-block .app-button + .app-button {
   margin-top: 16rpx;
 }
 
@@ -285,9 +239,4 @@ button {
   font-size: 22rpx;
   line-height: 1.6;
   color: var(--app-text-muted);
-}
-
-.app-kv-emphasis {
-  font-weight: 600;
-  color: var(--app-text);
 }

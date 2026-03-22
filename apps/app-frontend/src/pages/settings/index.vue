@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import AppList from '@/components/app-list/app-list.vue'
+import AppListItem from '@/components/app-list-item/app-list-item.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import AppSection from '@/components/app-section/app-section.vue'
 import { authClientCode } from '@/api/client'
@@ -113,15 +115,15 @@ onShow(() => {
     </AppSection>
 
     <AppSection title="账户">
-      <wd-cell-group custom-class="app-list-group">
-        <wd-cell v-for="item in accountItems" :key="item.label" :title="item.label" :value="item.value" />
-      </wd-cell-group>
+      <AppList>
+        <AppListItem v-for="item in accountItems" :key="item.label" :title="item.label" :value="item.value" />
+      </AppList>
     </AppSection>
 
     <AppSection title="已同步控制台配置">
-      <wd-cell-group custom-class="app-list-group">
-        <wd-cell v-for="item in syncItems" :key="item.label" :title="item.label" :value="item.value" />
-      </wd-cell-group>
+      <AppList>
+        <AppListItem v-for="item in syncItems" :key="item.label" :title="item.label" :value="item.value" />
+      </AppList>
     </AppSection>
   </AppPageShell>
 </template>

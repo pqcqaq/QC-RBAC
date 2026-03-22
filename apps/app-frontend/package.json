@@ -12,7 +12,7 @@
       "mp-alipay",
       "mp-toutiao"
     ],
-    "uiLibrary": "wot-ui",
+    "uiLibrary": "custom",
     "loginStrategy": true,
     "i18n": false,
     "chartLibraries": [],
@@ -62,7 +62,6 @@
     "vue": "3.4.21",
     "vue-i18n": "9.1.9",
     "vue-router": "4.5.1",
-    "wot-design-uni": "latest",
     "z-paging": "2.8.7"
   },
   "devDependencies": {

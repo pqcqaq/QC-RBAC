@@ -19,13 +19,6 @@ function getImageByIndex(index: number, item: CustomTabBarItem) {
 
 <template>
   <view class="flex flex-col items-center justify-center">
-    <template v-if="item.iconType === 'uiLib'">
-      <!-- TODO: 以下内容请根据选择的UI库自行替换 -->
-      <!-- 如：<wd-icon name="home" /> (https://wot-design-uni.cn/component/icon.html) -->
-      <!-- 如：<uv-icon name="home" /> (https://www.uvui.cn/components/icon.html) -->
-      <!-- 如：<sar-icon name="image" /> (https://sard.wzt.zone/sard-uniapp-docs/components/icon)(sar没有home图标^_^) -->
-      <!-- <wd-icon :name="item.icon" size="20" /> -->
-    </template>
     <template v-if="item.iconType === 'unocss' || item.iconType === 'iconfont'">
       <view :class="[item.icon, isBulge ? 'text-80px' : 'text-20px']" />
     </template>

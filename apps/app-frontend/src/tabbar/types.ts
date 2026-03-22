@@ -18,10 +18,9 @@ export interface CustomTabBarItem {
   text: string
   pagePath: RemoveLeadingSlashFromUnion<LocationUrl>
   /** 图标类型，不建议用 image 模式，因为需要配置 2 张图，更麻烦 */
-  iconType: 'uiLib' | 'unocss' | 'iconfont' | 'image'
+  iconType: 'unocss' | 'iconfont' | 'image'
   /**
    * icon 的路径
-   * - uiLib: wot-design-uni 图标的 icon prop
    * - unocss: unocss 图标的类名
    * - iconfont: iconfont 图标的类名
    * - image: 图片的路径

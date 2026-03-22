@@ -1,8 +1,14 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import AppAvatar from '@/components/app-avatar/app-avatar.vue'
+import AppButton from '@/components/app-button/app-button.vue'
+import AppList from '@/components/app-list/app-list.vue'
+import AppListItem from '@/components/app-list-item/app-list-item.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import AppSection from '@/components/app-section/app-section.vue'
+import AppStatus from '@/components/app-status/app-status.vue'
+import AppTag from '@/components/app-tag/app-tag.vue'
 import { LOGIN_PAGE, REGISTER_PAGE } from '@/router/config'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
@@ -84,7 +90,13 @@ onShow(() => {
 <template>
   <AppPageShell title="我的" :description="pageDescription">
     <view class="app-hero">
-      <wd-avatar :src="userInfo.avatar || '/static/images/default-avatar.png'" size="large" shape="square" />
+      <AppAvatar
+        class="app-hero__avatar"
+        :src="userInfo.avatar || '/static/images/default-avatar.png'"
+        :text="displayName"
+        size="large"
+        shape="square"
+      />
       <view class="app-hero__body">
         <view class="app-hero__title">
           {{ displayName }}
@@ -93,54 +105,54 @@ onShow(() => {
           {{ userInfo.email || '未设置邮箱' }}
         </view>
         <view class="app-tag-row">
-          <wd-tag round plain :type="tokenStore.hasLogin ? statusTagType : 'default'" custom-class="app-tag">
+          <AppTag :type="tokenStore.hasLogin ? statusTagType : 'default'">
             {{ tokenStore.hasLogin ? (userInfo.status === 'ACTIVE' ? '正常' : '停用') : '未登录' }}
-          </wd-tag>
-          <wd-tag v-if="tokenStore.hasLogin" round plain type="primary" custom-class="app-tag">
+          </AppTag>
+          <AppTag v-if="tokenStore.hasLogin" type="primary">
             {{ roleSummary }}
-          </wd-tag>
+          </AppTag>
         </view>
       </view>
     </view>
 
     <template v-if="tokenStore.hasLogin">
       <AppSection title="账户">
-        <wd-cell-group custom-class="app-list-group">
-          <wd-cell title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
-          <wd-cell title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
-        </wd-cell-group>
+        <AppList>
+          <AppListItem title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
+          <AppListItem title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
+        </AppList>
       </AppSection>
 
       <AppSection title="当前状态">
-        <wd-cell-group custom-class="app-list-group">
-          <wd-cell title="账号状态" :value="userInfo.status === 'ACTIVE' ? '正常' : '停用'" custom-value-class="app-kv-emphasis" />
-          <wd-cell title="角色数量" :value="String(userInfo.roles.length)" />
-          <wd-cell title="当前角色" :label="roleSummary" />
-          <wd-cell title="权限数量" :value="String(userInfo.permissions.length)" />
-        </wd-cell-group>
+        <AppList>
+          <AppListItem title="账号状态" :value="userInfo.status === 'ACTIVE' ? '正常' : '停用'" value-emphasis />
+          <AppListItem title="角色数量" :value="String(userInfo.roles.length)" />
+          <AppListItem title="当前角色" :label="roleSummary" />
+          <AppListItem title="权限数量" :value="String(userInfo.permissions.length)" />
+        </AppList>
       </AppSection>
 
       <view class="app-action-block">
-        <wd-button block size="large" type="info" @click="handleLogout">
+        <AppButton block size="large" type="info" @click="handleLogout">
           退出登录
-        </wd-button>
+        </AppButton>
       </view>
     </template>
 
     <template v-else>
       <AppSection title="账户提示">
         <view class="app-status-wrap app-status-wrap--spacious">
-          <wd-status-tip tip="登录后可查看个人信息和同步配置。" image="message" custom-class="app-status-tip" />
+          <AppStatus text="登录后可查看个人信息和同步配置。" />
         </view>
       </AppSection>
 
       <view class="app-action-block">
-        <wd-button block size="large" @click="handleLogin">
+        <AppButton block size="large" @click="handleLogin">
           去登录
-        </wd-button>
-        <wd-button block size="large" type="info" @click="handleRegister">
+        </AppButton>
+        <AppButton block size="large" type="info" @click="handleRegister">
           去注册
-        </wd-button>
+        </AppButton>
       </view>
     </template>
   </AppPageShell>
