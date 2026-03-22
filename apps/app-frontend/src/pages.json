@@ -1,6 +1,6 @@
 {
   "globalStyle": {
-    "navigationStyle": "default",
+    "navigationStyle": "custom",
     "navigationBarTitleText": "权限管理",
     "navigationBarBackgroundColor": "#f7f7f8",
     "navigationBarTextStyle": "black",

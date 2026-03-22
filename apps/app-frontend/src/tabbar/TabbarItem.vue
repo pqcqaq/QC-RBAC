@@ -1,43 +1,112 @@
 <script setup lang="ts">
 import type { CustomTabBarItem } from './types'
-import { tabbarStore } from './store'
 
 defineProps<{
   item: CustomTabBarItem
-  index: number
-  isBulge?: boolean
+  active: boolean
 }>()
 
-function getImageByIndex(index: number, item: CustomTabBarItem) {
+function getImageSource(item: CustomTabBarItem, active: boolean) {
   if (!item.iconActive) {
-    console.warn('image 模式下，需要配置 iconActive (高亮时的图片），否则无法切换高亮图片')
     return item.icon
   }
-  return tabbarStore.curIdx === index ? item.iconActive : item.icon
+  return active ? item.iconActive : item.icon
 }
 </script>
 
 <template>
-  <view class="flex flex-col items-center justify-center">
-    <template v-if="item.iconType === 'unocss' || item.iconType === 'iconfont'">
-      <view :class="[item.icon, isBulge ? 'text-80px' : 'text-20px']" />
-    </template>
-    <template v-if="item.iconType === 'image'">
-      <image :src="getImageByIndex(index, item)" mode="scaleToFill" :class="isBulge ? 'h-80px w-80px' : 'h-24px w-24px'" />
-    </template>
-    <view v-if="!isBulge" class="mt-2px text-12px">
+  <view class="app-tabbar-item" :class="active ? 'is-active' : ''">
+    <view class="app-tabbar-item__icon-wrap">
+      <template v-if="item.iconType === 'unocss' || item.iconType === 'iconfont'">
+        <view :class="['app-tabbar-item__icon', item.icon]" />
+      </template>
+      <template v-if="item.iconType === 'image'">
+        <image :src="getImageSource(item, active)" mode="aspectFit" class="app-tabbar-item__image" />
+      </template>
+
+      <view v-if="item.badge" class="app-tabbar-item__badge-wrap">
+        <template v-if="item.badge === 'dot'">
+          <view class="app-tabbar-item__dot" />
+        </template>
+        <template v-else>
+          <view class="app-tabbar-item__badge">
+            {{ item.badge > 99 ? '99+' : item.badge }}
+          </view>
+        </template>
+      </view>
+    </view>
+
+    <text class="app-tabbar-item__text">
       {{ item.text }}
-    </view>
-    <!-- 角标显示 -->
-    <view v-if="item.badge">
-      <template v-if="item.badge === 'dot'">
-        <view class="absolute right-0 top-0 h-2 w-2 rounded-full bg-#f56c6c" />
-      </template>
-      <template v-else>
-        <view class="absolute top-0 box-border h-5 min-w-5 center rounded-full bg-#f56c6c px-1 text-center text-xs text-white -right-3">
-          {{ item.badge > 99 ? '99+' : item.badge }}
-        </view>
-      </template>
-    </view>
+    </text>
   </view>
 </template>
+
+<style scoped lang="scss">
+.app-tabbar-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  color: var(--app-text-muted);
+  transition: color 0.18s ease;
+}
+
+.app-tabbar-item.is-active {
+  color: var(--app-accent);
+}
+
+.app-tabbar-item__icon-wrap {
+  position: relative;
+  width: 44rpx;
+  height: 44rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.app-tabbar-item__icon {
+  font-size: 42rpx;
+  line-height: 1;
+}
+
+.app-tabbar-item__image {
+  width: 40rpx;
+  height: 40rpx;
+}
+
+.app-tabbar-item__text {
+  margin-top: 8rpx;
+  font-size: 20rpx;
+  line-height: 1.2;
+  font-weight: 500;
+}
+
+.app-tabbar-item__badge-wrap {
+  position: absolute;
+  top: -6rpx;
+  right: -12rpx;
+}
+
+.app-tabbar-item__dot {
+  width: 12rpx;
+  height: 12rpx;
+  border-radius: 50%;
+  background: #f04438;
+}
+
+.app-tabbar-item__badge {
+  min-width: 28rpx;
+  height: 28rpx;
+  padding: 0 8rpx;
+  border-radius: 999rpx;
+  background: #f04438;
+  color: #fff;
+  font-size: 18rpx;
+  line-height: 28rpx;
+  text-align: center;
+  box-sizing: border-box;
+}
+</style>

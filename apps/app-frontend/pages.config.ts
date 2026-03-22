@@ -3,7 +3,7 @@ import { tabBar } from './src/tabbar/config'
 
 export default defineUniPages({
   globalStyle: {
-    navigationStyle: 'default',
+    navigationStyle: 'custom',
     navigationBarTitleText: '权限管理',
     navigationBarBackgroundColor: '#f7f7f8',
     navigationBarTextStyle: 'black',

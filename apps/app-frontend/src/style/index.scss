@@ -18,6 +18,12 @@ page {
   --app-warning-soft: #fff7ed;
   --app-danger: #dc2626;
   --app-danger-soft: #fef2f2;
+  --app-safe-top: 0px;
+  --app-safe-bottom: 0px;
+  --app-nav-height: 44px;
+  --app-header-height: 44px;
+  --app-tabbar-base-height: 56px;
+  --app-tabbar-height: 56px;
 }
 
 page,
@@ -48,37 +54,46 @@ image {
 .app-page {
   min-height: 100vh;
   background: var(--app-bg);
-  padding-bottom: calc(40rpx + constant(safe-area-inset-bottom));
-  padding-bottom: calc(40rpx + env(safe-area-inset-bottom));
+}
+
+.app-page--with-tabbar {
+  padding-bottom: calc(var(--app-tabbar-height) + 12px);
 }
 
 .app-page--auth {
   background: linear-gradient(180deg, #fbfcfe 0%, #f4f6f9 52%, #ffffff 100%);
 }
 
+.app-page-shell__nav {
+  padding-top: var(--app-safe-top);
+  background: rgba(244, 246, 249, 0.92);
+  border-bottom: 1rpx solid rgba(221, 227, 235, 0.92);
+  backdrop-filter: blur(18px);
+}
+
+.app-page-shell--auth .app-page-shell__nav {
+  background: transparent;
+  border-bottom: 0;
+  backdrop-filter: none;
+}
+
 .app-page-shell__head {
-  padding: 72rpx 32rpx 20rpx;
-}
-
-.app-page-shell--auth .app-page-shell__head {
-  padding: 84rpx 40rpx 28rpx;
-  padding-top: calc(84rpx + constant(safe-area-inset-top));
-  padding-top: calc(84rpx + env(safe-area-inset-top));
-}
-
-.app-page-shell__title {
-  font-size: 52rpx;
-  line-height: 1.2;
-  font-weight: 650;
-  letter-spacing: -0.02em;
-  color: var(--app-text);
+  padding: 10rpx 32rpx 18rpx;
 }
 
 .app-page-shell__desc {
-  margin-top: 14rpx;
   font-size: 26rpx;
   line-height: 1.65;
   color: var(--app-text-muted);
+}
+
+.app-page-shell--auth .app-page-shell__head {
+  padding: 4rpx 32rpx 28rpx;
+}
+
+.app-page-shell--auth .app-page-shell__desc {
+  font-size: 28rpx;
+  line-height: 1.7;
 }
 
 .app-page-shell__extra {
@@ -86,7 +101,7 @@ image {
 }
 
 .app-page-shell__body {
-  padding-bottom: 24rpx;
+  padding-bottom: 28rpx;
 }
 
 .app-section {

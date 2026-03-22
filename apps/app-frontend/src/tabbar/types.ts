@@ -30,8 +30,6 @@ export interface CustomTabBarItem {
   iconActive?: string
   /** badge 显示一个数字或 小红点 */
   badge?: CustomTabBarItemBadge
-  /** 是否是中间的鼓包tabbarItem */
-  isBulge?: boolean
   // roles 不写 → 所有用户都能看到；roles 写了 → 只有匹配角色可见
   roles?: UserRole[]
 }

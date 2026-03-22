@@ -12,6 +12,7 @@ declare module 'vue' {
     AppInput: typeof import('./../components/app-input/app-input.vue')['default']
     AppList: typeof import('./../components/app-list/app-list.vue')['default']
     AppListItem: typeof import('./../components/app-list-item/app-list-item.vue')['default']
+    AppNavBar: typeof import('./../components/app-nav-bar/app-nav-bar.vue')['default']
     AppPageShell: typeof import('./../components/app-page-shell/app-page-shell.vue')['default']
     AppSection: typeof import('./../components/app-section/app-section.vue')['default']
     AppStatus: typeof import('./../components/app-status/app-status.vue')['default']

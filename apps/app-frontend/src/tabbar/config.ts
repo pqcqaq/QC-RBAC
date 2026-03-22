@@ -7,7 +7,7 @@ export const TABBAR_STRATEGY_MAP = {
   CUSTOM_TABBAR: 2,
 }
 
-export const selectedTabbarStrategy = TABBAR_STRATEGY_MAP.NATIVE_TABBAR
+export const selectedTabbarStrategy = TABBAR_STRATEGY_MAP.CUSTOM_TABBAR
 
 export const nativeTabbarList: NativeTabBarItem[] = [
   {
@@ -46,11 +46,11 @@ export const customTabbarEnable = [TABBAR_STRATEGY_MAP.CUSTOM_TABBAR].includes(s
 
 export const needHideNativeTabbar = selectedTabbarStrategy === TABBAR_STRATEGY_MAP.CUSTOM_TABBAR
 
-const _tabbarList = customTabbarEnable ? customTabbarList.map(item => ({ text: item.text, pagePath: item.pagePath })) : nativeTabbarList
+const _tabbarList = nativeTabbarList
 export const tabbarList = customTabbarEnable ? customTabbarList : nativeTabbarList
 
 const _tabbar: TabBar = {
-  custom: selectedTabbarStrategy === TABBAR_STRATEGY_MAP.CUSTOM_TABBAR,
+  custom: false,
   color: '#8b8f97',
   selectedColor: '#111827',
   backgroundColor: '#FFFFFF',
@@ -63,3 +63,14 @@ const _tabbar: TabBar = {
 }
 
 export const tabBar = tabbarCacheEnable ? _tabbar : undefined
+
+export function hideNativeTabbar() {
+  if (!needHideNativeTabbar) {
+    return
+  }
+
+  uni.hideTabBar({
+    animation: false,
+    fail: () => undefined,
+  })
+}
