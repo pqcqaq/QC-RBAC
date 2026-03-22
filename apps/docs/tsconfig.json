@@ -1,0 +1,15 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "composite": true,
+    "jsx": "preserve",
+    "rootDir": ".",
+    "types": ["node", "vitepress/client"]
+  },
+  "include": [
+    ".vitepress/**/*.ts",
+    ".vitepress/**/*.d.ts",
+    ".vitepress/**/*.vue"
+  ]
+}
