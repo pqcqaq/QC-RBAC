@@ -1,8 +1,8 @@
 import { Router } from 'express';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
-import { ok, asyncHandler } from '../utils/http.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
+import { ok, asyncHandler } from '../utils/http';
 
 const dashboardRouter = Router();
 

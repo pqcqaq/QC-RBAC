@@ -5,17 +5,17 @@ import type {
 } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import { AuthClientType, type OAuthApplicationClientType } from '@rbac/api-common';
-import { prisma } from '../lib/prisma.js';
-import { badRequest, notFound, unauthorized } from '../utils/errors.js';
-import { encryptOAuthSecret } from '../utils/oauth-security.js';
+import { prisma } from '../lib/prisma';
+import { badRequest, notFound, unauthorized } from '../utils/errors';
+import { encryptOAuthSecret } from '../utils/oauth-security';
 import {
   defaultOAuthClaimMapping,
   toOAuthApplicationRecord,
   toOAuthProviderPublicSummary,
   toOAuthProviderRecord,
-} from '../utils/oauth-records.js';
-import { hashSecret, compareSecret } from '../utils/password.js';
-import { withSnowflakeId } from '../utils/persistence.js';
+} from '../utils/oauth-records';
+import { hashSecret, compareSecret } from '../utils/password';
+import { withSnowflakeId } from '../utils/persistence';
 
 const oauthProviderInclude = {
   id: true,

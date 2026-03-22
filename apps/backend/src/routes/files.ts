@@ -1,18 +1,18 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
 import {
   createUploadPlan,
   finalizeUpload,
   storeLocalPart,
   validateUploadRequest,
-} from '../services/file-upload.js';
-import { logActivity } from '../utils/audit.js';
-import { badRequest, notFound } from '../utils/errors.js';
-import { ok, asyncHandler } from '../utils/http.js';
-import { withSnowflakeId } from '../utils/persistence.js';
+} from '../services/file-upload';
+import { logActivity } from '../utils/audit';
+import { badRequest, notFound } from '../utils/errors';
+import { ok, asyncHandler } from '../utils/http';
+import { withSnowflakeId } from '../utils/persistence';
 
 const localUpload = multer({
   storage: multer.memoryStorage(),

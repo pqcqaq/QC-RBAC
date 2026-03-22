@@ -1,5 +1,5 @@
-import type { ClientOptions, DownloadRequestConfig } from '../client/core.js';
-import { createRequestClient } from '../client/core.js';
+import type { ClientOptions, DownloadRequestConfig } from '../client/core';
+import { createRequestClient } from '../client/core';
 import type {
   AuthStrategyCollection,
   AuthSession,
@@ -13,20 +13,20 @@ import type {
   VerificationCodeSendResult,
   VerificationCodeVerifyResult,
   VerifyVerificationCodePayload,
-} from '../types/auth.js';
+} from '../types/auth';
 import type {
   OAuthApplicationFormPayload,
   OAuthApplicationRecord,
   OAuthAuthorizeUrlResult,
   OAuthProviderFormPayload,
   OAuthProviderRecord,
-} from '../types/oauth.js';
+} from '../types/oauth';
 import type {
   UploadCallbackPayload,
   UploadCallbackResult,
   UploadPreparePayload,
   UploadPrepareResult,
-} from '../types/files.js';
+} from '../types/files';
 import type {
   ActivityLogRecord,
   AuthClientFormPayload,
@@ -47,8 +47,8 @@ import type {
   UserFormPayload,
   UserPermissionSource,
   UserRecord,
-} from '../types/rbac.js';
-import type { PaginatedResult, QueryParams } from '../types/common.js';
+} from '../types/rbac';
+import type { PaginatedResult, QueryParams } from '../types/common';
 
 type CrudResourceOptions = {
   resource: string;

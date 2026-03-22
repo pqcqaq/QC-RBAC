@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import { PrismaClient } from '@prisma/client';
-import { seedDatabase } from './seed-data.js';
+import { seedDatabase } from './seed-data';
 
 const prisma = new PrismaClient();
 

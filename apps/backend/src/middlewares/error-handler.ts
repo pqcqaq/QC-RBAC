@@ -1,7 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 import { Prisma } from '@prisma/client';
 import { ZodError } from 'zod';
-import { HttpError } from '../utils/errors.js';
+import { HttpError } from '../utils/errors';
 
 export const errorHandler = (
   error: unknown,

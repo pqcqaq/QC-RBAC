@@ -1,6 +1,6 @@
-import { createTimerRegistry } from './timer.js';
-import { createOAuthUpstreamRefreshTimer } from './oauth-upstream-refresh.timer.js';
-import { createUploadReconcileTimer } from './upload-reconcile.timer.js';
+import { createTimerRegistry } from './timer';
+import { createOAuthUpstreamRefreshTimer } from './oauth-upstream-refresh.timer';
+import { createUploadReconcileTimer } from './upload-reconcile.timer';
 
 export const createBackendTimerRegistry = () =>
   createTimerRegistry([

@@ -1,21 +1,21 @@
 import { AuthClientType } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import { Router, type Request } from 'express';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
 import {
   authClientPayloadSchema,
   parseAuthClientConfig,
-} from '../config/auth-clients.js';
-import { badRequest, notFound } from '../utils/errors.js';
-import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { publishRbacMutation } from '../utils/rbac-mutation.js';
-import { toAuthClientRecord } from '../utils/rbac-records.js';
-import { hashSecret } from '../utils/password.js';
-import { softDeleteAuthClient } from '../services/rbac-write.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
+} from '../config/auth-clients';
+import { badRequest, notFound } from '../utils/errors';
+import { ok, asyncHandler, parsePagination } from '../utils/http';
+import { publishRbacMutation } from '../utils/rbac-mutation';
+import { toAuthClientRecord } from '../utils/rbac-records';
+import { hashSecret } from '../utils/password';
+import { softDeleteAuthClient } from '../services/rbac-write';
+import { withSnowflakeId } from '../utils/persistence';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
 const clientsRouter = Router();
 

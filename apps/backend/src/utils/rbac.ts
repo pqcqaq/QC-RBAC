@@ -1,10 +1,10 @@
 import type { PermissionRecord, UserPermissionSource } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
-import { cacheDel, cacheGet, cacheSet } from '../lib/redis.js';
-import { notFound } from './errors.js';
-import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records.js';
-import { normalizeUserPreferences } from './user-preferences.js';
+import { prisma } from '../lib/prisma';
+import { cacheDel, cacheGet, cacheSet } from '../lib/redis';
+import { notFound } from './errors';
+import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records';
+import { normalizeUserPreferences } from './user-preferences';
 
 const userInclude = {
   roles: {

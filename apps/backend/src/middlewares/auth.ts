@@ -3,13 +3,13 @@ import { isSameAuthClientIdentity } from '@rbac/api-common';
 import {
   authenticateOptionalHeadersClient,
   resolveAuthClientSummary,
-} from '../services/auth-clients.js';
-import { resolveOAuthAccessContext } from '../services/oauth-auth-server.js';
-import { getBrowserSessionCookieName } from '../utils/browser-session.js';
-import { buildCurrentUser } from '../utils/rbac.js';
-import { HttpError, unauthorized } from '../utils/errors.js';
-import { setRequestActorId } from '../utils/request-context.js';
-import { verifyAccessToken } from '../utils/token.js';
+} from '../services/auth-clients';
+import { resolveOAuthAccessContext } from '../services/oauth-auth-server';
+import { getBrowserSessionCookieName } from '../utils/browser-session';
+import { buildCurrentUser } from '../utils/rbac';
+import { HttpError, unauthorized } from '../utils/errors';
+import { setRequestActorId } from '../utils/request-context';
+import { verifyAccessToken } from '../utils/token';
 
 export type AuthContext = Awaited<ReturnType<typeof buildCurrentUser>>;
 

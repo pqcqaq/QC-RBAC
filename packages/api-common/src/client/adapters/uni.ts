@@ -1,4 +1,4 @@
-import type { RequestAdaptor, RequestConfig } from '../core.js';
+import type { RequestAdaptor, RequestConfig } from '../core';
 
 declare const uni: {
   request<T>(options: {

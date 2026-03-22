@@ -1,6 +1,6 @@
 import ExcelJS from 'exceljs';
 import type { Request, RequestHandler } from 'express';
-import { asyncHandler } from './http.js';
+import { asyncHandler } from './http';
 
 type ExcelRowSource<TRow> = AsyncIterable<TRow> | Iterable<TRow>;
 

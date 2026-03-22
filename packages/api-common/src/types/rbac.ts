@@ -1,6 +1,6 @@
-import type { PermissionSummary, RoleSummary, UserStatus } from './auth.js';
-import type { AuthClientConfigByType, AuthClientIdentity, AuthClientType } from './auth-client.js';
-import type { PaginatedResult } from './common.js';
+import type { PermissionSummary, RoleSummary, UserStatus } from './auth';
+import type { AuthClientConfigByType, AuthClientIdentity, AuthClientType } from './auth-client';
+import type { PaginatedResult } from './common';
 
 export interface UserRecord {
   id: string;

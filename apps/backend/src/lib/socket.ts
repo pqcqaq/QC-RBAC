@@ -1,12 +1,12 @@
 import type { Server as HttpServer } from 'http';
 import type { Socket } from 'socket.io';
 import { Server } from 'socket.io';
-import { clientOrigins } from '../config/env.js';
-import { prisma } from './prisma.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { runWithRequestContext } from '../utils/request-context.js';
-import { buildCurrentUser } from '../utils/rbac.js';
-import { verifyAccessToken } from '../utils/token.js';
+import { clientOrigins } from '../config/env';
+import { prisma } from './prisma';
+import { withSnowflakeId } from '../utils/persistence';
+import { runWithRequestContext } from '../utils/request-context';
+import { buildCurrentUser } from '../utils/rbac';
+import { verifyAccessToken } from '../utils/token';
 
 type RealtimeUser = Awaited<ReturnType<typeof buildCurrentUser>>;
 

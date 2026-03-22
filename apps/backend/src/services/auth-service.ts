@@ -9,9 +9,9 @@ import type {
   VerifyVerificationCodePayload,
 } from '@rbac/api-common';
 import type { AuthStrategy, User } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
-import { badRequest } from '../utils/errors.js';
-import { listEnabledOAuthLoginProviders } from './oauth-admin.js';
+import { prisma } from '../lib/prisma';
+import { badRequest } from '../utils/errors';
+import { listEnabledOAuthLoginProviders } from './oauth-admin';
 import {
   createAuthStrategyHandlers,
   normalizeIdentifier,
@@ -19,7 +19,7 @@ import {
   type StrategyLoginInput,
   type StrategyRegisterInput,
   type StrategySyncProfileInput,
-} from './auth-strategies.js';
+} from './auth-strategies';
 
 type AuthenticatedIdentity = {
   user: User;

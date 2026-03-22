@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import type { AuthClientIdentity } from '@rbac/api-common';
-import { addSeconds } from './time.js';
-import { env } from '../config/env.js';
+import { addSeconds } from './time';
+import { env } from '../config/env';
 
 export type AccessPayload = {
   sub: string;

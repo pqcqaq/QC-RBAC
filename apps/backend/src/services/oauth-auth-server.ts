@@ -3,31 +3,31 @@ import { AuthClientType } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import jwt from 'jsonwebtoken';
 import { createHash, randomUUID } from 'node:crypto';
-import { prisma } from '../lib/prisma.js';
-import { env } from '../config/env.js';
-import { addSeconds } from '../utils/time.js';
-import { badRequest, notFound, unauthorized } from '../utils/errors.js';
-import { randomBase64Url, hashOpaqueToken, decryptOAuthSecret, encryptOAuthSecret } from '../utils/oauth-security.js';
-import { oidcKeySet } from '../utils/oidc-keys.js';
+import { prisma } from '../lib/prisma';
+import { env } from '../config/env';
+import { addSeconds } from '../utils/time';
+import { badRequest, notFound, unauthorized } from '../utils/errors';
+import { randomBase64Url, hashOpaqueToken, decryptOAuthSecret, encryptOAuthSecret } from '../utils/oauth-security';
+import { oidcKeySet } from '../utils/oidc-keys';
 import {
   oauthAccessTokenTtlSeconds,
   signOAuthAccessToken,
   signOidcIdToken,
   verifyOAuthAccessToken,
   type OAuthAccessPayload,
-} from '../utils/oauth-tokens.js';
-import { buildCurrentUser, getUserPermissionCodes } from '../utils/rbac.js';
-import { withSnowflakeId } from '../utils/persistence.js';
+} from '../utils/oauth-tokens';
+import { buildCurrentUser, getUserPermissionCodes } from '../utils/rbac';
+import { withSnowflakeId } from '../utils/persistence';
 import {
   authenticateOAuthApplication,
   getEnabledOAuthProviderByCode,
   resolveOAuthApplicationByClientId,
-} from './oauth-admin.js';
-import { issueUserSession } from './session-service.js';
-import { syncUserRoles } from './rbac-write.js';
-import { resolveAuthClientSummaryByCode, resolveWebAuthClientOrigin } from './auth-clients.js';
-import { parseOAuthClaimMapping } from '../utils/oauth-records.js';
-import { verifyAccessToken } from '../utils/token.js';
+} from './oauth-admin';
+import { issueUserSession } from './session-service';
+import { syncUserRoles } from './rbac-write';
+import { resolveAuthClientSummaryByCode, resolveWebAuthClientOrigin } from './auth-clients';
+import { parseOAuthClaimMapping } from '../utils/oauth-records';
+import { verifyAccessToken } from '../utils/token';
 
 const issuer = env.OAUTH_ISSUER.replace(/\/$/, '');
 const standardScopes = new Set(['openid', 'profile', 'email', 'offline_access']);

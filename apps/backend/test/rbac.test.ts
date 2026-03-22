@@ -12,7 +12,7 @@ import ExcelJS from 'exceljs';
 import type { PrismaClient } from '@prisma/client';
 import type { Express } from 'express';
 import request from 'supertest';
-import { verifyAccessToken } from '../src/utils/token.js';
+import { verifyAccessToken } from '../src/utils/token';
 
 const deriveTestDatabaseUrl = () => {
   const source = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -33,7 +33,7 @@ const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '
 let app: Express;
 let prisma: PrismaClient;
 let seedDatabase: (prisma: PrismaClient) => Promise<void>;
-let createApp: typeof import('../src/app.ts').createApp;
+let createApp: typeof import('../src/app').createApp;
 let redis: { disconnect: () => Promise<unknown> | void };
 
 const webClient = {
@@ -146,10 +146,10 @@ const loginAs = async (account: string, password: string, client = webClient) =>
 
 before(async () => {
   execPrisma('db', 'push', '--skip-generate', '--force-reset');
-  ({ createApp } = await import('../src/app.ts'));
-  ({ prisma } = await import('../src/lib/prisma.ts'));
-  ({ redis } = await import('../src/lib/redis.ts'));
-  ({ seedDatabase } = await import('../prisma/seed-data.ts'));
+  ({ createApp } = await import('../src/app'));
+  ({ prisma } = await import('../src/lib/prisma'));
+  ({ redis } = await import('../src/lib/redis'));
+  ({ seedDatabase } = await import('../prisma/seed-data'));
   app = createApp();
 });
 beforeEach(async () => {

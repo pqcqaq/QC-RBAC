@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import type { MenuNodeFormPayload } from '@rbac/api-common';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
 import {
   createMenuNode,
   deleteMenuNode,
@@ -11,12 +11,12 @@ import {
   getMenuNodeOrThrow,
   getMenuTree,
   updateMenuNode,
-} from '../services/menu-tree.js';
-import { ok, asyncHandler } from '../utils/http.js';
-import { badRequest } from '../utils/errors.js';
-import { findAllUserIds } from '../utils/rbac.js';
-import { publishRbacMutation } from '../utils/rbac-mutation.js';
-import { toPermissionSummary } from '../utils/rbac-records.js';
+} from '../services/menu-tree';
+import { ok, asyncHandler } from '../utils/http';
+import { badRequest } from '../utils/errors';
+import { findAllUserIds } from '../utils/rbac';
+import { publishRbacMutation } from '../utils/rbac-mutation';
+import { toPermissionSummary } from '../utils/rbac-records';
 
 const menuPayloadSchema = z.object({
   code: z.string().min(2).max(48),

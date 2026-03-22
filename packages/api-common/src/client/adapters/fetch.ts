@@ -1,4 +1,4 @@
-import type { RequestAdaptor, RequestConfig } from '../core.js';
+import type { RequestAdaptor, RequestConfig } from '../core';
 
 export const createFetchAdaptor = (): RequestAdaptor => ({
   async request<T>({ url, method = 'GET', data, headers }: RequestConfig): Promise<T> {

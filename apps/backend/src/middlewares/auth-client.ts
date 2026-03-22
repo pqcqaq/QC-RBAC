@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
-import { authenticateHeadersClient } from '../services/auth-clients.js';
-import { HttpError, unauthorized } from '../utils/errors.js';
+import { authenticateHeadersClient } from '../services/auth-clients';
+import { HttpError, unauthorized } from '../utils/errors';
 
 export const authClientMiddleware: RequestHandler = async (req, _res, next) => {
   try {

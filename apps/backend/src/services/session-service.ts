@@ -1,15 +1,15 @@
 import type { AuthClientSummary } from '@rbac/api-common';
 import { randomUUID } from 'node:crypto';
-import { prisma } from '../lib/prisma.js';
-import { cacheDel, cacheSet } from '../lib/redis.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { buildCurrentUser } from '../utils/rbac.js';
+import { prisma } from '../lib/prisma';
+import { cacheDel, cacheSet } from '../lib/redis';
+import { withSnowflakeId } from '../utils/persistence';
+import { buildCurrentUser } from '../utils/rbac';
 import {
   refreshTokenTtlSeconds,
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
-} from '../utils/token.js';
+} from '../utils/token';
 
 export const issueUserSession = async (userId: string, client: AuthClientSummary) => {
   const jti = randomUUID();

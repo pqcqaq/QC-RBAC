@@ -1,4 +1,4 @@
-import { env } from '../config/env.js';
+import { env } from '../config/env';
 
 const sequenceBits = 12n;
 const nodeIdBits = 10n;

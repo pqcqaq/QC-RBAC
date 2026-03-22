@@ -1,6 +1,6 @@
 import type { Response } from 'express';
-import { env } from '../config/env.js';
-import { accessTokenTtlSeconds } from './token.js';
+import { env } from '../config/env';
+import { accessTokenTtlSeconds } from './token';
 
 export const getBrowserSessionCookieName = () => env.BROWSER_SESSION_COOKIE_NAME;
 

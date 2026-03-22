@@ -2,17 +2,17 @@ import { Router, type Request } from 'express';
 import { permissionCatalog } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
-import { badRequest, notFound } from '../utils/errors.js';
-import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
-import { publishRbacMutation } from '../utils/rbac-mutation.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { toPermissionRecord } from '../utils/rbac-records.js';
-import { softDeletePermission } from '../services/rbac-write.js';
-import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
+import { badRequest, notFound } from '../utils/errors';
+import { ok, asyncHandler, parsePagination } from '../utils/http';
+import { findAffectedUserIdsByRoleIds } from '../utils/rbac';
+import { publishRbacMutation } from '../utils/rbac-mutation';
+import { withSnowflakeId } from '../utils/persistence';
+import { toPermissionRecord } from '../utils/rbac-records';
+import { softDeletePermission } from '../services/rbac-write';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
 const permissionPayloadSchema = z.object({
   code: z.string().min(3).max(48),

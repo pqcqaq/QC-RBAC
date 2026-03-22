@@ -1,7 +1,7 @@
 import type { CurrentUser } from '@rbac/api-common';
-import { emitAuditEvent, emitRbacUpdated } from '../lib/socket.js';
-import { logActivity } from './audit.js';
-import { invalidatePermissionCache } from './rbac.js';
+import { emitAuditEvent, emitRbacUpdated } from '../lib/socket';
+import { logActivity } from './audit';
+import { invalidatePermissionCache } from './rbac';
 
 type MutationActor = Pick<CurrentUser, 'id' | 'nickname'>;
 

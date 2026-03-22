@@ -1,5 +1,5 @@
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
-import { env } from '../config/env.js';
+import { env } from '../config/env';
 
 const deriveEncryptionKey = (secret: string) =>
   createHash('sha256').update(secret).digest();

@@ -1,4 +1,4 @@
-import type { PermissionSummary } from './auth.js';
+import type { PermissionSummary } from './auth';
 
 export type OAuthProviderProtocol = 'OIDC' | 'OAUTH2';
 export type OAuthProviderClientAuthMethod = 'CLIENT_SECRET_BASIC' | 'CLIENT_SECRET_POST';

@@ -1,5 +1,5 @@
 import { createPrivateKey, createPublicKey, generateKeyPairSync } from 'node:crypto';
-import { env } from '../config/env.js';
+import { env } from '../config/env';
 
 const keyPair = (() => {
   if (env.OIDC_PRIVATE_KEY && env.OIDC_PUBLIC_KEY) {

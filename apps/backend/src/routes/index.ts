@@ -1,16 +1,16 @@
 import { Router } from 'express';
-import { auditRouter } from './audit.js';
-import { authRouter } from './auth.js';
-import { dashboardRouter } from './dashboard.js';
-import { usersRouter } from './users.js';
-import { rolesRouter } from './roles.js';
-import { permissionsRouter } from './permissions.js';
-import { menusRouter } from './menus.js';
-import { filesRouter } from './files.js';
-import { realtimeRouter } from './realtime.js';
-import { clientsRouter } from './clients.js';
-import { oauthManagementRouter } from './oauth.js';
-import { ok } from '../utils/http.js';
+import { auditRouter } from './audit';
+import { authRouter } from './auth';
+import { dashboardRouter } from './dashboard';
+import { usersRouter } from './users';
+import { rolesRouter } from './roles';
+import { permissionsRouter } from './permissions';
+import { menusRouter } from './menus';
+import { filesRouter } from './files';
+import { realtimeRouter } from './realtime';
+import { clientsRouter } from './clients';
+import { oauthManagementRouter } from './oauth';
+import { ok } from '../utils/http';
 
 const apiRouter = Router();
 

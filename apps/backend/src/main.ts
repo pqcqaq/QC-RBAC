@@ -1,13 +1,13 @@
 import http from 'node:http';
 import fs from 'node:fs';
 import path from 'node:path';
-import { env } from './config/env.js';
-import { createApp } from './app.js';
-import { prisma } from './lib/prisma.js';
-import { closeRedisConnection, ensureRedisConnection } from './lib/redis.js';
-import { initSocket } from './lib/socket.js';
-import { bootstrapSystemRbac } from './services/system-rbac.js';
-import { createBackendTimerRegistry } from './timers/index.js';
+import { env } from './config/env';
+import { createApp } from './app';
+import { prisma } from './lib/prisma';
+import { closeRedisConnection, ensureRedisConnection } from './lib/redis';
+import { initSocket } from './lib/socket';
+import { bootstrapSystemRbac } from './services/system-rbac';
+import { createBackendTimerRegistry } from './timers/index';
 
 const uploadRoot = path.resolve(process.cwd(), 'uploads', 'avatars');
 fs.mkdirSync(uploadRoot, { recursive: true });

@@ -1,4 +1,4 @@
-import { generateSnowflakeId } from './snowflake.js';
+import { generateSnowflakeId } from './snowflake';
 
 export const withSnowflakeId = <T extends object>(data: T) => ({
   id: generateSnowflakeId(),

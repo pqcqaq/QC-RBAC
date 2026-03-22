@@ -1,9 +1,9 @@
 import type { MenuNodeFormPayload, MenuNodeRecord } from '@rbac/api-common';
 import type { MenuNodeType, Permission, Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
-import { badRequest, notFound } from '../utils/errors.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { toPermissionSummary } from '../utils/rbac-records.js';
+import { prisma } from '../lib/prisma';
+import { badRequest, notFound } from '../utils/errors';
+import { withSnowflakeId } from '../utils/persistence';
+import { toPermissionSummary } from '../utils/rbac-records';
 
 const menuNodeInclude = {
   permission: true,

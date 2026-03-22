@@ -1,6 +1,6 @@
 import type { Prisma } from '@prisma/client';
-import { prisma } from '../lib/prisma.js';
-import { withSnowflakeId } from './persistence.js';
+import { prisma } from '../lib/prisma';
+import { withSnowflakeId } from './persistence';
 
 type AuditPayload = {
   actorId?: string;

@@ -1,4 +1,4 @@
-import type { ApiEnvelope, QueryParams } from '../types/common.js';
+import type { ApiEnvelope, QueryParams } from '../types/common';
 
 export interface RequestConfig {
   url: string;

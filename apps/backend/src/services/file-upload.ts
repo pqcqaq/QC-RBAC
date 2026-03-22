@@ -12,8 +12,8 @@ import type { MediaAssetStorageProvider, MediaAssetUploadStrategy } from '@prism
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';
-import { env } from '../config/env.js';
-import { badRequest } from '../utils/errors.js';
+import { env } from '../config/env';
+import { badRequest } from '../utils/errors';
 
 const MAX_FILE_SIZE = 256 * 1024 * 1024;
 const MULTIPART_CHUNK_SIZE = 5 * 1024 * 1024;

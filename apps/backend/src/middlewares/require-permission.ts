@@ -1,6 +1,6 @@
 import type { RequestHandler } from 'express';
 import type { PermissionCode } from '@rbac/api-common';
-import { forbidden } from '../utils/errors.js';
+import { forbidden } from '../utils/errors';
 
 export const requirePermission = (permission: PermissionCode | string): RequestHandler => {
   return (req, _res, next) => {

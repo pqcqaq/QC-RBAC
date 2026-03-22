@@ -1,12 +1,12 @@
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
 import { Prisma } from '@prisma/client';
-import { env } from '../../config/env.js';
-import { prisma } from '../../lib/prisma.js';
+import { env } from '../../config/env';
+import { prisma } from '../../lib/prisma';
 import {
   createS3Client,
   getUploadPublicUrl,
   hasS3Storage,
-} from '../../services/file-upload.js';
+} from '../../services/file-upload';
 
 const TIMER_ID = 'upload-reconcile';
 

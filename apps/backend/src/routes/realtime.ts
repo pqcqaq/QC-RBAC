@@ -1,13 +1,13 @@
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
-import { emitAuditEvent, emitChatMessage } from '../lib/socket.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
-import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { logActivity } from '../utils/audit.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
+import { prisma } from '../lib/prisma';
+import { emitAuditEvent, emitChatMessage } from '../lib/socket';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
+import { ok, asyncHandler, parsePagination } from '../utils/http';
+import { logActivity } from '../utils/audit';
+import { withSnowflakeId } from '../utils/persistence';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
 const messageSchema = z.object({
   content: z.string().min(1).max(240),

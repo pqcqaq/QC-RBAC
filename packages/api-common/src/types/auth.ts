@@ -1,8 +1,8 @@
-import type { PermissionCode } from '../constants/permissions.js';
-import type { AuthClientSummary } from './auth-client.js';
-import type { OAuthProviderPublicSummary } from './oauth.js';
+import type { PermissionCode } from '../constants/permissions';
+import type { AuthClientSummary } from './auth-client';
+import type { OAuthProviderPublicSummary } from './oauth';
 
-export * from './auth-client.js';
+export * from './auth-client';
 
 export type UserStatus = 'ACTIVE' | 'DISABLED';
 export type AuthStrategyCode = 'username-password' | 'email-code' | 'phone-code' | string;

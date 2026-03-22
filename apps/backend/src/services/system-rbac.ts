@@ -1,6 +1,6 @@
 import type { PrismaClient, Permission, Role } from '@prisma/client';
 import { permissionCatalog } from '@rbac/api-common';
-import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence.js';
+import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
 
 type SystemRoleSeed = {
   code: string;

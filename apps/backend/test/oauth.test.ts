@@ -13,7 +13,7 @@ import {
 import type { PrismaClient } from '@prisma/client';
 import type { Express } from 'express';
 import request from 'supertest';
-import { refreshExternalOAuthAccessTokens } from '../src/services/oauth-auth-server.js';
+import { refreshExternalOAuthAccessTokens } from '../src/services/oauth-auth-server';
 
 const deriveTestDatabaseUrl = () => {
   const source = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
@@ -129,10 +129,10 @@ const startMockProvider = async () => {
 
 before(async () => {
   execPrisma('db', 'push', '--skip-generate', '--force-reset');
-  const appModule = await import('../src/app.ts');
-  ({ prisma } = await import('../src/lib/prisma.ts'));
-  ({ redis } = await import('../src/lib/redis.ts'));
-  ({ seedDatabase } = await import('../prisma/seed-data.ts'));
+  const appModule = await import('../src/app');
+  ({ prisma } = await import('../src/lib/prisma'));
+  ({ redis } = await import('../src/lib/redis'));
+  ({ seedDatabase } = await import('../prisma/seed-data'));
   app = appModule.createApp();
   mockProviderServer = await startMockProvider();
 });

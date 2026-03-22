@@ -1,6 +1,6 @@
 import type { Request, Response } from 'express';
 import { Router } from 'express';
-import { HttpError, badRequest, unauthorized } from '../utils/errors.js';
+import { HttpError, badRequest, unauthorized } from '../utils/errors';
 import {
   approveAuthorizationRequest,
   denyAuthorizationRequest,
@@ -12,10 +12,10 @@ import {
   resolveBrowserSessionUserId,
   revokeOAuthToken,
   startAuthorizationRequest,
-} from '../services/oauth-auth-server.js';
-import { clearBrowserSessionCookie, getBrowserSessionCookieName } from '../utils/browser-session.js';
-import { asyncHandler } from '../utils/http.js';
-import { resolveOAuthApplicationByClientId } from '../services/oauth-admin.js';
+} from '../services/oauth-auth-server';
+import { clearBrowserSessionCookie, getBrowserSessionCookieName } from '../utils/browser-session';
+import { asyncHandler } from '../utils/http';
+import { resolveOAuthApplicationByClientId } from '../services/oauth-admin';
 
 const oauth2Router = Router();
 

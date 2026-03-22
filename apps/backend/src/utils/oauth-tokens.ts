@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
-import { env } from '../config/env.js';
-import { oidcKeySet } from './oidc-keys.js';
-import { parseExpiryToSeconds } from './token.js';
+import { env } from '../config/env';
+import { oidcKeySet } from './oidc-keys';
+import { parseExpiryToSeconds } from './token';
 
 const oauthIssuer = env.OAUTH_ISSUER.replace(/\/$/, '');
 const oauthResourceAudience = 'rbac-api';

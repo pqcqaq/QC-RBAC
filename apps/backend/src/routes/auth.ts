@@ -2,32 +2,32 @@ import type { Prisma } from '@prisma/client';
 import { AuthClientType, isSameAuthClientIdentity } from '@rbac/api-common';
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma.js';
-import { cacheDel, cacheSet } from '../lib/redis.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { authClientMiddleware } from '../middlewares/auth-client.js';
-import { forbidden, HttpError, unauthorized } from '../utils/errors.js';
-import { ok, asyncHandler } from '../utils/http.js';
-import { logActivity } from '../utils/audit.js';
-import { withSnowflakeId } from '../utils/persistence.js';
-import { setRequestActorId } from '../utils/request-context.js';
+import { prisma } from '../lib/prisma';
+import { cacheDel, cacheSet } from '../lib/redis';
+import { authMiddleware } from '../middlewares/auth';
+import { authClientMiddleware } from '../middlewares/auth-client';
+import { forbidden, HttpError, unauthorized } from '../utils/errors';
+import { ok, asyncHandler } from '../utils/http';
+import { logActivity } from '../utils/audit';
+import { withSnowflakeId } from '../utils/persistence';
+import { setRequestActorId } from '../utils/request-context';
 import {
   buildCurrentUser,
   getUserWithRelations,
   invalidatePermissionCache,
   mapUserRecord,
-} from '../utils/rbac.js';
-import { normalizeUserPreferences, userPreferencesSchema } from '../utils/user-preferences.js';
+} from '../utils/rbac';
+import { normalizeUserPreferences, userPreferencesSchema } from '../utils/user-preferences';
 import {
   refreshTokenTtlSeconds,
   signAccessToken,
   signRefreshToken,
   verifyRefreshToken,
-} from '../utils/token.js';
-import { authService } from '../services/auth-service.js';
-import { clearBrowserSessionCookie, setBrowserSessionCookie } from '../utils/browser-session.js';
-import { buildExternalProviderAuthorizeUrl, exchangeOAuthLoginTicket, handleExternalProviderCallback } from '../services/oauth-auth-server.js';
-import { issueUserSession, revokeUserRefreshToken } from '../services/session-service.js';
+} from '../utils/token';
+import { authService } from '../services/auth-service';
+import { clearBrowserSessionCookie, setBrowserSessionCookie } from '../utils/browser-session';
+import { buildExternalProviderAuthorizeUrl, exchangeOAuthLoginTicket, handleExternalProviderCallback } from '../services/oauth-auth-server';
+import { issueUserSession, revokeUserRefreshToken } from '../services/session-service';
 
 const loginSchema = z.union([
   z.object({

@@ -1,6 +1,6 @@
-import { prismaRaw } from '../lib/prisma.js';
-import { withSnowflakeIds } from '../utils/persistence.js';
-import { getRequestActorId } from '../utils/request-context.js';
+import { prismaRaw } from '../lib/prisma';
+import { withSnowflakeIds } from '../utils/persistence';
+import { getRequestActorId } from '../utils/request-context';
 
 const unique = (values: string[]) => [...new Set(values)];
 

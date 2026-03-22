@@ -1,6 +1,6 @@
-import { env } from '../config/env.js';
-import { defineIntervalTimer } from './timer.js';
-import { reconcilePendingUploads } from './upload-reconcile/reconcile-pending-uploads.js';
+import { env } from '../config/env';
+import { defineIntervalTimer } from './timer';
+import { reconcilePendingUploads } from './upload-reconcile/reconcile-pending-uploads';
 
 const TIMER_ID = 'upload-reconcile';
 

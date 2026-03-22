@@ -1,8 +1,8 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
-import { ok, asyncHandler } from '../utils/http.js';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
+import { ok, asyncHandler } from '../utils/http';
 import {
   createOAuthApplication,
   createOAuthProvider,
@@ -14,7 +14,7 @@ import {
   removeOAuthProvider,
   updateOAuthApplication,
   updateOAuthProvider,
-} from '../services/oauth-admin.js';
+} from '../services/oauth-admin';
 
 const oauthProviderPayloadSchema = z.object({
   code: z.string().min(2).max(64),

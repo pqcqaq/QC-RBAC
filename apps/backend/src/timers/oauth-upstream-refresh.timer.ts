@@ -1,6 +1,6 @@
-import { env } from '../config/env.js';
-import { refreshExternalOAuthAccessTokens } from '../services/oauth-auth-server.js';
-import { defineIntervalTimer } from './timer.js';
+import { env } from '../config/env';
+import { refreshExternalOAuthAccessTokens } from '../services/oauth-auth-server';
+import { defineIntervalTimer } from './timer';
 
 export const createOAuthUpstreamRefreshTimer = () =>
   defineIntervalTimer({

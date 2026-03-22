@@ -4,11 +4,11 @@ import express from 'express';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import path from 'node:path';
-import { clientOrigins } from './config/env.js';
-import { errorHandler } from './middlewares/error-handler.js';
-import { requestContextMiddleware } from './middlewares/request-context.js';
-import { apiRouter } from './routes/index.js';
-import { oauth2Router } from './routes/oauth2.js';
+import { clientOrigins } from './config/env';
+import { errorHandler } from './middlewares/error-handler';
+import { requestContextMiddleware } from './middlewares/request-context';
+import { apiRouter } from './routes/index';
+import { oauth2Router } from './routes/oauth2';
 
 export const createApp = () => {
   const app = express();

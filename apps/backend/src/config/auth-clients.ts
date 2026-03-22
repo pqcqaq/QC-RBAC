@@ -7,7 +7,7 @@ import {
   type WebAuthClientConfig,
 } from '@rbac/api-common';
 import { z } from 'zod';
-import { clientOrigins } from './env.js';
+import { clientOrigins } from './env';
 
 export type BackendAuthClientConfigByType = {
   [AuthClientType.WEB]: WebAuthClientConfig;

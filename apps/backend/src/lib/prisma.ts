@@ -1,6 +1,6 @@
 import { PrismaClient } from '@prisma/client';
-import { getRequestActorId } from '../utils/request-context.js';
-import { generateSnowflakeId } from '../utils/snowflake.js';
+import { getRequestActorId } from '../utils/request-context';
+import { generateSnowflakeId } from '../utils/snowflake';
 
 const auditedModelNames = new Set([
   'User',

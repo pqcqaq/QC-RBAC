@@ -8,7 +8,7 @@ import type {
 } from '@rbac/api-common';
 import { AuthClientType } from '@rbac/api-common';
 import type { AuthClient, Permission, Prisma, Role } from '@prisma/client';
-import { parseAuthClientConfig } from '../config/auth-clients.js';
+import { parseAuthClientConfig } from '../config/auth-clients';
 
 export const userRoleSummaryInclude = {
   roles: {

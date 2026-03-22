@@ -5,13 +5,13 @@ import type {
   Prisma,
   User,
 } from '@prisma/client';
-import { prisma, prismaRaw } from '../lib/prisma.js';
-import { badRequest, unauthorized } from '../utils/errors.js';
-import { comparePassword, compareSecret, hashPassword, hashSecret } from '../utils/password.js';
-import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence.js';
-import { getRequestActorId } from '../utils/request-context.js';
-import { addSeconds } from '../utils/time.js';
-import { syncUserRoles } from './rbac-write.js';
+import { prisma, prismaRaw } from '../lib/prisma';
+import { badRequest, unauthorized } from '../utils/errors';
+import { comparePassword, compareSecret, hashPassword, hashSecret } from '../utils/password';
+import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
+import { getRequestActorId } from '../utils/request-context';
+import { addSeconds } from '../utils/time';
+import { syncUserRoles } from './rbac-write';
 
 const verificationCodeTtlSeconds = 60 * 5;
 

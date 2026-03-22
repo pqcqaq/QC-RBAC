@@ -5,7 +5,7 @@ import type {
   OAuthProviderRecord,
 } from '@rbac/api-common';
 import type { OAuthApplication, OAuthApplicationPermission, OAuthProvider, Permission, Prisma } from '@prisma/client';
-import { toPermissionSummary } from './rbac-records.js';
+import { toPermissionSummary } from './rbac-records';
 
 export const defaultOAuthClaimMapping: OAuthClaimMapping = {
   subject: 'sub',

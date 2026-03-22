@@ -1,9 +1,9 @@
 import { Router, type Request } from 'express';
-import { prisma } from '../lib/prisma.js';
-import { authMiddleware } from '../middlewares/auth.js';
-import { requirePermission } from '../middlewares/require-permission.js';
-import { ok, asyncHandler, parsePagination } from '../utils/http.js';
-import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
+import { prisma } from '../lib/prisma';
+import { authMiddleware } from '../middlewares/auth';
+import { requirePermission } from '../middlewares/require-permission';
+import { ok, asyncHandler, parsePagination } from '../utils/http';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
 const auditRouter = Router();
 

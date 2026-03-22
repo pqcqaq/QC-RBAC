@@ -10,7 +10,8 @@
     "dev:web": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/web-frontend dev",
     "dev:app": "pnpm --filter @rbac/api-common build && pnpm -r --parallel --filter @rbac/api-common --filter @rbac/app-frontend dev",
     "build": "pnpm --filter @rbac/api-common build && pnpm -r --filter !@rbac/api-common build",
-    "lint": "pnpm -r lint",
+    "lint": "pnpm -r lint && node scripts/check-relative-import-extensions.mjs",
+    "lint:imports": "node scripts/check-relative-import-extensions.mjs",
     "format": "prettier --write .",
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
     "db:down": "docker compose -f infra/docker-compose.yml down"

@@ -17,11 +17,11 @@ import type { IncomingHttpHeaders } from 'node:http';
 import {
   buildAuthClientSummary,
   parseAuthClientConfig,
-} from '../config/auth-clients.js';
-import { clientOrigins } from '../config/env.js';
-import { prisma } from '../lib/prisma.js';
-import { unauthorized } from '../utils/errors.js';
-import { compareSecret } from '../utils/password.js';
+} from '../config/auth-clients';
+import { clientOrigins } from '../config/env';
+import { prisma } from '../lib/prisma';
+import { unauthorized } from '../utils/errors';
+import { compareSecret } from '../utils/password';
 
 type PersistedAuthClientBase = {
   id: string;
