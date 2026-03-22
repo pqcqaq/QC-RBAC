@@ -1,0 +1,1 @@
+simple-project-demo 是一个 pnpm monorepo RBAC 基础项目，包含 apps/backend、apps/web-frontend、apps/app-frontend、packages/api-common。后端使用 Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + Socket.io；Web 管理端使用 Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite；App 端基于官方 unibest/wot-ui 骨架并接入共享 api-common 请求封装与双 token 鉴权。项目目标是提供完整 RBAC 登录注册、角色权限管理、权限来源查看、仪表盘与基础实时能力。

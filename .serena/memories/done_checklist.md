@@ -1,0 +1,1 @@
+完成任务后优先按受影响子项目做验证：backend 跑 prisma generate + lint + build；web 跑 lint + build；app 跑 type-check + build:h5，必要时再执行 dev:h5 / dev:app 手动验证页面与登录链路。若修改了共享包 api-common，至少补跑 `pnpm --filter @rbac/api-common build` 并验证依赖它的前后端构建。

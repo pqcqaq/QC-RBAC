@@ -11,7 +11,11 @@ coverage
 .vscode
 .idea
 uploads
-.serena
+.serena/*
+!.serena/.gitignore
+!.serena/project.yml
+!.serena/memories/
+!.serena/memories/**
 .tmp-logs
 tmp-unibest
 apps/backend/prisma/dev.db
