@@ -7,8 +7,9 @@
       </div>
       <div class="table-panel__meta">
         <span>支持行右键快捷操作</span>
-        <span>共 {{ permissions.length }} 项能力</span>
-        <span>{{ seedCount }} 项系统种子</span>
+        <span>共 {{ total }} 项能力</span>
+        <span>第 {{ page }} 页</span>
+        <span>当前页 {{ seedCount }} 项系统种子</span>
       </div>
     </header>
 
@@ -58,6 +59,15 @@
         </el-table>
       </template>
     </ContextMenuHost>
+
+    <el-pagination
+      background
+      layout="prev, pager, next, total"
+      :current-page="page"
+      :page-size="pageSize"
+      :total="total"
+      @current-change="(value) => emit('page-change', value)"
+    />
   </section>
 </template>
 
@@ -73,6 +83,9 @@ const props = defineProps<{
   permissions: PermissionRecord[];
   loading: boolean;
   seedCount: number;
+  total: number;
+  page: number;
+  pageSize: number;
   contextMenuItems: ContextMenuItem<PermissionRecord>[];
   isSeedPermission: (code: string) => boolean;
 }>();
@@ -81,6 +94,7 @@ const emit = defineEmits<{
   detail: [row: PermissionRecord];
   edit: [row: PermissionRecord];
   delete: [row: PermissionRecord];
+  'page-change': [value: number];
 }>();
 
 const formatTime = (value: string) => new Date(value).toLocaleString();

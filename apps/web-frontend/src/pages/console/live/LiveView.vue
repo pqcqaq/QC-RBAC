@@ -18,25 +18,37 @@
     </template>
 
     <div class="split-grid">
-      <SurfacePanel caption="Live Messages" title="协同频道" description="先加载 REST 历史消息，再通过 Socket.io 持续接收新消息。">
-        <div v-if="messages.length" class="message-feed">
-          <div v-for="message in messages" :key="message.id" class="message-row">
-            <div>
-              <strong>{{ message.senderName }}</strong>
-              <div class="muted">{{ message.content }}</div>
-              <div class="role-pill-row">
-                <span v-for="role in message.senderRoles" :key="role" class="role-pill">{{ role }}</span>
+      <SurfacePanel caption="Live Messages" title="协同频道" description="历史消息走分页接口，第一页持续接入实时新消息。">
+        <div v-loading="historyLoading">
+          <div v-if="messages.length" class="message-feed">
+            <div v-for="message in messages" :key="message.id" class="message-row">
+              <div>
+                <strong>{{ message.senderName }}</strong>
+                <div class="muted">{{ message.content }}</div>
+                <div class="role-pill-row">
+                  <span v-for="role in message.senderRoles" :key="role" class="role-pill">{{ role }}</span>
+                </div>
               </div>
+              <small class="muted">{{ formatTime(message.createdAt) }}</small>
             </div>
-            <small class="muted">{{ formatTime(message.createdAt) }}</small>
           </div>
+          <el-empty v-else description="暂无实时消息" />
         </div>
-        <el-empty v-else description="暂无实时消息" />
+
+        <el-pagination
+          v-if="totalHistory > historyPageSize"
+          background
+          layout="prev, pager, next, total"
+          :current-page="pageState.historyPage"
+          :page-size="historyPageSize"
+          :total="totalHistory"
+          @current-change="changeHistoryPage"
+        />
       </SurfacePanel>
 
-      <SurfacePanel caption="Realtime Events" title="在线事件流" description="展示在线状态、审计广播与 RBAC 结构变更的实时通知。">
-        <div v-if="eventFeed.length" class="message-feed">
-          <div v-for="item in eventFeed" :key="item.id" class="message-row">
+      <SurfacePanel caption="Realtime Events" title="在线事件流" description="当前会话内的实时通知，前端按页查看最新事件。">
+        <div v-if="pagedEventFeed.length" class="message-feed">
+          <div v-for="item in pagedEventFeed" :key="item.id" class="message-row">
             <div>
               <strong>{{ item.title }}</strong>
               <div class="muted">{{ item.body }}</div>
@@ -45,6 +57,16 @@
           </div>
         </div>
         <el-empty v-else description="等待实时事件" />
+
+        <el-pagination
+          v-if="eventFeed.length > eventPageSize"
+          background
+          layout="prev, pager, next, total"
+          :current-page="pageState.eventPage"
+          :page-size="eventPageSize"
+          :total="eventFeed.length"
+          @current-change="changeEventPage"
+        />
       </SurfacePanel>
     </div>
   </PageScaffold>
@@ -70,27 +92,56 @@ definePage({
 });
 
 type FeedEvent = { id: string; title: string; body: string; time: string };
+type LivePageState = { draft: string; historyPage: number; eventPage: number };
 
+const historyPageSize = 10;
+const eventPageSize = 8;
 const auth = useAuthStore();
 const messages = ref<LiveMessage[]>([]);
 const eventFeed = ref<FeedEvent[]>([]);
 const socketConnected = ref(false);
-const { state: pageState } = usePageState<{ draft: string }>('page:live', { draft: '' });
+const historyLoading = ref(false);
+const totalHistory = ref(0);
+const knownMessageIds = new Set<string>();
+const { state: pageState } = usePageState<LivePageState>('page:live', {
+  draft: '',
+  historyPage: 1,
+  eventPage: 1,
+});
 const canSend = computed(() => auth.hasPermission('realtime.send'));
+const pagedEventFeed = computed(() => {
+  const start = (pageState.eventPage - 1) * eventPageSize;
+  return eventFeed.value.slice(start, start + eventPageSize);
+});
 const stats = computed(() => [
-  { label: '历史消息', value: messages.value.length },
+  { label: '历史消息', value: totalHistory.value },
+  { label: '当前页消息', value: messages.value.length },
   { label: '实时事件', value: eventFeed.value.length },
-  { label: '发送权限', value: canSend.value ? '已开启' : '只读' },
   { label: '连接状态', value: socketConnected.value ? '在线' : '待连接' },
 ]);
 let socket: Socket | null = null;
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString();
+
+const rememberMessages = (items: LiveMessage[]) => {
+  items.forEach((item) => {
+    knownMessageIds.add(item.id);
+  });
+};
+
 const pushMessage = (message: LiveMessage) => {
-  if (messages.value.some((item) => item.id === message.id)) {
+  if (knownMessageIds.has(message.id)) {
     return;
   }
-  messages.value.push(message);
+
+  knownMessageIds.add(message.id);
+  totalHistory.value += 1;
+
+  if (pageState.historyPage !== 1) {
+    return;
+  }
+
+  messages.value = [...messages.value, message].slice(-historyPageSize);
 };
 
 const pushEvent = (title: string, body: string) => {
@@ -100,7 +151,29 @@ const pushEvent = (title: string, body: string) => {
     body,
     time: new Date().toLocaleTimeString(),
   });
-  eventFeed.value = eventFeed.value.slice(0, 20);
+  eventFeed.value = eventFeed.value.slice(0, 50);
+
+  const totalPages = Math.max(Math.ceil(eventFeed.value.length / eventPageSize), 1);
+  if (pageState.eventPage > totalPages) {
+    pageState.eventPage = totalPages;
+  }
+};
+
+const loadHistory = async () => {
+  try {
+    historyLoading.value = true;
+    const response = await api.live.history({
+      page: pageState.historyPage,
+      pageSize: historyPageSize,
+    });
+    messages.value = response.items;
+    totalHistory.value = response.meta.total;
+    rememberMessages(response.items);
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载实时消息失败'));
+  } finally {
+    historyLoading.value = false;
+  }
 };
 
 const sendMessage = async () => {
@@ -115,6 +188,15 @@ const sendMessage = async () => {
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '发送失败'));
   }
+};
+
+const changeHistoryPage = async (value: number) => {
+  pageState.historyPage = value;
+  await loadHistory();
+};
+
+const changeEventPage = (value: number) => {
+  pageState.eventPage = value;
 };
 
 const connectSocket = () => {
@@ -147,11 +229,7 @@ const connectSocket = () => {
 };
 
 onMounted(async () => {
-  try {
-    messages.value = await api.live.history();
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '加载实时消息失败'));
-  }
+  await loadHistory();
   connectSocket();
 });
 

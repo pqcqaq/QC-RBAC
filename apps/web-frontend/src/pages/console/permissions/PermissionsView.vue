@@ -17,14 +17,18 @@
     </template>
 
     <PermissionsTable
-      :permissions="filteredPermissions"
+      :permissions="permissions"
       :loading="loading"
       :seed-count="seedCount"
+      :total="total"
+      :page="pageState.page"
+      :page-size="pageSize"
       :context-menu-items="permissionContextMenuItems"
       :is-seed-permission="isSeedPermission"
       @detail="openDetail"
       @edit="openEdit"
       @delete="removePermission"
+      @page-change="changePage"
     />
 
     <PermissionEditorDialog
@@ -73,12 +77,16 @@ type PermissionsPageState = {
     module: string;
     sourceType: '' | 'seed' | 'custom';
   };
+  page: number;
 };
 
 const auth = useAuthStore();
 const permissions = ref<PermissionRecord[]>([]);
+const moduleOptions = ref<string[]>([]);
 const seedPermissionLocked = ref(false);
 const loading = ref(false);
+const total = ref(0);
+const pageSize = 10;
 
 const { state: pageState } = usePageState<PermissionsPageState>('page:permissions', {
   filters: {
@@ -86,6 +94,7 @@ const { state: pageState } = usePageState<PermissionsPageState>('page:permission
     module: '',
     sourceType: '',
   },
+  page: 1,
 });
 
 type PermissionEditorForm = {
@@ -108,30 +117,12 @@ const canEdit = computed(() => auth.hasPermission('permission.update'));
 const canDelete = computed(() => auth.hasPermission('permission.delete'));
 const seedCount = computed(() => permissions.value.filter((item) => isSeedPermission(item.code)).length);
 const customCount = computed(() => permissions.value.length - seedCount.value);
-const moduleOptions = computed(() => Array.from(new Set(permissions.value.map((item) => item.module))).sort((left, right) => left.localeCompare(right, 'zh-CN')));
-
-const filteredPermissions = computed(() => {
-  const keyword = pageState.filters.q.trim().toLowerCase();
-
-  return permissions.value.filter((permission) => {
-    const isSeed = isSeedPermission(permission.code);
-    const matchKeyword = !keyword
-      || permission.code.toLowerCase().includes(keyword)
-      || permission.name.toLowerCase().includes(keyword)
-      || permission.description?.toLowerCase().includes(keyword);
-    const matchModule = !pageState.filters.module || permission.module === pageState.filters.module;
-    const matchSource = !pageState.filters.sourceType
-      || (pageState.filters.sourceType === 'seed' ? isSeed : !isSeed);
-
-    return matchKeyword && matchModule && matchSource;
-  });
-});
 
 const stats = computed(() => [
-  { label: '权限总数', value: permissions.value.length },
-  { label: '系统种子', value: seedCount.value },
-  { label: '自定义权限', value: customCount.value },
-  { label: '覆盖模块', value: moduleOptions.value.length },
+  { label: '权限总数', value: total.value },
+  { label: '当前页系统种子', value: seedCount.value },
+  { label: '当前页自定义', value: customCount.value },
+  { label: '模块目录', value: moduleOptions.value.length },
 ]);
 
 const isSeedPermission = (code: string) => permissionCatalog.some((item) => item.code === code);
@@ -139,7 +130,21 @@ const isSeedPermission = (code: string) => permissionCatalog.some((item) => item
 const loadData = async () => {
   try {
     loading.value = true;
-    permissions.value = [...await api.permissions.list()].sort((left, right) => left.code.localeCompare(right.code, 'zh-CN'));
+    const response = await api.permissions.list({
+      page: pageState.page,
+      pageSize,
+      q: pageState.filters.q || undefined,
+      module: pageState.filters.module || undefined,
+      sourceType: pageState.filters.sourceType || undefined,
+    });
+    const totalPages = Math.max(Math.ceil(response.meta.total / pageSize), 1);
+    if (pageState.page > totalPages) {
+      pageState.page = totalPages;
+      await loadData();
+      return;
+    }
+    permissions.value = response.items;
+    total.value = response.meta.total;
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '加载权限列表失败'));
   } finally {
@@ -147,7 +152,20 @@ const loadData = async () => {
   }
 };
 
+const loadModuleOptions = async () => {
+  try {
+    moduleOptions.value = await api.permissions.modules();
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '加载模块选项失败'));
+  }
+};
+
+const refreshPageData = async () => {
+  await Promise.all([loadData(), loadModuleOptions()]);
+};
+
 const applyFilters = async () => {
+  pageState.page = 1;
   await loadData();
 };
 
@@ -155,6 +173,7 @@ const resetFilters = async () => {
   pageState.filters.q = '';
   pageState.filters.module = '';
   pageState.filters.sourceType = '';
+  pageState.page = 1;
   await loadData();
 };
 
@@ -197,7 +216,7 @@ const {
   afterOpenEdit: (row) => {
     seedPermissionLocked.value = isSeedPermission(row.code);
   },
-  afterSaved: loadData,
+  afterSaved: refreshPageData,
   messages: {
     createSuccess: '权限已新增',
     updateSuccess: '权限已更新',
@@ -222,7 +241,7 @@ const { removeRecord: removePermission } = useResourceRemoval<PermissionRecord>(
   confirmMessage: (row) => `确定删除权限“${row.code}”吗？`,
   successMessage: '权限已删除',
   errorMessage: '删除权限失败',
-  afterRemoved: loadData,
+  afterRemoved: refreshPageData,
 });
 
 const permissionContextMenuItems = [
@@ -250,5 +269,12 @@ const permissionContextMenuItems = [
   },
 ] satisfies ContextMenuItem<PermissionRecord>[];
 
-onMounted(loadData);
+const changePage = async (value: number) => {
+  pageState.page = value;
+  await loadData();
+};
+
+onMounted(async () => {
+  await Promise.all([loadData(), loadModuleOptions()]);
+});
 </script>

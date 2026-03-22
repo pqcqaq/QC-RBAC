@@ -126,4 +126,7 @@ export interface LiveMessage {
 }
 
 export type PaginatedUsers = PaginatedResult<UserRecord>;
+export type PaginatedRoles = PaginatedResult<RoleRecord>;
+export type PaginatedPermissions = PaginatedResult<PermissionRecord>;
 export type PaginatedAuditLogs = PaginatedResult<ActivityLogRecord>;
+export type PaginatedLiveMessages = PaginatedResult<LiveMessage>;

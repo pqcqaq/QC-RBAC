@@ -527,6 +527,89 @@ describe('RBAC backend', () => {
     assert.match(duplicateRole.body.message, /Unique constraint failed/);
   });
 
+  it('paginates roles, permissions and realtime message history', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+
+    const permissionA = await request(app)
+      .post('/api/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'custom.read-a',
+        name: '读取 A',
+        module: 'custom',
+        action: 'read-a',
+        description: '自定义读取 A',
+      })
+      .expect(200);
+
+    const permissionB = await request(app)
+      .post('/api/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'custom.read-b',
+        name: '读取 B',
+        module: 'custom',
+        action: 'read-b',
+        description: '自定义读取 B',
+      })
+      .expect(200);
+
+    await request(app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'custom-reader',
+        name: '自定义读者',
+        description: '负责读取 A',
+        permissionIds: [permissionA.body.data.id],
+      })
+      .expect(200);
+
+    await request(app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'custom-auditor',
+        name: '自定义审计员',
+        description: '负责读取 B',
+        permissionIds: [permissionB.body.data.id],
+      })
+      .expect(200);
+
+    const permissionPage = await request(app)
+      .get('/api/permissions')
+      .query({ page: 1, pageSize: 1, module: 'custom', sourceType: 'custom' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(permissionPage.body.data.meta.total, 2);
+    assert.equal(permissionPage.body.data.items.length, 1);
+    assert.equal(permissionPage.body.data.meta.page, 1);
+    assert.equal(permissionPage.body.data.meta.pageSize, 1);
+
+    const rolePage = await request(app)
+      .get('/api/roles')
+      .query({ page: 1, pageSize: 10, q: '读者', permissionId: permissionA.body.data.id, roleType: 'custom' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(rolePage.body.data.meta.total, 1);
+    assert.equal(rolePage.body.data.items[0].code, 'custom-reader');
+
+    const messagePage = await request(app)
+      .get('/api/realtime/messages')
+      .query({ page: 1, pageSize: 2 })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(messagePage.body.data.meta.total, 3);
+    assert.equal(messagePage.body.data.items.length, 2);
+    assert.ok(
+      new Date(messagePage.body.data.items[0].createdAt).getTime()
+      <= new Date(messagePage.body.data.items[1].createdAt).getTime(),
+    );
+  });
+
   it('protects audit logs and immutable seed identifiers', async () => {
     const memberSession = await loginAs('user@example.com', 'User123!');
     await request(app)
@@ -544,9 +627,10 @@ describe('RBAC backend', () => {
 
     const permissionList = await request(app)
       .get('/api/permissions')
+      .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
-    const dashboardPermission = permissionList.body.data.find((item: { code: string }) => item.code === 'dashboard.view');
+    const dashboardPermission = permissionList.body.data.items.find((item: { code: string }) => item.code === 'dashboard.view');
 
     const lockedPermission = await request(app)
       .put(`/api/permissions/${dashboardPermission.id}`)
@@ -564,9 +648,10 @@ describe('RBAC backend', () => {
 
     const roleList = await request(app)
       .get('/api/roles')
+      .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
-    const memberRole = roleList.body.data.find((item: { code: string }) => item.code === 'member');
+    const memberRole = roleList.body.data.items.find((item: { code: string }) => item.code === 'member');
 
     const lockedRole = await request(app)
       .put(`/api/roles/${memberRole.id}`)
@@ -746,18 +831,20 @@ describe('RBAC backend', () => {
 
     const permissionList = await request(app)
       .get('/api/permissions')
+      .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
 
     const roleList = await request(app)
       .get('/api/roles')
+      .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
 
-    const userCreatePermission = permissionList.body.data.find((item: { code: string }) => item.code === 'user.create');
-    const roleUpdatePermission = permissionList.body.data.find((item: { code: string }) => item.code === 'role.update');
-    const dashboardPermission = permissionList.body.data.find((item: { code: string }) => item.code === 'dashboard.view');
-    const memberRole = roleList.body.data.find((item: { code: string }) => item.code === 'member');
+    const userCreatePermission = permissionList.body.data.items.find((item: { code: string }) => item.code === 'user.create');
+    const roleUpdatePermission = permissionList.body.data.items.find((item: { code: string }) => item.code === 'role.update');
+    const dashboardPermission = permissionList.body.data.items.find((item: { code: string }) => item.code === 'dashboard.view');
+    const memberRole = roleList.body.data.items.find((item: { code: string }) => item.code === 'member');
 
     assert.ok(userCreatePermission);
     assert.ok(roleUpdatePermission);

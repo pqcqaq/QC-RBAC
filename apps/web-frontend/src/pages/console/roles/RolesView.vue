@@ -23,12 +23,16 @@
     </template>
 
     <RolesTable
-      :roles="filteredRoles"
+      :roles="roles"
       :loading="loading"
+      :total="total"
+      :page="pageState.page"
+      :page-size="pageSize"
       :context-menu-items="roleContextMenuItems"
       @detail="openDetail"
       @edit="openEdit"
       @delete="removeRole"
+      @page-change="changePage"
     />
 
     <RoleEditorDialog
@@ -76,6 +80,7 @@ type RolesPageState = {
     permissionId: string;
     roleType: '' | 'system' | 'custom';
   };
+  page: number;
 };
 
 const auth = useAuthStore();
@@ -83,6 +88,8 @@ const roles = ref<RoleRecord[]>([]);
 const permissionOptions = ref<PermissionSummary[]>([]);
 const loading = ref(false);
 const systemRoleLocked = ref(false);
+const total = ref(0);
+const pageSize = 10;
 
 const { state: pageState } = usePageState<RolesPageState>('page:roles', {
   filters: {
@@ -90,6 +97,7 @@ const { state: pageState } = usePageState<RolesPageState>('page:roles', {
     permissionId: '',
     roleType: '',
   },
+  page: 1,
 });
 
 type RoleEditorForm = {
@@ -109,47 +117,37 @@ const createEmptyForm = (): RoleEditorForm => ({
 const canEdit = computed(() => auth.hasPermission('role.update'));
 const canDelete = computed(() => auth.hasPermission('role.delete'));
 
-const filteredRoles = computed(() => {
-  const keyword = pageState.filters.q.trim().toLowerCase();
-
-  return roles.value.filter((role) => {
-    const matchKeyword = !keyword
-      || role.name.toLowerCase().includes(keyword)
-      || role.code.toLowerCase().includes(keyword);
-    const matchPermission = !pageState.filters.permissionId
-      || role.permissions.some((permission) => permission.id === pageState.filters.permissionId);
-    const matchRoleType = !pageState.filters.roleType
-      || (pageState.filters.roleType === 'system' ? role.isSystem : !role.isSystem);
-
-    return matchKeyword && matchPermission && matchRoleType;
-  });
-});
-
 const stats = computed(() => {
-  const roleCount = roles.value.length;
   const systemRoleCount = roles.value.filter((item) => item.isSystem).length;
   const memberCount = roles.value.reduce((sum, item) => sum + item.userCount, 0);
   const permissionLinks = roles.value.reduce((sum, item) => sum + item.permissionCount, 0);
 
   return [
-    { label: '角色总数', value: roleCount },
-    { label: '系统角色', value: systemRoleCount },
-    { label: '角色成员', value: memberCount },
-    { label: '权限映射', value: permissionLinks },
+    { label: '角色总数', value: total.value },
+    { label: '当前页系统角色', value: systemRoleCount },
+    { label: '当前页成员', value: memberCount },
+    { label: '当前页权限映射', value: permissionLinks },
   ];
-});
-
-const sortRoles = (items: RoleRecord[]) => [...items].sort((left, right) => {
-  if (left.isSystem !== right.isSystem) {
-    return left.isSystem ? -1 : 1;
-  }
-  return left.name.localeCompare(right.name, 'zh-CN');
 });
 
 const loadRoles = async () => {
   try {
     loading.value = true;
-    roles.value = sortRoles(await api.roles.list());
+    const response = await api.roles.list({
+      page: pageState.page,
+      pageSize,
+      q: pageState.filters.q || undefined,
+      permissionId: pageState.filters.permissionId || undefined,
+      roleType: pageState.filters.roleType || undefined,
+    });
+    const totalPages = Math.max(Math.ceil(response.meta.total / pageSize), 1);
+    if (pageState.page > totalPages) {
+      pageState.page = totalPages;
+      await loadRoles();
+      return;
+    }
+    roles.value = response.items;
+    total.value = response.meta.total;
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '加载角色列表失败'));
   } finally {
@@ -166,6 +164,7 @@ const loadPermissionOptions = async () => {
 };
 
 const applyFilters = async () => {
+  pageState.page = 1;
   await loadRoles();
 };
 
@@ -173,6 +172,7 @@ const resetFilters = async () => {
   pageState.filters.q = '';
   pageState.filters.permissionId = '';
   pageState.filters.roleType = '';
+  pageState.page = 1;
   await loadRoles();
 };
 
@@ -269,6 +269,11 @@ const roleContextMenuItems = [
     onSelect: (row) => removeRole(row),
   },
 ] satisfies ContextMenuItem<RoleRecord>[];
+
+const changePage = async (value: number) => {
+  pageState.page = value;
+  await loadRoles();
+};
 
 onMounted(async () => {
   await Promise.all([loadRoles(), loadPermissionOptions()]);

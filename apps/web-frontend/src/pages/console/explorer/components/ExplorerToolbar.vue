@@ -4,8 +4,12 @@
       <el-select
         :model-value="selectedUserId"
         filterable
+        remote
+        reserve-keyword
         clearable
-        placeholder="选择用户"
+        :loading="loading"
+        placeholder="输入昵称 / 邮箱搜索用户"
+        :remote-method="handleSearch"
         @update:model-value="handleChange"
       >
         <el-option
@@ -14,6 +18,16 @@
           :label="resolveUserLabel(user)"
           :value="user.id"
         />
+
+        <template #footer>
+          <div class="explorer-select-footer">
+            <span>{{ total }} 位用户 · 第 {{ page }} / {{ totalPages }} 页</span>
+            <el-space>
+              <el-button link :disabled="page <= 1" @click="emit('page-change', page - 1)">上一页</el-button>
+              <el-button link :disabled="page >= totalPages" @click="emit('page-change', page + 1)">下一页</el-button>
+            </el-space>
+          </div>
+        </template>
       </el-select>
     </el-form-item>
 
@@ -27,22 +41,45 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import type { UserRecord } from '@rbac/api-common';
 
-defineProps<{
+const props = defineProps<{
   selectedUserId: string;
   userOptions: UserRecord[];
+  loading: boolean;
+  total: number;
+  page: number;
+  pageSize: number;
 }>();
 
 const emit = defineEmits<{
   change: [id?: string];
   'refresh-users': [];
   'reload-source': [];
+  search: [keyword: string];
+  'page-change': [value: number];
 }>();
+
+const totalPages = computed(() => Math.max(Math.ceil(props.total / props.pageSize), 1));
 
 const handleChange = (value: string | undefined) => {
   emit('change', value);
 };
 
+const handleSearch = (value: string) => {
+  emit('search', value);
+};
+
 const resolveUserLabel = (user: UserRecord) => `${user.nickname} (${user.email || '未设置邮箱'})`;
 </script>
+
+<style scoped lang="scss">
+.explorer-select-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 8px;
+}
+</style>

@@ -7,8 +7,8 @@
       </div>
       <div class="table-panel__meta">
         <span>支持行右键快捷操作</span>
-        <span>共 {{ roles.length }} 个角色</span>
-        <span>{{ roles.filter((item) => item.isSystem).length }} 个系统角色</span>
+        <span>共 {{ total }} 个角色</span>
+        <span>第 {{ page }} 页</span>
       </div>
     </header>
 
@@ -72,6 +72,15 @@
         </el-table>
       </template>
     </ContextMenuHost>
+
+    <el-pagination
+      background
+      layout="prev, pager, next, total"
+      :current-page="page"
+      :page-size="pageSize"
+      :total="total"
+      @current-change="(value) => emit('page-change', value)"
+    />
   </section>
 </template>
 
@@ -86,6 +95,9 @@ type HostContextMenuItem = ContextMenuItem<never>;
 const props = defineProps<{
   roles: RoleRecord[];
   loading: boolean;
+  total: number;
+  page: number;
+  pageSize: number;
   contextMenuItems: ContextMenuItem<RoleRecord>[];
 }>();
 
@@ -93,6 +105,7 @@ const emit = defineEmits<{
   detail: [row: RoleRecord];
   edit: [row: RoleRecord];
   delete: [row: RoleRecord];
+  'page-change': [value: number];
 }>();
 
 const formatTime = (value: string) => new Date(value).toLocaleString();

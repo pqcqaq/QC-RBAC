@@ -26,6 +26,9 @@ import type {
   MenuNodeFormPayload,
   MenuNodeRecord,
   PaginatedAuditLogs,
+  PaginatedLiveMessages,
+  PaginatedPermissions,
+  PaginatedRoles,
   PermissionFormPayload,
   PermissionRecord,
   RoleFormPayload,
@@ -63,8 +66,10 @@ export const createApiFactory = (options: ClientOptions) => {
     UserFormPayload,
     PaginatedResult<UserRecord>
   >(client, { resource: '/users' });
-  const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload>(client, { resource: '/roles' });
-  const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload>(client, { resource: '/permissions' });
+  const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload, PaginatedRoles>(client, { resource: '/roles' });
+  const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload, PaginatedPermissions>(client, {
+    resource: '/permissions',
+  });
   const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
 
   return {
@@ -98,6 +103,7 @@ export const createApiFactory = (options: ClientOptions) => {
     },
     permissions: {
       ...permissionCrud,
+      modules: () => client.request<string[]>({ url: '/permissions/options/modules' }),
     },
     menus: {
       ...menuCrud,
@@ -112,7 +118,8 @@ export const createApiFactory = (options: ClientOptions) => {
         client.request<UploadCallbackResult>({ url: '/files/callback', method: 'POST', data: payload }),
     },
     live: {
-      history: () => client.request<LiveMessage[]>({ url: '/realtime/messages' }),
+      history: (params?: Record<string, string | number | boolean | undefined>) =>
+        client.request<PaginatedLiveMessages>({ url: '/realtime/messages', params }),
       post: (content: string) => client.request<LiveMessage>({ url: '/realtime/messages', method: 'POST', data: { content } }),
     },
   };

@@ -5,7 +5,7 @@ import { prisma } from '../lib/prisma.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
-import { ok, asyncHandler } from '../utils/http.js';
+import { ok, asyncHandler, parsePagination } from '../utils/http.js';
 import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { roleWithPermissionSummaryInclude, toPermissionSummary, toRoleRecord } from '../utils/rbac-records.js';
@@ -61,12 +61,48 @@ rolesRouter.get(
 rolesRouter.get(
   '/',
   requirePermission('role.read'),
-  asyncHandler(async (_req, res) => {
-    const roles = await prisma.role.findMany({
-      orderBy: { createdAt: 'asc' },
-      include: roleWithRelationsInclude,
-    });
-    return ok(res, roles.map(toRoleRecord), 'Role list');
+  asyncHandler(async (req, res) => {
+    const { page, pageSize, skip } = parsePagination(req.query);
+    const q = String(req.query.q ?? '').trim();
+    const permissionId = String(req.query.permissionId ?? '').trim();
+    const roleType = String(req.query.roleType ?? '').trim();
+
+    const where: Prisma.RoleWhereInput = {};
+    if (q) {
+      where.OR = [
+        { code: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (permissionId) {
+      where.permissions = { some: { permissionId, deleteAt: null } };
+    }
+    if (roleType === 'system') {
+      where.isSystem = true;
+    }
+    if (roleType === 'custom') {
+      where.isSystem = false;
+    }
+
+    const [total, roles] = await prisma.$transaction([
+      prisma.role.count({ where }),
+      prisma.role.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+        include: roleWithRelationsInclude,
+      }),
+    ]);
+
+    return ok(
+      res,
+      {
+        items: roles.map(toRoleRecord),
+        meta: { page, pageSize, total },
+      },
+      'Role list',
+    );
   }),
 );
 

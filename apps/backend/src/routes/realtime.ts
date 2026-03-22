@@ -4,7 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { emitAuditEvent, emitChatMessage } from '../lib/socket.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/require-permission.js';
-import { ok, asyncHandler } from '../utils/http.js';
+import { ok, asyncHandler, parsePagination } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
 import { withSnowflakeId } from '../utils/persistence.js';
 
@@ -14,43 +14,60 @@ const messageSchema = z.object({
 
 const realtimeRouter = Router();
 
+const toLiveMessageDto = (message: {
+  id: string;
+  senderId: string;
+  content: string;
+  createdAt: Date;
+  sender: {
+    nickname: string;
+    roles: Array<{ role: { name: string } }>;
+  };
+}) => ({
+  id: message.id,
+  senderId: message.senderId,
+  senderName: message.sender.nickname,
+  senderRoles: message.sender.roles.map(({ role }) => role.name),
+  content: message.content,
+  createdAt: message.createdAt.toISOString(),
+});
+
 realtimeRouter.use(authMiddleware);
 
 realtimeRouter.get(
   '/messages',
   requirePermission('realtime.read'),
-  asyncHandler(async (_req, res) => {
-    const messages = await prisma.chatMessage.findMany({
-      take: 30,
-      orderBy: { createdAt: 'desc' },
-      include: {
-        sender: {
-          include: {
-            roles: {
-              where: {
-                deleteAt: null,
-              },
-              include: {
-                role: true,
+  asyncHandler(async (req, res) => {
+    const { page, pageSize, skip } = parsePagination(req.query);
+    const [total, messages] = await prisma.$transaction([
+      prisma.chatMessage.count(),
+      prisma.chatMessage.findMany({
+        skip,
+        take: pageSize,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          sender: {
+            include: {
+              roles: {
+                where: {
+                  deleteAt: null,
+                },
+                include: {
+                  role: true,
+                },
               },
             },
           },
         },
-      },
-    });
+      }),
+    ]);
 
     return ok(
       res,
-      messages
-        .reverse()
-        .map((message) => ({
-          id: message.id,
-          senderId: message.senderId,
-          senderName: message.sender.nickname,
-          senderRoles: message.sender.roles.map(({ role }) => role.name),
-          content: message.content,
-          createdAt: message.createdAt.toISOString(),
-        })),
+      {
+        items: messages.reverse().map(toLiveMessageDto),
+        meta: { page, pageSize, total },
+      },
       'Message history',
     );
   }),
@@ -91,28 +108,10 @@ realtimeRouter.post(
       detail: { content: payload.content },
     });
     emitAuditEvent({ action: 'realtime.send', actor: actor.nickname, target: 'global-channel' });
-    const dto = {
-      id: message.id,
-      senderId: message.senderId,
-      senderName: message.sender.nickname,
-      senderRoles: message.sender.roles.map(({ role }) => role.name),
-      content: message.content,
-      createdAt: message.createdAt.toISOString(),
-    };
+    const dto = toLiveMessageDto(message);
     emitChatMessage(dto);
 
-    return ok(
-      res,
-      {
-        id: message.id,
-        senderId: message.senderId,
-        senderName: message.sender.nickname,
-        senderRoles: message.sender.roles.map(({ role }) => role.name),
-        content: message.content,
-        createdAt: message.createdAt.toISOString(),
-      },
-      'Message sent',
-    );
+    return ok(res, dto, 'Message sent');
   }),
 );
 

@@ -1,12 +1,12 @@
 import { Router } from 'express';
 import { permissionCatalog } from '@rbac/api-common';
-import type { Permission as PermissionModel, Prisma } from '@prisma/client';
+import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/require-permission.js';
 import { badRequest, notFound } from '../utils/errors.js';
-import { ok, asyncHandler } from '../utils/http.js';
+import { ok, asyncHandler, parsePagination } from '../utils/http.js';
 import { findAffectedUserIdsByRoleIds } from '../utils/rbac.js';
 import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { withSnowflakeId } from '../utils/persistence.js';
@@ -34,13 +34,64 @@ const permissionsRouter = Router();
 permissionsRouter.use(authMiddleware);
 
 permissionsRouter.get(
-  '/',
+  '/options/modules',
   requirePermission('permission.read'),
   asyncHandler(async (_req, res) => {
-    const permissions = await prisma.permission.findMany({
-      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+    const rows = await prisma.permission.findMany({
+      distinct: ['module'],
+      select: { module: true },
+      orderBy: { module: 'asc' },
     });
-    return ok(res, permissions.map(toPermissionRecord), 'Permission list');
+    return ok(res, rows.map((item) => item.module), 'Permission modules');
+  }),
+);
+
+permissionsRouter.get(
+  '/',
+  requirePermission('permission.read'),
+  asyncHandler(async (req, res) => {
+    const { page, pageSize, skip } = parsePagination(req.query);
+    const q = String(req.query.q ?? '').trim();
+    const module = String(req.query.module ?? '').trim();
+    const sourceType = String(req.query.sourceType ?? '').trim();
+    const seedCodes = permissionCatalog.map((item) => item.code);
+
+    const where: Prisma.PermissionWhereInput = {};
+    if (q) {
+      where.OR = [
+        { code: { contains: q, mode: 'insensitive' } },
+        { name: { contains: q, mode: 'insensitive' } },
+        { description: { contains: q, mode: 'insensitive' } },
+      ];
+    }
+    if (module) {
+      where.module = module;
+    }
+    if (sourceType === 'seed') {
+      where.code = { in: seedCodes };
+    }
+    if (sourceType === 'custom') {
+      where.code = { notIn: seedCodes };
+    }
+
+    const [total, permissions] = await prisma.$transaction([
+      prisma.permission.count({ where }),
+      prisma.permission.findMany({
+        where,
+        skip,
+        take: pageSize,
+        orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+      }),
+    ]);
+
+    return ok(
+      res,
+      {
+        items: permissions.map(toPermissionRecord),
+        meta: { page, pageSize, total },
+      },
+      'Permission list',
+    );
   }),
 );
 
