@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
+import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import { REGISTER_PAGE } from '@/router/config'
 import { isPageTabbar } from '@/tabbar/store'
 import { useTokenStore } from '@/store/token'
@@ -90,80 +91,36 @@ function toRegister() {
 </script>
 
 <template>
-  <view class="native-page native-page--auth">
-    <view class="auth-head">
-      <view class="page-title">
-        登录
-      </view>
-      <view class="page-subtitle">
-        使用账号密码进入系统。
-      </view>
-    </view>
-
-    <view class="form-sheet">
-      <view class="form-item">
-        <view class="form-label">
-          账号
-        </view>
-        <input
+  <AppPageShell auth title="登录" description="使用账号和密码进入系统。">
+    <view class="app-auth-sheet">
+      <view class="app-auth-form">
+        <wd-input
           v-model="form.account"
-          class="form-input"
+          label="账号"
+          clearable
           placeholder="用户名或邮箱"
           confirm-type="next"
+          custom-class="app-auth-input"
         />
-      </view>
-      <view class="form-item">
-        <view class="form-label">
-          密码
-        </view>
-        <input
+        <wd-input
           v-model="form.password"
-          class="form-input"
-          password
+          label="密码"
+          show-password
           placeholder="请输入密码"
           confirm-type="done"
+          custom-class="app-auth-input"
           @confirm="doLogin"
         />
       </view>
-    </view>
 
-    <button class="primary-action auth-action" :loading="submitting" @click="doLogin">
-      登录
-    </button>
+      <wd-button block size="large" :loading="submitting" custom-class="app-auth-submit" @click="doLogin">
+        登录
+      </wd-button>
 
-    <view class="auth-footer">
-      <text class="auth-footer__text">没有账号？</text>
-      <text class="auth-footer__link" @click="toRegister">去注册</text>
+      <view class="app-inline-action">
+        <text class="app-inline-action__label">没有账号？</text>
+        <text class="app-inline-action__link" @click="toRegister">去注册</text>
+      </view>
     </view>
-  </view>
+  </AppPageShell>
 </template>
-
-<style lang="scss" scoped>
-.auth-head {
-  padding-top: 48rpx;
-}
-
-.auth-action {
-  margin-top: 48rpx;
-}
-
-.auth-footer {
-  margin-top: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  font-size: 26rpx;
-  line-height: 1.5;
-}
-
-.auth-footer__text {
-  color: #8b8f97;
-}
-
-.auth-footer__link {
-  color: #111827;
-  font-weight: 500;
-}
-</style>
-

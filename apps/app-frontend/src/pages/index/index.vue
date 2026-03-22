@@ -2,6 +2,8 @@
 import type { DashboardSummary } from '@rbac/api-common'
 import dayjs from 'dayjs'
 import { computed, reactive, ref } from 'vue'
+import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
+import AppSection from '@/components/app-section/app-section.vue'
 import { getDashboardSummary } from '@/api/login'
 import { useTokenStore, useUserStore } from '@/store'
 import { getErrorMessage } from '@/utils/error'
@@ -29,12 +31,14 @@ const summary = reactive<DashboardSummary>({
   auditFeed: [],
 })
 
-const displayName = computed(() => {
-  return userStore.userInfo.nickname || userStore.userInfo.username || '欢迎'
+const headerDescription = computed(() => {
+  const name = userStore.userInfo.nickname || userStore.userInfo.username || '欢迎使用'
+  return `${name}，查看账号概览、最近动态和常用入口。`
 })
 
 const latestUsers = computed(() => summary.latestUsers.slice(0, 5))
 const latestAuditFeed = computed(() => summary.auditFeed.slice(0, 6))
+const roleTags = computed(() => userStore.userInfo.roles)
 
 function formatTime(value: string) {
   return dayjs(value).format('MM-DD HH:mm')
@@ -82,158 +86,95 @@ onPullDownRefresh(() => {
 </script>
 
 <template>
-  <view class="native-page">
-    <view class="page-header">
-      <view class="page-title">
-        工作台
+  <AppPageShell title="工作台" :description="headerDescription">
+    <template #extra>
+      <view v-if="roleTags.length" class="app-tag-row app-tag-row--compact">
+        <wd-tag v-for="role in roleTags" :key="role.id" plain round type="primary" custom-class="app-tag">
+          {{ role.name }}
+        </wd-tag>
       </view>
-      <view class="page-subtitle">
-        {{ displayName }}，查看账号概览、最近动态和常用入口。
-      </view>
-    </view>
+    </template>
 
-    <view class="page-section">
-      <view class="section-caption">
-        快捷入口
-      </view>
-      <view class="row-list">
-        <view class="row-item" @click="openProfile">
-          <view class="row-main">
-            <view class="row-title">
-              个人信息
-            </view>
-            <view class="row-desc">
-              查看账号资料、角色和权限。
-            </view>
-          </view>
-          <view class="row-arrow">
-            >
-          </view>
-        </view>
-        <view class="row-item" @click="openSettings">
-          <view class="row-main">
-            <view class="row-title">
-              应用设置
-            </view>
-            <view class="row-desc">
-              查看已同步的个人配置。
-            </view>
-          </view>
-          <view class="row-arrow">
-            >
-          </view>
-        </view>
-      </view>
-    </view>
+    <AppSection title="快捷入口" description="常用功能入口。">
+      <wd-cell-group custom-class="app-list-group">
+        <wd-cell title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
+        <wd-cell title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
+      </wd-cell-group>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        概览
+    <AppSection title="概览" description="核心指标摘要。">
+      <wd-cell-group v-if="summary.metrics.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="metric in summary.metrics"
+          :key="metric.label"
+          :title="metric.label"
+          :label="metric.trend"
+          :value="String(metric.value)"
+          custom-value-class="app-kv-emphasis"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-loadmore v-if="loading" state="loading" custom-class="app-loadmore" />
+        <wd-status-tip v-else tip="暂无概览数据" image="content" custom-class="app-status-tip" />
       </view>
-      <view class="row-list" v-if="summary.metrics.length">
-        <view v-for="metric in summary.metrics" :key="metric.label" class="row-item">
-          <view class="row-main">
-            <view class="row-title">
-              {{ metric.label }}
-            </view>
-            <view class="row-desc">
-              {{ metric.trend }}
-            </view>
-          </view>
-          <view class="row-value row-value--strong">
-            {{ metric.value }}
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        {{ loading ? '正在加载概览数据...' : '暂无概览数据' }}
-      </view>
-    </view>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        角色分布
+    <AppSection title="角色分布">
+      <wd-cell-group v-if="summary.roleDistribution.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="item in summary.roleDistribution"
+          :key="item.roleName"
+          :title="item.roleName"
+          :value="`${item.count} 人`"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="暂无角色分布数据" image="content" custom-class="app-status-tip" />
       </view>
-      <view class="row-list" v-if="summary.roleDistribution.length">
-        <view v-for="item in summary.roleDistribution" :key="item.roleName" class="row-item">
-          <view class="row-title">
-            {{ item.roleName }}
-          </view>
-          <view class="row-value">
-            {{ item.count }} 人
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        暂无角色分布数据
-      </view>
-    </view>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        模块覆盖
+    <AppSection title="模块覆盖">
+      <wd-cell-group v-if="summary.moduleCoverage.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="item in summary.moduleCoverage"
+          :key="item.module"
+          :title="item.module"
+          :value="`${item.count} 项`"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="暂无模块覆盖数据" image="content" custom-class="app-status-tip" />
       </view>
-      <view class="row-list" v-if="summary.moduleCoverage.length">
-        <view v-for="item in summary.moduleCoverage" :key="item.module" class="row-item">
-          <view class="row-title">
-            {{ item.module }}
-          </view>
-          <view class="row-value">
-            {{ item.count }} 项
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        暂无模块覆盖数据
-      </view>
-    </view>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        最近成员
+    <AppSection title="最近成员">
+      <wd-cell-group v-if="latestUsers.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="item in latestUsers"
+          :key="item.id"
+          :title="item.nickname || item.username"
+          :label="item.email || '未设置邮箱'"
+          :value="formatTime(item.createdAt)"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="暂无成员数据" image="content" custom-class="app-status-tip" />
       </view>
-      <view class="row-list" v-if="latestUsers.length">
-        <view v-for="item in latestUsers" :key="item.id" class="row-item">
-          <view class="row-main">
-            <view class="row-title">
-              {{ item.nickname || item.username }}
-            </view>
-            <view class="row-desc">
-              {{ item.email || '未设置邮箱' }}
-            </view>
-          </view>
-          <view class="row-value">
-            {{ formatTime(item.createdAt) }}
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        暂无成员数据
-      </view>
-    </view>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        最近动态
+    <AppSection title="最近动态">
+      <wd-cell-group v-if="latestAuditFeed.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="item in latestAuditFeed"
+          :key="item.id"
+          :title="item.action"
+          :label="`${item.actor} · ${item.target}`"
+          :value="formatTime(item.createdAt)"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="暂无动态" image="content" custom-class="app-status-tip" />
       </view>
-      <view class="row-list" v-if="latestAuditFeed.length">
-        <view v-for="item in latestAuditFeed" :key="item.id" class="row-item">
-          <view class="row-main">
-            <view class="row-title">
-              {{ item.action }}
-            </view>
-            <view class="row-desc">
-              {{ item.actor }} · {{ item.target }}
-            </view>
-          </view>
-          <view class="row-value">
-            {{ formatTime(item.createdAt) }}
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        暂无动态
-      </view>
-    </view>
-  </view>
+    </AppSection>
+  </AppPageShell>
 </template>

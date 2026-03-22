@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
+import AppSection from '@/components/app-section/app-section.vue'
 import { authClientCode } from '@/api/client'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
@@ -103,46 +105,23 @@ onShow(() => {
 </script>
 
 <template>
-  <view class="native-page">
-    <view class="page-header">
-      <view class="page-title">
-        应用设置
+  <AppPageShell title="应用设置" description="展示已同步到当前账号的应用偏好。">
+    <AppSection title="说明">
+      <view class="app-note">
+        当前页面仅展示配置内容，暂不提供修改功能。
       </view>
-      <view class="page-subtitle">
-        当前页面仅展示已同步配置，暂不提供修改。
-      </view>
-    </view>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        账户
-      </view>
-      <view class="row-list">
-        <view v-for="item in accountItems" :key="item.label" class="row-item">
-          <view class="row-title">
-            {{ item.label }}
-          </view>
-          <view class="row-value">
-            {{ item.value }}
-          </view>
-        </view>
-      </view>
-    </view>
+    <AppSection title="账户">
+      <wd-cell-group custom-class="app-list-group">
+        <wd-cell v-for="item in accountItems" :key="item.label" :title="item.label" :value="item.value" />
+      </wd-cell-group>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        已同步控制台配置
-      </view>
-      <view class="row-list">
-        <view v-for="item in syncItems" :key="item.label" class="row-item">
-          <view class="row-title">
-            {{ item.label }}
-          </view>
-          <view class="row-value">
-            {{ item.value }}
-          </view>
-        </view>
-      </view>
-    </view>
-  </view>
+    <AppSection title="已同步控制台配置">
+      <wd-cell-group custom-class="app-list-group">
+        <wd-cell v-for="item in syncItems" :key="item.label" :title="item.label" :value="item.value" />
+      </wd-cell-group>
+    </AppSection>
+  </AppPageShell>
 </template>

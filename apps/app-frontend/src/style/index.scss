@@ -1,36 +1,293 @@
-// 测试用的 iconfont，可生效
-// @import './iconfont.css';
-
-.test {
-  // 可以通过 @apply 多个样式封装整体样式
-  @apply mt-4 ml-4;
-
-  padding-top: 4px;
-  color: red;
-}
-
 :root,
 page {
-  // 修改按主题色
-  // --wot-color-theme: #37c2bc;
-
-  // 修改按钮背景色
-  // --wot-button-primary-bg-color: green;
+  --app-bg: #f5f7fa;
+  --app-surface: #ffffff;
+  --app-border: #dde3eb;
+  --app-border-light: #edf1f5;
+  --app-text: #111827;
+  --app-text-secondary: #4b5563;
+  --app-text-muted: #8b96a6;
+  --app-accent: #111827;
+  --app-accent-soft: #eff3f8;
+  --app-success: #0f766e;
+  --app-danger: #dc2626;
 }
 
-/*
-border-t-1
-由于uniapp中无法使用*选择器，使用魔法代替*，加上此规则可以简化border与divide的使用，并提升布局的兼容性
-1. 防止padding和border影响元素宽度。 (https://github.com/mozdevs/cssremedy/issues/4)
-2. 允许仅通过添加边框宽度来向元素添加边框。 (https://github.com/tailwindcss/tailwindcss/pull/116)
-3. [UnoCSS]: 允许使用css变量'--un-default-border-color'覆盖默认边框颜色
-*/
-// 这个样式有重大BUG，先去掉！！(2025-08-15)
-// :not(not),
-// ::before,
-// ::after {
-//   box-sizing: border-box; /* 1 */
-//   border-width: 0; /* 2 */
-//   border-style: solid; /* 2 */
-//   border-color: var(--un-default-border-color, #e5e7eb); /* 3 */
-// }
+page,
+body {
+  background: var(--app-bg);
+  color: var(--app-text);
+  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Microsoft YaHei', sans-serif;
+}
+
+view,
+text,
+button,
+input,
+image {
+  box-sizing: border-box;
+}
+
+button {
+  margin: 0;
+}
+
+.app-root {
+  min-height: 100vh;
+  background: var(--app-bg);
+  color: var(--app-text);
+}
+
+.app-page {
+  min-height: 100vh;
+  background: var(--app-bg);
+  padding-bottom: calc(48rpx + env(safe-area-inset-bottom));
+}
+
+.app-page--auth {
+  background: linear-gradient(180deg, #fbfcfe 0%, #f4f6f9 52%, #ffffff 100%);
+}
+
+.app-page-shell__head {
+  padding: 72rpx 32rpx 20rpx;
+}
+
+.app-page-shell--auth .app-page-shell__head {
+  padding: calc(72rpx + env(safe-area-inset-top)) 40rpx 24rpx;
+}
+
+.app-page-shell__title {
+  font-size: 54rpx;
+  line-height: 1.18;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: var(--app-text);
+}
+
+.app-page-shell__desc {
+  margin-top: 14rpx;
+  font-size: 26rpx;
+  line-height: 1.65;
+  color: var(--app-text-muted);
+}
+
+.app-page-shell__extra {
+  margin-top: 18rpx;
+}
+
+.app-page-shell__body {
+  padding-bottom: 24rpx;
+}
+
+.app-section {
+  margin-top: 28rpx;
+}
+
+.app-section__head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16rpx;
+  padding: 0 32rpx 12rpx;
+}
+
+.app-section__meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-section__title {
+  font-size: 26rpx;
+  line-height: 1.45;
+  font-weight: 600;
+  color: var(--app-text-secondary);
+}
+
+.app-section__desc {
+  margin-top: 8rpx;
+  font-size: 22rpx;
+  line-height: 1.55;
+  color: var(--app-text-muted);
+}
+
+.app-list-group {
+  background: transparent !important;
+}
+
+.app-list-group .wd-cell-group__body {
+  background: var(--app-surface);
+  border-top: 1rpx solid var(--app-border);
+  border-bottom: 1rpx solid var(--app-border);
+}
+
+.app-list-group .wd-cell {
+  background: var(--app-surface);
+}
+
+.app-list-group .wd-cell__wrapper {
+  padding: 26rpx 32rpx;
+}
+
+.app-list-group .wd-cell__left {
+  align-items: flex-start;
+}
+
+.app-list-group .wd-cell__label {
+  margin-top: 8rpx;
+  line-height: 1.55;
+}
+
+.app-list-group .wd-cell__value {
+  line-height: 1.55;
+}
+
+.app-list-group .wd-cell.is-hover {
+  background: #fafbfc;
+}
+
+.app-hero {
+  display: flex;
+  align-items: center;
+  gap: 24rpx;
+  padding: 28rpx 32rpx;
+  background: var(--app-surface);
+  border-top: 1rpx solid var(--app-border);
+  border-bottom: 1rpx solid var(--app-border);
+}
+
+.app-hero__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.app-hero__title {
+  font-size: 38rpx;
+  line-height: 1.35;
+  font-weight: 600;
+  color: var(--app-text);
+}
+
+.app-hero__meta {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.55;
+  color: var(--app-text-muted);
+  word-break: break-all;
+}
+
+.app-tag-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12rpx;
+  margin-top: 18rpx;
+}
+
+.app-tag-row--compact {
+  margin-top: 0;
+}
+
+.app-tag {
+  margin: 0;
+}
+
+.app-status-wrap {
+  background: var(--app-surface);
+  border-top: 1rpx solid var(--app-border);
+  border-bottom: 1rpx solid var(--app-border);
+  padding: 18rpx 0 12rpx;
+}
+
+.app-status-wrap--spacious {
+  padding: 40rpx 0 24rpx;
+}
+
+.app-status-tip {
+  background: transparent;
+}
+
+.app-status-tip .wd-status-tip__text {
+  color: var(--app-text-muted);
+  font-size: 24rpx;
+}
+
+.app-loadmore {
+  background: transparent;
+  padding: 24rpx 0 8rpx;
+}
+
+.app-auth-sheet {
+  padding: 0 32rpx;
+}
+
+.app-auth-form {
+  background: var(--app-surface);
+  border-top: 1rpx solid var(--app-border);
+  border-bottom: 1rpx solid var(--app-border);
+  padding: 0 8rpx;
+}
+
+.app-auth-input + .app-auth-input {
+  border-top: 1rpx solid var(--app-border-light);
+}
+
+.app-auth-input.wd-input {
+  background: transparent;
+}
+
+.app-auth-input .wd-input__inner {
+  font-size: 32rpx;
+}
+
+.app-auth-input .wd-input__label {
+  min-width: 112rpx;
+}
+
+.app-auth-submit {
+  margin-top: 40rpx;
+}
+
+.app-inline-action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  margin-top: 28rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.app-inline-action__label {
+  color: var(--app-text-muted);
+}
+
+.app-inline-action__link {
+  color: var(--app-text);
+  font-weight: 500;
+}
+
+.app-action-block {
+  padding: 0 32rpx;
+}
+
+.app-action-block .wd-button + .wd-button {
+  margin-top: 16rpx;
+}
+
+.app-permission-wrap {
+  padding: 0 32rpx 24rpx;
+  background: var(--app-surface);
+  border-top: 1rpx solid var(--app-border);
+  border-bottom: 1rpx solid var(--app-border);
+}
+
+.app-note {
+  padding: 0 32rpx 8rpx;
+  font-size: 22rpx;
+  line-height: 1.6;
+  color: var(--app-text-muted);
+}
+
+.app-kv-emphasis {
+  font-weight: 600;
+  color: var(--app-text);
+}

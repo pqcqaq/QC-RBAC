@@ -1,5 +1,6 @@
 <script lang="ts" setup>
 import { reactive, ref } from 'vue'
+import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
 import { LOGIN_PAGE } from '@/router/config'
 import { isPageTabbar } from '@/tabbar/store'
 import { useTokenStore } from '@/store/token'
@@ -8,6 +9,7 @@ import { getErrorMessage } from '@/utils/error'
 
 definePage({
   style: {
+    navigationStyle: 'custom',
     navigationBarTitleText: '注册',
   },
 })
@@ -89,86 +91,31 @@ function toLogin() {
 </script>
 
 <template>
-  <view class="native-page native-page--auth">
-    <view class="auth-head">
-      <view class="page-title">
-        注册
-      </view>
-      <view class="page-subtitle">
-        创建账号后将直接登录当前设备。
-      </view>
-    </view>
-
-    <view class="form-sheet">
-      <view class="form-item">
-        <view class="form-label">
-          用户名
-        </view>
-        <input v-model="form.username" class="form-input" placeholder="请输入用户名" confirm-type="next" />
-      </view>
-      <view class="form-item">
-        <view class="form-label">
-          昵称
-        </view>
-        <input v-model="form.nickname" class="form-input" placeholder="请输入昵称" confirm-type="next" />
-      </view>
-      <view class="form-item">
-        <view class="form-label">
-          邮箱
-        </view>
-        <input v-model="form.email" class="form-input" placeholder="请输入邮箱" confirm-type="next" />
-      </view>
-      <view class="form-item">
-        <view class="form-label">
-          密码
-        </view>
-        <input
+  <AppPageShell auth title="注册" description="创建账号后将直接登录当前设备。">
+    <view class="app-auth-sheet">
+      <view class="app-auth-form">
+        <wd-input v-model="form.username" label="用户名" clearable placeholder="请输入用户名" custom-class="app-auth-input" />
+        <wd-input v-model="form.nickname" label="昵称" clearable placeholder="请输入昵称" custom-class="app-auth-input" />
+        <wd-input v-model="form.email" label="邮箱" clearable placeholder="请输入邮箱" custom-class="app-auth-input" />
+        <wd-input
           v-model="form.password"
-          class="form-input"
-          password
+          label="密码"
+          show-password
           placeholder="请设置密码"
           confirm-type="done"
+          custom-class="app-auth-input"
           @confirm="submit"
         />
       </view>
-    </view>
 
-    <button class="primary-action auth-action" :loading="submitting" @click="submit">
-      注册
-    </button>
+      <wd-button block size="large" :loading="submitting" custom-class="app-auth-submit" @click="submit">
+        注册
+      </wd-button>
 
-    <view class="auth-footer">
-      <text class="auth-footer__text">已有账号？</text>
-      <text class="auth-footer__link" @click="toLogin">去登录</text>
+      <view class="app-inline-action">
+        <text class="app-inline-action__label">已有账号？</text>
+        <text class="app-inline-action__link" @click="toLogin">去登录</text>
+      </view>
     </view>
-  </view>
+  </AppPageShell>
 </template>
-
-<style lang="scss" scoped>
-.auth-head {
-  padding-top: 24rpx;
-}
-
-.auth-action {
-  margin-top: 48rpx;
-}
-
-.auth-footer {
-  margin-top: 32rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12rpx;
-  font-size: 26rpx;
-  line-height: 1.5;
-}
-
-.auth-footer__text {
-  color: #8b8f97;
-}
-
-.auth-footer__link {
-  color: #111827;
-  font-weight: 500;
-}
-</style>

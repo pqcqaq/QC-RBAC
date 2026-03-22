@@ -1,6 +1,8 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
 import { computed } from 'vue'
+import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
+import AppSection from '@/components/app-section/app-section.vue'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
 
@@ -18,6 +20,10 @@ const statusText = computed(() => {
   return userInfo.value.status === 'ACTIVE' ? '正常' : '停用'
 })
 
+const statusTagType = computed(() => {
+  return userInfo.value.status === 'ACTIVE' ? 'success' : 'warning'
+})
+
 onShow(() => {
   if (tokenStore.hasLogin) {
     void userStore.fetchUserInfo().catch(() => undefined)
@@ -26,151 +32,70 @@ onShow(() => {
 </script>
 
 <template>
-  <view class="native-page">
-    <view class="page-section profile-header">
-      <image class="profile-header__avatar" :src="userInfo.avatar || '/static/images/default-avatar.png'" mode="aspectFill" />
-      <view class="profile-header__body">
-        <view class="profile-header__name">
+  <AppPageShell title="个人信息" description="查看当前账号资料、角色和权限。">
+    <view class="app-hero">
+      <wd-avatar :src="userInfo.avatar || '/static/images/default-avatar.png'" size="large" shape="square" />
+      <view class="app-hero__body">
+        <view class="app-hero__title">
           {{ userInfo.nickname || userInfo.username }}
         </view>
-        <view class="profile-header__meta">
+        <view class="app-hero__meta">
           @{{ userInfo.username || 'unknown' }}
         </view>
-        <view class="profile-header__meta">
+        <view class="app-hero__meta">
           {{ userInfo.email || '未设置邮箱' }}
         </view>
-      </view>
-    </view>
-
-    <view class="page-section">
-      <view class="section-caption">
-        基本资料
-      </view>
-      <view class="row-list">
-        <view class="row-item">
-          <view class="row-title">
-            昵称
-          </view>
-          <view class="row-value row-value--strong">
-            {{ userInfo.nickname || '未设置' }}
-          </view>
-        </view>
-        <view class="row-item">
-          <view class="row-title">
-            用户名
-          </view>
-          <view class="row-value">
-            {{ userInfo.username || '--' }}
-          </view>
-        </view>
-        <view class="row-item">
-          <view class="row-title">
-            邮箱
-          </view>
-          <view class="row-value">
-            {{ userInfo.email || '未设置' }}
-          </view>
-        </view>
-        <view class="row-item">
-          <view class="row-title">
-            账号状态
-          </view>
-          <view class="row-value">
+        <view class="app-tag-row">
+          <wd-tag round plain :type="statusTagType" custom-class="app-tag">
             {{ statusText }}
-          </view>
-        </view>
-        <view class="row-item">
-          <view class="row-title">
-            角色数量
-          </view>
-          <view class="row-value">
-            {{ userInfo.roles.length }}
-          </view>
-        </view>
-        <view class="row-item">
-          <view class="row-title">
-            权限数量
-          </view>
-          <view class="row-value">
-            {{ userInfo.permissions.length }}
-          </view>
+          </wd-tag>
+          <wd-tag round plain type="primary" custom-class="app-tag">
+            {{ userInfo.roles.length }} 个角色
+          </wd-tag>
+          <wd-tag round plain type="default" custom-class="app-tag">
+            {{ userInfo.permissions.length }} 项权限
+          </wd-tag>
         </view>
       </view>
     </view>
 
-    <view class="page-section">
-      <view class="section-caption">
-        角色
-      </view>
-      <view class="row-list" v-if="userInfo.roles.length">
-        <view v-for="role in userInfo.roles" :key="role.id" class="row-item">
-          <view class="row-main">
-            <view class="row-title">
-              {{ role.name }}
-            </view>
-            <view class="row-desc">
-              {{ role.description || '无描述' }}
-            </view>
-          </view>
-          <view class="row-value">
-            {{ role.code }}
-          </view>
-        </view>
-      </view>
-      <view v-else class="panel-note">
-        当前账号暂无角色。
-      </view>
-    </view>
+    <AppSection title="基本资料">
+      <wd-cell-group custom-class="app-list-group">
+        <wd-cell title="昵称" :value="userInfo.nickname || '未设置'" custom-value-class="app-kv-emphasis" />
+        <wd-cell title="用户名" :value="userInfo.username || '--'" />
+        <wd-cell title="邮箱" :value="userInfo.email || '未设置'" />
+        <wd-cell title="账号状态" :value="statusText" />
+        <wd-cell title="角色数量" :value="String(userInfo.roles.length)" />
+        <wd-cell title="权限数量" :value="String(userInfo.permissions.length)" />
+      </wd-cell-group>
+    </AppSection>
 
-    <view class="page-section">
-      <view class="section-caption">
-        权限标识
+    <AppSection title="角色">
+      <wd-cell-group v-if="userInfo.roles.length" custom-class="app-list-group">
+        <wd-cell
+          v-for="role in userInfo.roles"
+          :key="role.id"
+          :title="role.name"
+          :label="role.description || '无描述'"
+          :value="role.code"
+        />
+      </wd-cell-group>
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="当前账号暂无角色。" image="collect" custom-class="app-status-tip" />
       </view>
-      <view v-if="userInfo.permissions.length" class="tag-wrap">
-        <view v-for="permission in userInfo.permissions" :key="permission" class="tag">
-          {{ permission }}
+    </AppSection>
+
+    <AppSection title="权限标识" description="以下为当前会话生效的权限代码。">
+      <view v-if="userInfo.permissions.length" class="app-permission-wrap">
+        <view class="app-tag-row app-tag-row--compact">
+          <wd-tag v-for="permission in userInfo.permissions" :key="permission" round plain type="default" custom-class="app-tag">
+            {{ permission }}
+          </wd-tag>
         </view>
       </view>
-      <view v-else class="panel-note">
-        当前账号暂无权限标识。
+      <view v-else class="app-status-wrap">
+        <wd-status-tip tip="当前账号暂无权限标识。" image="collect" custom-class="app-status-tip" />
       </view>
-    </view>
-  </view>
+    </AppSection>
+  </AppPageShell>
 </template>
-
-<style lang="scss" scoped>
-.profile-header {
-  display: flex;
-  align-items: center;
-  padding: 32rpx;
-}
-
-.profile-header__avatar {
-  width: 120rpx;
-  height: 120rpx;
-  flex-shrink: 0;
-  border-radius: 24rpx;
-  background: #e5e7eb;
-}
-
-.profile-header__body {
-  margin-left: 24rpx;
-  min-width: 0;
-  flex: 1;
-}
-
-.profile-header__name {
-  font-size: 38rpx;
-  line-height: 1.4;
-  font-weight: 600;
-  color: #111827;
-}
-
-.profile-header__meta {
-  margin-top: 8rpx;
-  font-size: 24rpx;
-  line-height: 1.5;
-  color: #8b8f97;
-  word-break: break-all;
-}
-</style>

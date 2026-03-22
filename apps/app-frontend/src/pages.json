@@ -36,6 +36,7 @@
       "path": "pages/auth/register",
       "type": "page",
       "style": {
+        "navigationStyle": "custom",
         "navigationBarTitleText": "注册"
       }
     },
