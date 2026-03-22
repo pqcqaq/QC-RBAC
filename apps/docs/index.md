@@ -25,6 +25,8 @@ features:
     details: uni-app + 自定义组件。Header、Tabbar、安全区和登录态都由项目自己控制。
   - title: Shared Contract
     details: packages/api-common 统一权限常量、客户端枚举、请求客户端、适配器和 API 工厂。
+  - title: Built-in Components
+    details: Web 已沉淀出可复用的关联选择组件，文档会同步记录参数、插槽和后端约定。
   - title: OAuth
     details: 同时支持 OAuth/OIDC Provider 与第三方登录客户端模式，包含 PKCE、刷新与用户映射。
   - title: Testing
@@ -35,6 +37,7 @@ features:
 
 - 后端实现：认证、RBAC、OAuth/OIDC、上传、附件、导出、定时任务、Prisma 扩展。
 - Web 前端：登录、动态路由、工作台状态、分页列表、导出、页面组织方式。
+- 内置组件：当前已经抽象并复用的组件，以及它们和后端协议的配套约定。
 - Uni 前端：登录注册、门户、个人页、设置页、自定义 Header / Tabbar / 安全区。
 - 共享抽象：`api-common` 里的类型、权限常量、请求客户端、适配器、API 工厂。
 - 测试体系：框架级测试、业务集成测试、测试基建与运行方式。
@@ -74,5 +77,6 @@ simple-project-demo
 1. 先看 [快速开始](/guide/quick-start)，把数据库、后端、Web、Uni 跑起来。
 2. 再看 [开发指南](/guide/development)，建立整体实现地图。
 3. 按需进入 [后端实现](/guide/backend)、[Web 前端](/guide/web-frontend)、[Uni 前端](/guide/uni-frontend)、[共享抽象](/guide/shared)。
-4. 要补测试或排查回归时，直接看 [测试用例](/guide/testing)。
-5. 真正开始加功能时，再看 [扩展指南](/guide/extension)。
+4. 要复用现成组件时，直接看 [内置组件](/components/)。
+5. 要补测试或排查回归时，直接看 [测试用例](/guide/testing)。
+6. 真正开始加功能时，再看 [扩展指南](/guide/extension)。

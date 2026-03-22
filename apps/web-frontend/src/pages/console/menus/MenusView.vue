@@ -3,8 +3,19 @@
     <template #actions>
       <el-space>
         <el-button @click="reloadAll">刷新结构</el-button>
-        <el-button v-permission="'menu.create'" type="primary" @click="openCreateRootDialog('DIRECTORY')">新增目录</el-button>
-        <el-button v-permission="'menu.create'" type="primary" plain @click="openCreateRootDialog('PAGE')">新增页面</el-button>
+        <el-button
+          v-permission="'menu.create'"
+          type="primary"
+          @click="openCreateRootDialog('DIRECTORY')"
+          >新增目录</el-button
+        >
+        <el-button
+          v-permission="'menu.create'"
+          type="primary"
+          plain
+          @click="openCreateRootDialog('PAGE')"
+          >新增页面</el-button
+        >
       </el-space>
     </template>
 
@@ -53,7 +64,6 @@
       :lock-type="formMode === 'edit' && Boolean(selectedNode?.children.length)"
       :parent-options="parentOptions"
       :page-view-options="pageViewOptions"
-      :permission-groups="permissionGroups"
       :can-assign-permission="canAssignPermission"
       :preview-icon="previewIcon"
       :structure-hint="structureHint"
@@ -76,7 +86,7 @@
 
 <script setup lang="ts">
 import { computed, onMounted, reactive, ref } from 'vue';
-import type { MenuNodeFormPayload, MenuNodeRecord, PermissionSummary } from '@rbac/api-common';
+import type { MenuNodeFormPayload, MenuNodeRecord } from '@rbac/api-common';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
@@ -126,7 +136,6 @@ const saving = ref(false);
 const deleting = ref(false);
 const keyword = ref('');
 const selectedNodeId = ref<string | null>(null);
-const permissions = ref<PermissionSummary[]>([]);
 const tree = ref<MenuNodeRecord[]>([]);
 const expandedNodeIds = ref<string[]>([]);
 const formMode = ref<EditorMode>('create');
@@ -161,11 +170,17 @@ const allNodes = computed(() => flattenNodes(tree.value));
 const totalNodeCount = computed(() => allNodes.value.length);
 const currentNodeKey = computed(() => selectedNodeId.value ?? undefined);
 const selectedNode = computed(() => findNodeById(tree.value, selectedNodeId.value));
-const selectedParentNode = computed(() => findNodeById(tree.value, selectedNode.value?.parentId ?? null));
+const selectedParentNode = computed(() =>
+  findNodeById(tree.value, selectedNode.value?.parentId ?? null),
+);
 const pendingDeleteNode = computed(() => findNodeById(tree.value, pendingDeleteNodeId.value));
-const pendingDeleteDescendantCount = computed(() => pendingDeleteNode.value ? countDescendants(pendingDeleteNode.value) : 0);
+const pendingDeleteDescendantCount = computed(() =>
+  pendingDeleteNode.value ? countDescendants(pendingDeleteNode.value) : 0,
+);
 const filteredTree = computed(() => filterTree(tree.value, keyword.value));
-const treeExpandedKeys = computed(() => keyword.value.trim() ? collectExpandableIds(filteredTree.value) : expandedNodeIds.value);
+const treeExpandedKeys = computed(() =>
+  keyword.value.trim() ? collectExpandableIds(filteredTree.value) : expandedNodeIds.value,
+);
 const expandedBranchCount = computed(() => expandedNodeIds.value.length);
 
 const stats = computed(() => [
@@ -175,7 +190,7 @@ const stats = computed(() => [
   { label: '行为节点', value: allNodes.value.filter((node) => node.type === 'ACTION').length },
 ]);
 
-const editorTitle = computed(() => formMode.value === 'edit' ? '编辑菜单节点' : '新建菜单节点');
+const editorTitle = computed(() => (formMode.value === 'edit' ? '编辑菜单节点' : '新建菜单节点'));
 const editorDescription = computed(() => {
   if (formMode.value === 'edit' && selectedNode.value) {
     return `正在编辑 ${selectedNode.value.title}，修改会立即影响导航树与权限映射。`;
@@ -197,11 +212,13 @@ const inspectorDescription = computed(() => {
   return `${selectedNode.value.code}${selectedNode.value.path ? ` · ${selectedNode.value.path}` : ''}`;
 });
 
-const previewIcon = computed(() => resolveMenuNodeIcon({
-  code: form.code.trim(),
-  type: form.type,
-  icon: form.icon,
-}));
+const previewIcon = computed(() =>
+  resolveMenuNodeIcon({
+    code: form.code.trim(),
+    type: form.type,
+    icon: form.icon,
+  }),
+);
 
 const structureHint = computed(() => resolveStructureHint(form.type));
 
@@ -258,8 +275,10 @@ const openEditor = (mode: EditorMode, payload: MenuNodeFormPayload) => {
   editorVisible.value = true;
 };
 
-const nextSortOrder = (siblings: MenuNodeRecord[]) => Math.max(...siblings.map((item) => item.sortOrder), 0) + 10;
-const resolveDefaultCreateType = (parent: MenuNodeRecord): MenuNodeType => parent.type === 'PAGE' ? 'ACTION' : 'PAGE';
+const nextSortOrder = (siblings: MenuNodeRecord[]) =>
+  Math.max(...siblings.map((item) => item.sortOrder), 0) + 10;
+const resolveDefaultCreateType = (parent: MenuNodeRecord): MenuNodeType =>
+  parent.type === 'PAGE' ? 'ACTION' : 'PAGE';
 
 const resetEditor = () => {
   patchForm(editorSeed.value);
@@ -286,7 +305,11 @@ const handleCollapseNode = (node: MenuNodeRecord) => {
   const collapsedIds = collectDescendantIds(node);
   expandedNodeIds.value = expandedNodeIds.value.filter((id) => !collapsedIds.has(id));
 
-  if (selectedNodeId.value && collapsedIds.has(selectedNodeId.value) && selectedNodeId.value !== node.id) {
+  if (
+    selectedNodeId.value &&
+    collapsedIds.has(selectedNodeId.value) &&
+    selectedNodeId.value !== node.id
+  ) {
     selectedNodeId.value = node.id;
   }
 };
@@ -371,7 +394,7 @@ const openCreateSiblingDialog = (targetNode = selectedNode.value) => {
   syncExpandedPath(targetNode.id);
 
   const siblings = targetNode.parentId
-    ? findNodeById(tree.value, targetNode.parentId)?.children ?? tree.value
+    ? (findNodeById(tree.value, targetNode.parentId)?.children ?? tree.value)
     : tree.value;
 
   openEditor('create', {
@@ -438,13 +461,7 @@ const ensureSelection = (nodes: MenuNodeRecord[]) => {
 const reloadAll = async () => {
   try {
     loading.value = true;
-    const [menuTree] = await Promise.all([
-      api.menus.tree(),
-      api.menus.permissions().then((items) => {
-        permissions.value = items;
-      }),
-      menus.refresh(router),
-    ]);
+    const [menuTree] = await Promise.all([api.menus.tree(), menus.refresh(router)]);
 
     tree.value = menuTree;
     trimExpandedState(menuTree);
@@ -463,7 +480,8 @@ const reloadAll = async () => {
 
 const parentOptions = computed(() => {
   const editingNode = selectedNode.value;
-  const disallowedIds = formMode.value === 'edit' ? collectDescendantIds(editingNode) : new Set<string>();
+  const disallowedIds =
+    formMode.value === 'edit' ? collectDescendantIds(editingNode) : new Set<string>();
   const options: Array<{ id: string; label: string }> = [];
 
   const visit = (nodes: MenuNodeRecord[], depth: number) => {
@@ -472,11 +490,12 @@ const parentOptions = computed(() => {
         return;
       }
 
-      const isAllowedParent = form.type === 'DIRECTORY'
-        ? node.type === 'DIRECTORY'
-        : form.type === 'PAGE'
+      const isAllowedParent =
+        form.type === 'DIRECTORY'
           ? node.type === 'DIRECTORY'
-          : node.type === 'PAGE';
+          : form.type === 'PAGE'
+            ? node.type === 'DIRECTORY'
+            : node.type === 'PAGE';
 
       if (isAllowedParent) {
         options.push({
@@ -494,7 +513,7 @@ const parentOptions = computed(() => {
 });
 
 const pageViewOptions = computed<PageViewOption[]>(() => {
-  const editingId = formMode.value === 'edit' ? selectedNode.value?.id ?? null : null;
+  const editingId = formMode.value === 'edit' ? (selectedNode.value?.id ?? null) : null;
   const usedViewKeys = new Set(
     allNodes.value
       .filter((node) => node.type === 'PAGE' && node.viewKey && node.id !== editingId)
@@ -507,21 +526,6 @@ const pageViewOptions = computed<PageViewOption[]>(() => {
       viewKey: page.viewKey,
       label: `${page.viewKey}${page.title ? ` · ${page.title}` : ''}`,
       disabled: usedViewKeys.has(page.viewKey),
-    }));
-});
-
-const permissionGroups = computed(() => {
-  const grouped = permissions.value.reduce<Record<string, PermissionSummary[]>>((result, permission) => {
-    result[permission.module] ??= [];
-    result[permission.module].push(permission);
-    return result;
-  }, {});
-
-  return Object.entries(grouped)
-    .sort(([left], [right]) => left.localeCompare(right, 'zh-CN'))
-    .map(([module, items]) => ({
-      module,
-      items: items.sort((left, right) => left.code.localeCompare(right.code, 'zh-CN')),
     }));
 });
 
@@ -568,7 +572,7 @@ const saveNode = async () => {
       return;
     }
 
-    const editingNodeId = formMode.value === 'edit' ? selectedNode.value?.id ?? null : null;
+    const editingNodeId = formMode.value === 'edit' ? (selectedNode.value?.id ?? null) : null;
 
     saving.value = true;
     const response = editingNodeId

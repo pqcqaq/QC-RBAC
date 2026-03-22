@@ -16,8 +16,7 @@ import {
 let context: BackendTestContext;
 let refreshExternalOAuthAccessTokens: typeof import('../../src/services/oauth-auth-server').refreshExternalOAuthAccessTokens;
 
-const applicationBasicAuthorization =
-  `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`;
+const applicationBasicAuthorization = `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`;
 
 before(async () => {
   context = await bootstrapBackendTestContext({ mockOAuthProvider: true });
@@ -70,12 +69,15 @@ describe('OAuth integration', () => {
     const editorSession = await loginAs(app, 'oauthappeditor@example.com', 'OauthApp123!');
 
     const permissionOptions = await request(app)
-      .get('/api/oauth/applications/options/permissions')
+      .post('/api/oauth/applications/options/permissions')
       .set('Authorization', `Bearer ${editorSession.tokens.accessToken}`)
+      .send({ page: 1, pageSize: 10, code: 'dashboard.view' })
       .expect(200);
 
     assert.ok(
-      permissionOptions.body.data.some((item: { code: string }) => item.code === 'dashboard.view'),
+      permissionOptions.body.data.items.some(
+        (item: { code: string }) => item.code === 'dashboard.view',
+      ),
     );
 
     await request(app)
@@ -108,14 +110,13 @@ describe('OAuth integration', () => {
       })
       .expect(200);
 
-    const approveDecisionUrl = /href="([^"]*\/oauth2\/authorize\/decision\?[^"]*decision=approve)"/.exec(authorizeResponse.text)?.[1]
+    const approveDecisionUrl = /href="([^"]*\/oauth2\/authorize\/decision\?[^"]*decision=approve)"/
+      .exec(authorizeResponse.text)?.[1]
       ?.replace(/&amp;/g, '&');
     assert.ok(authorizeResponse.text.includes('同意并继续'));
     assert.ok(approveDecisionUrl);
 
-    const decisionResponse = await agent
-      .get(approveDecisionUrl)
-      .expect(302);
+    const decisionResponse = await agent.get(approveDecisionUrl).expect(302);
 
     const redirected = new URL(String(decisionResponse.headers.location));
     assert.equal(redirected.searchParams.get('state'), 'demo-state');
@@ -183,7 +184,9 @@ describe('OAuth integration', () => {
 
     const strategies = await withClientAuth(request(app).get('/api/auth/strategies')).expect(200);
     assert.ok(
-      strategies.body.data.oauthProviders.some((provider: { code: string }) => provider.code === 'demo-provider'),
+      strategies.body.data.oauthProviders.some(
+        (provider: { code: string }) => provider.code === 'demo-provider',
+      ),
     );
 
     const authorizeResult = await withClientAuth(

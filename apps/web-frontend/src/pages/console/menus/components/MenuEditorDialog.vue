@@ -62,7 +62,12 @@
       </el-form-item>
 
       <el-form-item label="描述" class="page-form-grid__full">
-        <el-input v-model="form.description" type="textarea" :rows="3" placeholder="节点说明，可选" />
+        <el-input
+          v-model="form.description"
+          type="textarea"
+          :rows="3"
+          placeholder="节点说明，可选"
+        />
       </el-form-item>
 
       <el-form-item v-if="form.type === 'PAGE'" label="页面路径">
@@ -81,33 +86,39 @@
         </el-select>
       </el-form-item>
 
-      <el-form-item
+      <RelationSelectFormItem
         v-if="form.type !== 'DIRECTORY'"
         v-permission="'menu.assign-permission'"
         label="权限绑定"
         class="page-form-grid__full"
+        v-model="form.permissionId"
+        :disabled="!canAssignPermission"
+        dialog-title="选择权限绑定"
+        trigger-text="选择权限"
+        :request="loadPermissionOptions"
+        :search-defaults="{ q: '' }"
       >
-        <el-select
-          v-model="form.permissionId"
-          clearable
-          filterable
-          :disabled="!canAssignPermission"
-          placeholder="页面与行为节点可绑定权限"
-        >
-          <el-option-group
-            v-for="group in permissionGroups"
-            :key="group.module"
-            :label="group.module"
-          >
-            <el-option
-              v-for="permission in group.items"
-              :key="permission.id"
-              :label="`${permission.name} (${permission.code})`"
-              :value="permission.id"
+        <template #search="{ params, search, reset }">
+          <div class="relation-search-bar">
+            <el-input
+              v-model="params.q"
+              clearable
+              placeholder="搜索权限名称、编码或模块"
+              @keyup.enter="search"
             />
-          </el-option-group>
-        </el-select>
-      </el-form-item>
+            <el-button @click="search">搜索</el-button>
+            <el-button @click="reset">重置</el-button>
+          </div>
+        </template>
+
+        <template #row="{ row }">
+          <div class="menu-permission-option">
+            <strong>{{ row.name }}</strong>
+            <span>{{ row.code }}</span>
+            <p>{{ row.module }} · {{ row.action }}</p>
+          </div>
+        </template>
+      </RelationSelectFormItem>
     </el-form>
 
     <div class="menu-editor__hint">
@@ -132,9 +143,13 @@
 </template>
 
 <script setup lang="ts">
-import type { MenuNodeFormPayload, PermissionSummary } from '@rbac/api-common';
+import type { MenuNodeFormPayload } from '@rbac/api-common';
+import { api } from '@/api/client';
+import RelationSelectFormItem from '@/components/form/RelationSelectFormItem.vue';
 import UnoIconPicker from '@/components/common/UnoIconPicker.vue';
 import { typeOptions, type EditorMode } from '../menu-management';
+
+const loadPermissionOptions = api.menus.permissions;
 
 defineProps<{
   visible: boolean;
@@ -147,7 +162,6 @@ defineProps<{
   structureHint: string;
   parentOptions: Array<{ id: string; label: string }>;
   pageViewOptions: Array<{ viewKey: string; label: string; disabled: boolean }>;
-  permissionGroups: Array<{ module: string; items: PermissionSummary[] }>;
   canAssignPermission: boolean;
   saving: boolean;
   canSubmit: boolean;
@@ -205,6 +219,33 @@ const emit = defineEmits<{
 .menu-editor__hint strong {
   color: var(--ink-1);
   font-size: 13px;
+}
+
+.menu-permission-option {
+  display: grid;
+  gap: 4px;
+}
+
+.relation-search-bar {
+  display: flex;
+  gap: 10px;
+}
+
+.relation-search-bar :deep(.el-input) {
+  flex: 1;
+}
+
+.menu-permission-option strong {
+  font-size: 14px;
+  line-height: 1.4;
+}
+
+.menu-permission-option span,
+.menu-permission-option p {
+  margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 @media (max-width: 860px) {

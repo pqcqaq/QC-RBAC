@@ -24,6 +24,7 @@ export default defineConfig({
       { text: '介绍', link: '/guide/introduction' },
       { text: '快速开始', link: '/guide/quick-start' },
       { text: '开发指南', link: '/guide/development' },
+      { text: '内置组件', link: '/components/' },
       { text: '测试', link: '/guide/testing' },
       { text: '技术选型', link: '/architecture/tech-stack' },
       { text: '赞助', link: '/support/sponsor' },
@@ -55,6 +56,23 @@ export default defineConfig({
           text: '扩展',
           items: [
             { text: '扩展指南', link: '/guide/extension' },
+          ],
+        },
+      ],
+      '/components/': [
+        {
+          text: '内置组件',
+          items: [
+            { text: '总览', link: '/components/' },
+          ],
+        },
+        {
+          text: 'Web',
+          items: [
+            {
+              text: 'RelationSelectFormItem',
+              link: '/components/web/relation-select-form-item',
+            },
           ],
         },
       ],

@@ -3,7 +3,11 @@
     <template #actions>
       <el-space>
         <el-button @click="loadData">刷新</el-button>
-        <el-button v-permission="'oauth-application.create'" type="primary" @click="handleOpenCreate">
+        <el-button
+          v-permission="'oauth-application.create'"
+          type="primary"
+          @click="handleOpenCreate"
+        >
           新增应用
         </el-button>
       </el-space>
@@ -36,7 +40,6 @@
       :title="editingId ? '编辑 OAuth 应用' : '新增 OAuth 应用'"
       :is-editing="Boolean(editingId)"
       :form="form"
-      :permission-options="permissionOptions"
       @save="saveApplication"
     />
 
@@ -50,16 +53,16 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import type {
-  OAuthApplicationFormPayload,
-  OAuthApplicationRecord,
-  PermissionSummary,
-} from '@rbac/api-common';
+import type { OAuthApplicationFormPayload, OAuthApplicationRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { api } from '@/api/client';
 import { usePageState } from '@/composables/use-page-state';
-import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
+import {
+  useResourceDetail,
+  useResourceEditor,
+  useResourceRemoval,
+} from '@/composables/use-resource-crud';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
 import { formatTime } from '../oauth/oauth-management';
@@ -95,7 +98,6 @@ type OAuthApplicationsPageState = {
 
 const auth = useAuthStore();
 const applications = ref<OAuthApplicationRecord[]>([]);
-const permissionOptions = ref<PermissionSummary[]>([]);
 const loading = ref(false);
 const pageSize = 10;
 
@@ -114,7 +116,9 @@ const pagedApplications = computed(() => {
   return applications.value.slice(start, start + pageSize);
 });
 const enabledCount = computed(() => applications.value.filter((item) => item.enabled).length);
-const confidentialCount = computed(() => applications.value.filter((item) => item.clientType === 'CONFIDENTIAL').length);
+const confidentialCount = computed(
+  () => applications.value.filter((item) => item.clientType === 'CONFIDENTIAL').length,
+);
 const permissionScopeCount = computed(() =>
   applications.value.reduce((count, item) => count + item.permissions.length, 0),
 );
@@ -125,16 +129,6 @@ const stats = computed(() => [
   { label: 'Confidential', value: confidentialCount.value },
   { label: '权限 Scope 数', value: permissionScopeCount.value },
 ]);
-
-const loadPermissionOptions = async () => {
-  try {
-    permissionOptions.value = await api.oauth.applications.permissions();
-    return true;
-  } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '加载权限选项失败'));
-    return false;
-  }
-};
 
 const loadData = async () => {
   try {
@@ -166,10 +160,6 @@ const resetFilters = async () => {
   await loadData();
 };
 
-const refreshPageData = async () => {
-  await Promise.all([loadData(), loadPermissionOptions()]);
-};
-
 const {
   dialogVisible,
   editingId,
@@ -177,15 +167,20 @@ const {
   openCreate,
   openEdit,
   save: saveApplication,
-} = useResourceEditor<OAuthApplicationRecord, OAuthApplicationEditorForm, OAuthApplicationFormPayload>({
+} = useResourceEditor<
+  OAuthApplicationRecord,
+  OAuthApplicationEditorForm,
+  OAuthApplicationFormPayload
+>({
   createEmptyForm: createEmptyOAuthApplicationEditorForm,
   getId: (row) => row.id,
   assignForm: assignOAuthApplicationEditorForm,
   buildPayload: (currentForm) => buildOAuthApplicationPayload(currentForm),
   create: (payload) => api.oauth.applications.create(payload),
   update: (id, payload) => api.oauth.applications.update(id, payload),
-  validate: (currentForm, currentEditingId) => validateOAuthApplicationForm(currentForm, currentEditingId),
-  afterSaved: refreshPageData,
+  validate: (currentForm, currentEditingId) =>
+    validateOAuthApplicationForm(currentForm, currentEditingId),
+  afterSaved: loadData,
   messages: {
     createSuccess: 'OAuth 应用已创建',
     updateSuccess: 'OAuth 应用已更新',
@@ -213,34 +208,24 @@ const { removeRecord: removeApplication } = useResourceRemoval<OAuthApplicationR
   afterRemoved: loadData,
 });
 
-const ensurePermissionOptions = async () => {
-  if (permissionOptions.value.length > 0) {
-    return true;
-  }
-
-  return loadPermissionOptions();
-};
-
 const handleOpenCreate = async () => {
-  if (await ensurePermissionOptions()) {
-    openCreate();
-  }
+  openCreate();
 };
 
 const handleOpenEdit = async (row: OAuthApplicationRecord) => {
-  if (await ensurePermissionOptions()) {
-    openEdit(row);
-  }
+  openEdit(row);
 };
 
 const copyApplicationSummary = async (row: OAuthApplicationRecord) => {
   try {
-    await navigator.clipboard.writeText([
-      row.name,
-      row.clientId,
-      formatOAuthApplicationScopeSummary(row),
-      formatOAuthApplicationPermissionSummary(row),
-    ].join('\n'));
+    await navigator.clipboard.writeText(
+      [
+        row.name,
+        row.clientId,
+        formatOAuthApplicationScopeSummary(row),
+        formatOAuthApplicationPermissionSummary(row),
+      ].join('\n'),
+    );
     ElMessage.success('摘要已复制');
   } catch {
     ElMessage.warning('当前环境不支持复制');
@@ -300,6 +285,6 @@ const changePage = async (value: number) => {
 };
 
 onMounted(async () => {
-  await refreshPageData();
+  await loadData();
 });
 </script>

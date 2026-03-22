@@ -43,7 +43,7 @@ describe('Admin resource integration', () => {
     assert.match(duplicateRole.body.message, /Unique constraint failed/);
   });
 
-  it('paginates roles, permissions and realtime message history', async () => {
+  it('paginates roles, permissions, selector options and realtime message history', async () => {
     const { app } = context;
     const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
 
@@ -106,12 +106,49 @@ describe('Admin resource integration', () => {
 
     const rolePage = await request(app)
       .get('/api/roles')
-      .query({ page: 1, pageSize: 10, q: '读者', permissionId: permissionA.body.data.id, roleType: 'custom' })
+      .query({
+        page: 1,
+        pageSize: 10,
+        q: '读者',
+        permissionId: permissionA.body.data.id,
+        roleType: 'custom',
+      })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
 
     assert.equal(rolePage.body.data.meta.total, 1);
     assert.equal(rolePage.body.data.items[0].code, 'custom-reader');
+
+    const roleOptionsPage = await request(app)
+      .post('/api/users/options/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({ page: 1, pageSize: 1, code: 'custom-auditor' })
+      .expect(200);
+
+    assert.equal(roleOptionsPage.body.data.meta.total, 1);
+    assert.equal(roleOptionsPage.body.data.items[0].code, 'custom-auditor');
+
+    const permissionOptionsPage = await request(app)
+      .post('/api/roles/options/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({ page: 1, pageSize: 1, module: 'custom', action: 'read-b' })
+      .expect(200);
+
+    assert.equal(permissionOptionsPage.body.data.meta.total, 1);
+    assert.equal(permissionOptionsPage.body.data.items[0].code, 'custom.read-b');
+
+    const menuPermissionOptions = await request(app)
+      .post('/api/menus/options/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({ page: 1, pageSize: 5, code: 'dashboard.view' })
+      .expect(200);
+
+    assert.ok(menuPermissionOptions.body.data.meta.total >= 1);
+    assert.ok(
+      menuPermissionOptions.body.data.items.some(
+        (item: { code: string }) => item.code === 'dashboard.view',
+      ),
+    );
 
     const messagePage = await request(app)
       .get('/api/realtime/messages')
@@ -122,8 +159,8 @@ describe('Admin resource integration', () => {
     assert.equal(messagePage.body.data.meta.total, 3);
     assert.equal(messagePage.body.data.items.length, 2);
     assert.ok(
-      new Date(messagePage.body.data.items[0].createdAt).getTime()
-      <= new Date(messagePage.body.data.items[1].createdAt).getTime(),
+      new Date(messagePage.body.data.items[0].createdAt).getTime() <=
+        new Date(messagePage.body.data.items[1].createdAt).getTime(),
     );
   });
 
@@ -149,7 +186,9 @@ describe('Admin resource integration', () => {
       .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
-    const dashboardPermission = permissionList.body.data.items.find((item: { code: string }) => item.code === 'dashboard.view');
+    const dashboardPermission = permissionList.body.data.items.find(
+      (item: { code: string }) => item.code === 'dashboard.view',
+    );
 
     const lockedPermission = await request(app)
       .put(`/api/permissions/${dashboardPermission.id}`)
@@ -170,7 +209,9 @@ describe('Admin resource integration', () => {
       .query({ page: 1, pageSize: 50 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
-    const memberRole = roleList.body.data.items.find((item: { code: string }) => item.code === 'member');
+    const memberRole = roleList.body.data.items.find(
+      (item: { code: string }) => item.code === 'member',
+    );
 
     const lockedRole = await request(app)
       .put(`/api/roles/${memberRole.id}`)

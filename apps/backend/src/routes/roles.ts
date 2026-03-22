@@ -8,8 +8,12 @@ import { badRequest, notFound } from '../utils/errors';
 import { ok, asyncHandler, parsePagination } from '../utils/http';
 import { findAffectedUserIdsByRoleIds } from '../utils/rbac';
 import { publishRbacMutation } from '../utils/rbac-mutation';
-import { roleWithPermissionSummaryInclude, toPermissionSummary, toRoleRecord } from '../utils/rbac-records';
+import { roleWithPermissionSummaryInclude, toRoleRecord } from '../utils/rbac-records';
 import { withSnowflakeId } from '../utils/persistence';
+import {
+  listPermissionSummaries,
+  parsePermissionSummarySearchPayload,
+} from '../services/rbac-options';
 import { softDeleteRole, syncRolePermissions } from '../services/rbac-write';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
@@ -28,7 +32,7 @@ const sameStringSet = (left: string[], right: string[]) => {
     return false;
   }
   const rightSet = new Set(right);
-  return left.every(item => rightSet.has(item));
+  return left.every((item) => rightSet.has(item));
 };
 
 const rolesRouter = Router();
@@ -73,13 +77,24 @@ const buildRoleWhere = ({ q, permissionId, roleType }: RoleListQuery): Prisma.Ro
 
 rolesRouter.use(authMiddleware);
 
+const handlePermissionOptions = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await listPermissionSummaries(parsePermissionSummarySearchPayload(req)),
+    'Permission options',
+  );
+});
+
 rolesRouter.get(
   '/options/permissions',
   requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
-  asyncHandler(async (_req, res) => {
-    const permissions = await prisma.permission.findMany({ orderBy: [{ module: 'asc' }, { action: 'asc' }] });
-    return ok(res, permissions.map(toPermissionSummary), 'Permission options');
-  }),
+  handlePermissionOptions,
+);
+
+rolesRouter.post(
+  '/options/permissions',
+  requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
+  handlePermissionOptions,
 );
 
 rolesRouter.get(
@@ -128,10 +143,14 @@ rolesRouter.get(
       { header: '角色编码', width: 22, value: (row) => row.code },
       { header: '角色名称', width: 20, value: (row) => row.name },
       { header: '角色描述', width: 34, value: (row) => row.description },
-      { header: '角色类型', width: 12, value: (row) => row.isSystem ? '系统角色' : '自定义角色' },
+      { header: '角色类型', width: 12, value: (row) => (row.isSystem ? '系统角色' : '自定义角色') },
       { header: '成员数', width: 12, value: (row) => row.users.length },
       { header: '权限数', width: 12, value: (row) => row.permissions.length },
-      { header: '权限清单', width: 40, value: (row) => row.permissions.map(({ permission }) => permission.code).join(' / ') },
+      {
+        header: '权限清单',
+        width: 40,
+        value: (row) => row.permissions.map(({ permission }) => permission.code).join(' / '),
+      },
       { header: '创建时间', width: 22, value: (row) => row.createdAt },
       { header: '更新时间', width: 22, value: (row) => row.updatedAt },
     ],
@@ -214,7 +233,13 @@ rolesRouter.put(
       select: { permissionId: true },
     });
     const nextPermissionIds = [...new Set(payload.permissionIds)];
-    if (!sameStringSet(currentPermissionIds.map(item => item.permissionId), nextPermissionIds) && !actor.permissions.includes('role.assign-permission')) {
+    if (
+      !sameStringSet(
+        currentPermissionIds.map((item) => item.permissionId),
+        nextPermissionIds,
+      ) &&
+      !actor.permissions.includes('role.assign-permission')
+    ) {
       throw badRequest('Missing permission: role.assign-permission');
     }
 

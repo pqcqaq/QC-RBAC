@@ -38,7 +38,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 默认会先：
 
-- `prisma generate`
+- `prisma db push --force-reset --accept-data-loss`
 - `tsc -p tsconfig.test.json --noEmit`
 - 再执行 `node --import tsx --test`
 
@@ -64,7 +64,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 ### `integration/admin-resources.test.ts`
 
 - `returns 400 instead of 500 for duplicate unique values`：验证后台资源写入唯一键冲突时返回 400，而不是 500。
-- `paginates roles, permissions and realtime message history`：验证角色、权限、实时消息列表的分页和筛选行为正常。
+- `paginates roles, permissions, selector options and realtime message history`：验证角色、权限、实时消息列表，以及用户角色 / 角色权限 / 菜单权限这些选择器选项接口都支持 `POST + body` 分页和按字段搜索。
 - `protects audit logs and immutable seed identifiers`：验证审计日志权限受保护，系统种子权限和系统角色的关键标识不可随意改。
 - `supports full admin CRUD lifecycle and avatar upload`：验证后台用户、角色、权限的完整 CRUD 主链路，以及头像上传和回收流程。
 
@@ -92,7 +92,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 ### `integration/oauth.test.ts`
 
-- `exposes oauth application permission options without depending on role management permissions`：验证 OAuth 应用的权限 scope 选项接口独立受 `oauth-application.*` 权限控制，不依赖角色管理权限。
+- `exposes oauth application permission options without depending on role management permissions`：验证 OAuth 应用的权限 scope 选项接口独立受 `oauth-application.*` 权限控制，同时支持 `POST + body` 分页和按字段搜索，不依赖角色管理权限。
 - `supports authorization code + PKCE + userinfo + protected api`：验证系统作为 OAuth/OIDC Provider 时，浏览器可从 consent 页真实点击“同意并继续”，并完成授权码、PKCE、userinfo、受保护 API、introspect、revoke 的完整协议链路。
 - `supports upstream oauth login, ticket exchange and refresh task`：验证系统作为 OAuth Client 时，第三方登录回调、本地 ticket 交换和外部 access token 刷新任务的完整链路。
 - `reuses an existing provider link for the same user when the upstream subject changes`：验证第三方账号 subject 变化但仍映射到同一本地用户时，会更新已有 provider 关联，而不是重复插入触发唯一约束错误。

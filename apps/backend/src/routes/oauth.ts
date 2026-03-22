@@ -1,10 +1,12 @@
-import { Router, type Request } from 'express';
+import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
 import { ok, asyncHandler } from '../utils/http';
-import { toPermissionSummary } from '../utils/rbac-records';
+import {
+  listPermissionSummaries,
+  parsePermissionSummarySearchPayload,
+} from '../services/rbac-options';
 import {
   createOAuthApplication,
   createOAuthProvider,
@@ -72,11 +74,23 @@ const oauthManagementRouter = Router();
 
 oauthManagementRouter.use(authMiddleware);
 
+const handleOAuthApplicationPermissionOptions = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await listPermissionSummaries(parsePermissionSummarySearchPayload(req)),
+    'OAuth application permission options',
+  );
+});
+
 oauthManagementRouter.get(
   '/providers',
   requirePermission('oauth-provider.read'),
   asyncHandler(async (req, res) => {
-    return ok(res, await listOAuthProviders(req.query as { q?: string; enabled?: string }), 'OAuth provider list');
+    return ok(
+      res,
+      await listOAuthProviders(req.query as { q?: string; enabled?: string }),
+      'OAuth provider list',
+    );
   }),
 );
 
@@ -92,7 +106,11 @@ oauthManagementRouter.post(
   '/providers',
   requirePermission('oauth-provider.create'),
   asyncHandler(async (req, res) => {
-    return ok(res, await createOAuthProvider(oauthProviderPayloadSchema.parse(req.body)), 'OAuth provider created');
+    return ok(
+      res,
+      await createOAuthProvider(oauthProviderPayloadSchema.parse(req.body)),
+      'OAuth provider created',
+    );
   }),
 );
 
@@ -130,21 +148,33 @@ oauthManagementRouter.get(
 
 oauthManagementRouter.get(
   '/applications/options/permissions',
-  requireAnyPermission('oauth-application.read', 'oauth-application.create', 'oauth-application.update'),
-  asyncHandler(async (_req, res) => {
-    const permissions = await prisma.permission.findMany({
-      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
-    });
+  requireAnyPermission(
+    'oauth-application.read',
+    'oauth-application.create',
+    'oauth-application.update',
+  ),
+  handleOAuthApplicationPermissionOptions,
+);
 
-    return ok(res, permissions.map(toPermissionSummary), 'OAuth application permission options');
-  }),
+oauthManagementRouter.post(
+  '/applications/options/permissions',
+  requireAnyPermission(
+    'oauth-application.read',
+    'oauth-application.create',
+    'oauth-application.update',
+  ),
+  handleOAuthApplicationPermissionOptions,
 );
 
 oauthManagementRouter.get(
   '/applications/:id',
   requirePermission('oauth-application.read'),
   asyncHandler(async (req, res) => {
-    return ok(res, await getOAuthApplicationById(String(req.params.id)), 'OAuth application detail');
+    return ok(
+      res,
+      await getOAuthApplicationById(String(req.params.id)),
+      'OAuth application detail',
+    );
   }),
 );
 
@@ -166,7 +196,10 @@ oauthManagementRouter.put(
   asyncHandler(async (req, res) => {
     return ok(
       res,
-      await updateOAuthApplication(String(req.params.id), oauthApplicationPayloadSchema.parse(req.body)),
+      await updateOAuthApplication(
+        String(req.params.id),
+        oauthApplicationPayloadSchema.parse(req.body),
+      ),
       'OAuth application updated',
     );
   }),
@@ -176,7 +209,11 @@ oauthManagementRouter.delete(
   '/applications/:id',
   requirePermission('oauth-application.delete'),
   asyncHandler(async (req, res) => {
-    return ok(res, await removeOAuthApplication(String(req.params.id)), 'OAuth application deleted');
+    return ok(
+      res,
+      await removeOAuthApplication(String(req.params.id)),
+      'OAuth application deleted',
+    );
   }),
 );
 

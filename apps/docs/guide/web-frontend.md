@@ -142,6 +142,7 @@ pages/console/<module>
 - `useResourceEditor`：统一处理新增 / 编辑弹窗。
 - `useResourceDetail`：统一处理详情抽屉。
 - `useResourceRemoval`：统一处理删除确认和错误反馈。
+- `RelationSelectFormItem`：统一处理表单里的外键 / 关联选择，内置弹窗、分页、单选 / 多选和 `update:modelValue` 回填。
 - `ListExportButton`：直接对接导出接口。
 - `useDownload`：处理流式下载、文件名解析和进度显示。
 
@@ -152,11 +153,27 @@ pages/console/<module>
 - `pages/console/oauth-providers/OAuthProvidersView.vue`
 - `pages/console/oauth-applications/OAuthApplicationsView.vue`
 
+`RelationSelectFormItem` 的使用方式：
+
+- 页面或弹窗只传分页接口，例如 `api.users.roles`、`api.roles.permissions`、`api.menus.permissions`。
+- 组件内部统一处理弹窗开关、分页状态和已选值回填。
+- 搜索区不在组件里写死，通过 `#search` 插槽拿到 `params`、`search`、`reset`，由页面自己决定放输入框、选择器还是组合筛选表单。
+- `params` 是一个扁平对象，直接对应后端选项接口 body；例如 `params.q`、`params.code`、`params.module`。
+- 行内容通过 `#row` 插槽自定义，所以同一组件既能渲染角色卡片，也能渲染权限列表。
+- 详细参数、插槽和示例见 [RelationSelectFormItem](/components/web/relation-select-form-item)。
+- 当前已经替换：
+  - 用户编辑里的角色分配
+  - 角色编辑里的权限分配
+  - OAuth 应用里的权限 scope 分配
+  - 菜单编辑里的权限绑定
+
 补充约定：
 
 - 如果后端列表接口本身支持分页，前端直接请求 `page` / `pageSize`。
 - 如果后端暂时返回完整数组，前端页面会在筛选结果上做本地分页，但仍保持同一套表格、筛选和详情结构。
-- OAuth 应用页的权限选择不再复用角色管理接口，而是走 `api.oauth.applications.permissions()`，避免权限边界串到 `role.*`。
+- 关联选择组件优先接分页接口，不要在弹窗里一次性拉全量选项。
+- 关联选择的分页接口统一使用 `POST`，把 `page`、`pageSize` 和搜索字段放进 body，不再依赖 URL query。
+- OAuth 应用页的权限选择继续走 `api.oauth.applications.permissions()`，避免权限边界串到 `role.*`。
 
 ## 控制台布局
 

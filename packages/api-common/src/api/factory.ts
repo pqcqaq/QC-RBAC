@@ -5,9 +5,9 @@ import type {
   AuthSession,
   CurrentUser,
   LoginPayload,
-  PermissionSummary,
+  PaginatedPermissionSummaries,
+  PaginatedRoleSummaries,
   RegisterPayload,
-  RoleSummary,
   SendVerificationCodePayload,
   UserPreferences,
   VerificationCodeSendResult,
@@ -52,7 +52,7 @@ import type {
   UserPermissionSource,
   UserRecord,
 } from '../types/rbac';
-import type { PaginatedResult, QueryParams } from '../types/common';
+import type { OptionSearchPayload, PaginatedResult, QueryParams } from '../types/common';
 
 type CrudResourceOptions = {
   resource: string;
@@ -60,16 +60,27 @@ type CrudResourceOptions = {
   exportFileName?: string;
 };
 
-const createDownloadEndpoint = <TParams extends QueryParams | undefined = QueryParams | undefined>(
-  resource: string,
-  fileName?: string,
-) =>
+const createDownloadEndpoint =
+  <TParams extends QueryParams | undefined = QueryParams | undefined>(
+    resource: string,
+    fileName?: string,
+  ) =>
   (params?: TParams): DownloadRequestConfig => ({
     url: resource,
     method: 'GET',
     params,
     ...(fileName ? { fileName } : {}),
   });
+
+const createOptionSearchEndpoint =
+  (client: ReturnType<typeof createRequestClient>) =>
+  <TResult, TPayload extends OptionSearchPayload = OptionSearchPayload>(resource: string) =>
+  (payload?: TPayload) =>
+    client.request<TResult>({
+      url: resource,
+      method: 'POST',
+      data: payload ?? {},
+    });
 
 const createCrudEndpoints = <
   TRecord,
@@ -82,45 +93,69 @@ const createCrudEndpoints = <
 ) => ({
   list: (params?: TListParams) => client.request<TListResult>({ url: resource, params }),
   detail: (id: string) => client.request<TRecord>({ url: `${resource}/${id}` }),
-  create: (payload: TForm) => client.request<TRecord>({ url: resource, method: 'POST', data: payload }),
-  update: (id: string, payload: TForm) => client.request<TRecord>({ url: `${resource}/${id}`, method: 'PUT', data: payload }),
-  remove: (id: string) => client.request<{ ok: true }>({ url: `${resource}/${id}`, method: 'DELETE' }),
-  export: createDownloadEndpoint<TListParams>(exportResource ?? `${resource}/export`, exportFileName),
+  create: (payload: TForm) =>
+    client.request<TRecord>({ url: resource, method: 'POST', data: payload }),
+  update: (id: string, payload: TForm) =>
+    client.request<TRecord>({ url: `${resource}/${id}`, method: 'PUT', data: payload }),
+  remove: (id: string) =>
+    client.request<{ ok: true }>({ url: `${resource}/${id}`, method: 'DELETE' }),
+  export: createDownloadEndpoint<TListParams>(
+    exportResource ?? `${resource}/export`,
+    exportFileName,
+  ),
 });
 
 export const createApiFactory = (options: ClientOptions) => {
   const client = createRequestClient(options);
-  const userCrud = createCrudEndpoints<
-    UserRecord,
-    UserFormPayload,
-    PaginatedResult<UserRecord>
-  >(client, { resource: '/users', exportFileName: 'users.xlsx' });
+  const createOptionSearch = createOptionSearchEndpoint(client);
+  const userCrud = createCrudEndpoints<UserRecord, UserFormPayload, PaginatedResult<UserRecord>>(
+    client,
+    { resource: '/users', exportFileName: 'users.xlsx' },
+  );
   const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload, PaginatedRoles>(client, {
     resource: '/roles',
     exportFileName: 'roles.xlsx',
   });
-  const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload, PaginatedPermissions>(client, {
+  const permissionCrud = createCrudEndpoints<
+    PermissionRecord,
+    PermissionFormPayload,
+    PaginatedPermissions
+  >(client, {
     resource: '/permissions',
     exportFileName: 'permissions.xlsx',
   });
-  const clientCrud = createCrudEndpoints<AuthClientRecord, AuthClientFormPayload, PaginatedAuthClients>(client, {
+  const clientCrud = createCrudEndpoints<
+    AuthClientRecord,
+    AuthClientFormPayload,
+    PaginatedAuthClients
+  >(client, {
     resource: '/clients',
     exportFileName: 'clients.xlsx',
   });
-  const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
-  const oauthProviderCrud = createCrudEndpoints<OAuthProviderRecord, OAuthProviderFormPayload>(client, {
-    resource: '/oauth/providers',
+  const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, {
+    resource: '/menus',
   });
-  const oauthApplicationCrud = createCrudEndpoints<OAuthApplicationRecord, OAuthApplicationFormPayload>(client, {
-    resource: '/oauth/applications',
-  });
-  const attachmentCrud = createCrudEndpoints<MediaAssetRecord, MediaAssetUpdatePayload, PaginatedMediaAssets, MediaAssetListQuery>(
+  const oauthProviderCrud = createCrudEndpoints<OAuthProviderRecord, OAuthProviderFormPayload>(
     client,
     {
-      resource: '/attachments',
-      exportFileName: 'attachments.xlsx',
+      resource: '/oauth/providers',
     },
   );
+  const oauthApplicationCrud = createCrudEndpoints<
+    OAuthApplicationRecord,
+    OAuthApplicationFormPayload
+  >(client, {
+    resource: '/oauth/applications',
+  });
+  const attachmentCrud = createCrudEndpoints<
+    MediaAssetRecord,
+    MediaAssetUpdatePayload,
+    PaginatedMediaAssets,
+    MediaAssetListQuery
+  >(client, {
+    resource: '/attachments',
+    exportFileName: 'attachments.xlsx',
+  });
 
   return {
     auth: {
@@ -131,18 +166,42 @@ export const createApiFactory = (options: ClientOptions) => {
           params: returnTo ? { returnTo } : undefined,
         }),
       exchangeOauthTicket: (ticket: string) =>
-        client.request<AuthSession>({ url: '/auth/oauth/tickets/exchange', method: 'POST', data: { ticket } }),
+        client.request<AuthSession>({
+          url: '/auth/oauth/tickets/exchange',
+          method: 'POST',
+          data: { ticket },
+        }),
       sendVerificationCode: (payload: SendVerificationCodePayload) =>
-        client.request<VerificationCodeSendResult>({ url: '/auth/verification-codes/send', method: 'POST', data: payload }),
+        client.request<VerificationCodeSendResult>({
+          url: '/auth/verification-codes/send',
+          method: 'POST',
+          data: payload,
+        }),
       verifyVerificationCode: (payload: VerifyVerificationCodePayload) =>
-        client.request<VerificationCodeVerifyResult>({ url: '/auth/verification-codes/verify', method: 'POST', data: payload }),
-      login: (payload: LoginPayload) => client.request<AuthSession>({ url: '/auth/login', method: 'POST', data: payload }),
-      register: (payload: RegisterPayload) => client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
+        client.request<VerificationCodeVerifyResult>({
+          url: '/auth/verification-codes/verify',
+          method: 'POST',
+          data: payload,
+        }),
+      login: (payload: LoginPayload) =>
+        client.request<AuthSession>({ url: '/auth/login', method: 'POST', data: payload }),
+      register: (payload: RegisterPayload) =>
+        client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
       me: () => client.request<CurrentUser>({ url: '/auth/me' }),
       updatePreferences: (payload: UserPreferences) =>
         client.request<UserPreferences>({ url: '/auth/preferences', method: 'PUT', data: payload }),
-      refresh: (refreshToken: string) => client.request<AuthSession>({ url: '/auth/refresh', method: 'POST', data: { refreshToken } }),
-      logout: (refreshToken: string) => client.request<{ ok: true }>({ url: '/auth/logout', method: 'POST', data: { refreshToken } }),
+      refresh: (refreshToken: string) =>
+        client.request<AuthSession>({
+          url: '/auth/refresh',
+          method: 'POST',
+          data: { refreshToken },
+        }),
+      logout: (refreshToken: string) =>
+        client.request<{ ok: true }>({
+          url: '/auth/logout',
+          method: 'POST',
+          data: { refreshToken },
+        }),
     },
     dashboard: {
       summary: () => client.request<DashboardSummary>({ url: '/dashboard/summary' }),
@@ -154,12 +213,13 @@ export const createApiFactory = (options: ClientOptions) => {
     },
     users: {
       ...userCrud,
-      permissionSources: (id: string) => client.request<UserPermissionSource>({ url: `/users/${id}/permission-sources` }),
-      roles: () => client.request<RoleSummary[]>({ url: '/users/options/roles' }),
+      permissionSources: (id: string) =>
+        client.request<UserPermissionSource>({ url: `/users/${id}/permission-sources` }),
+      roles: createOptionSearch<PaginatedRoleSummaries>('/users/options/roles'),
     },
     roles: {
       ...roleCrud,
-      permissions: () => client.request<PermissionSummary[]>({ url: '/roles/options/permissions' }),
+      permissions: createOptionSearch<PaginatedPermissionSummaries>('/roles/options/permissions'),
     },
     permissions: {
       ...permissionCrud,
@@ -172,20 +232,32 @@ export const createApiFactory = (options: ClientOptions) => {
       providers: oauthProviderCrud,
       applications: {
         ...oauthApplicationCrud,
-        permissions: () => client.request<PermissionSummary[]>({ url: '/oauth/applications/options/permissions' }),
+        permissions: createOptionSearch<PaginatedPermissionSummaries>(
+          '/oauth/applications/options/permissions',
+        ),
       },
     },
     menus: {
       ...menuCrud,
       current: () => client.request<MenuNodeRecord[]>({ url: '/menus/current' }),
       tree: menuCrud.list,
-      permissions: () => client.request<PermissionSummary[]>({ url: '/menus/options/permissions' }),
+      permissions: createOptionSearch<PaginatedPermissionSummaries>(
+        '/menus/options/permissions',
+      ),
     },
     files: {
       prepareUpload: (payload: UploadPreparePayload) =>
-        client.request<UploadPrepareResult>({ url: '/files/presign', method: 'POST', data: payload }),
+        client.request<UploadPrepareResult>({
+          url: '/files/presign',
+          method: 'POST',
+          data: payload,
+        }),
       completeUpload: (payload: UploadCallbackPayload) =>
-        client.request<UploadCallbackResult>({ url: '/files/callback', method: 'POST', data: payload }),
+        client.request<UploadCallbackResult>({
+          url: '/files/callback',
+          method: 'POST',
+          data: payload,
+        }),
     },
     attachments: {
       ...attachmentCrud,
@@ -194,7 +266,12 @@ export const createApiFactory = (options: ClientOptions) => {
       history: (params?: Record<string, string | number | boolean | undefined>) =>
         client.request<PaginatedLiveMessages>({ url: '/realtime/messages', params }),
       exportHistory: createDownloadEndpoint('/realtime/messages/export', 'live-messages.xlsx'),
-      post: (content: string) => client.request<LiveMessage>({ url: '/realtime/messages', method: 'POST', data: { content } }),
+      post: (content: string) =>
+        client.request<LiveMessage>({
+          url: '/realtime/messages',
+          method: 'POST',
+          data: { content },
+        }),
     },
   };
 };

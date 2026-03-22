@@ -1,4 +1,5 @@
 import type { PermissionCode } from '../constants/permissions';
+import type { PaginatedResult } from './common';
 import type { AuthClientSummary } from './auth-client';
 import type { OAuthProviderPublicSummary } from './oauth';
 
@@ -110,6 +111,9 @@ export interface PermissionSummary {
   description?: string;
 }
 
+export type PaginatedRoleSummaries = PaginatedResult<RoleSummary>;
+export type PaginatedPermissionSummaries = PaginatedResult<PermissionSummary>;
+
 export type WorkbenchSidebarAppearance = 'light' | 'dark';
 export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
 export type WorkbenchPageTransitionMode = 'none' | 'fade' | 'slide';
@@ -156,4 +160,3 @@ export interface AuthSession {
   user: CurrentUser;
   client: AuthClientSummary;
 }
-

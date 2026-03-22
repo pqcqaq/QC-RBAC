@@ -42,6 +42,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 | [Web 前端](/guide/web-frontend) | 登录、动态菜单路由、工作台状态、分页列表、导出 | `apps/web-frontend/src/**` |
 | [Uni 前端](/guide/uni-frontend) | 登录注册、门户、个人页、设置页、自定义 Header / Tabbar / Safe Area | `apps/app-frontend/src/**` |
 | [共享抽象](/guide/shared) | 权限常量、客户端枚举、请求客户端、适配器、API 工厂 | `packages/api-common/src/**` |
+| [内置组件](/components/) | 当前已经稳定复用的组件、参数、插槽和使用示例 | `apps/web-frontend/src/components/**` |
 | [测试用例](/guide/testing) | framework / integration 测试文件、覆盖点、运行方式 | `apps/backend/test/**` |
 | [扩展指南](/guide/extension) | 新增模块、新增客户端类型、新增列表页与测试的具体步骤 | 跨端操作说明 |
 
@@ -50,6 +51,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 - 权限码由 `packages/api-common/src/constants/permissions.ts` 统一维护，后端 seed 和前端权限判断都依赖它。
 - 后端列表接口统一使用分页，前端列表页统一通过 `page` / `pageSize` 请求并保留筛选状态。
 - 列表导出统一走后端 `createExcelExportHandler` 和前端 `useDownload` / `ListExportButton`。
+- 表单里的关联选择统一使用 `RelationSelectFormItem`，搜索区走插槽，选项接口统一走 `POST + body`。
 - Web 控制台页面默认采用 `View.vue + components/ + *-management.ts` 的结构。
 - Uni 页面统一使用自定义组件和 `navigationStyle: 'custom'`，不显示原生 Header。
 - 受管模型删除时会自动做引用检查，引用关系来自 Prisma DMMF，不需要手填 refs 映射。
@@ -59,6 +61,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 
 1. 先读 [后端实现](/guide/backend)，理解数据模型和 API 是怎么工作的。
 2. 再读 [Web 前端](/guide/web-frontend)，理解控制台页面是如何接后端能力的。
-3. 如果要改移动端，再读 [Uni 前端](/guide/uni-frontend)。
-4. 如果要补测试、查覆盖面或定位回归，直接读 [测试用例](/guide/testing)。
-5. 如果要动共享协议或新增客户端类型，直接读 [共享抽象](/guide/shared) 和 [扩展指南](/guide/extension)。
+3. 如果要复用现成组件，直接读 [内置组件](/components/)。
+4. 如果要改移动端，再读 [Uni 前端](/guide/uni-frontend)。
+5. 如果要补测试、查覆盖面或定位回归，直接读 [测试用例](/guide/testing)。
+6. 如果要动共享协议或新增客户端类型，直接读 [共享抽象](/guide/shared) 和 [扩展指南](/guide/extension)。

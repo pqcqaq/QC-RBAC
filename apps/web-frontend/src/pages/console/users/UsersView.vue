@@ -41,20 +41,13 @@
       v-model:visible="dialogVisible"
       :title="editingId ? '编辑用户' : '创建用户'"
       :form="form"
-      :role-options="roleOptions"
       :can-assign-roles="canAssignRoles"
       @save="saveUser"
     />
 
-    <UserPermissionSourceDrawer
-      v-model:visible="drawerVisible"
-      :source="permissionSource"
-    />
+    <UserPermissionSourceDrawer v-model:visible="drawerVisible" :source="permissionSource" />
 
-    <UserDetailDrawer
-      v-model:visible="detailVisible"
-      :user="detailUser"
-    />
+    <UserDetailDrawer v-model:visible="detailVisible" :user="detailUser" />
   </PageScaffold>
 </template>
 
@@ -66,10 +59,15 @@ import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
-import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
+import {
+  useResourceDetail,
+  useResourceEditor,
+  useResourceRemoval,
+} from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
+import { fetchAllPaginatedItems } from '@/utils/paginated';
 import UserDetailDrawer from './components/UserDetailDrawer.vue';
 import UserEditorDialog from './components/UserEditorDialog.vue';
 import UserPermissionSourceDrawer from './components/UserPermissionSourceDrawer.vue';
@@ -173,7 +171,7 @@ const loadUsers = async () => {
 
 const loadRoleOptions = async () => {
   try {
-    roleOptions.value = await api.users.roles();
+    roleOptions.value = await fetchAllPaginatedItems(api.users.roles);
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '加载角色选项失败'));
   }

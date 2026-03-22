@@ -68,6 +68,9 @@ pages/console/<module>
 - `useResourceDetail`
 - `useResourceRemoval`
 - `ListExportButton`
+- `RelationSelectFormItem`
+
+如果页面里有外键或多对多选择，不要再手写一个新的弹窗选择器，优先复用 `RelationSelectFormItem`，并让搜索表单走 `#search` 插槽。
 
 ### 7. Uni 页面
 
@@ -103,6 +106,7 @@ pages/console/<module>
 - 新增页面或菜单，更新 `guide/web-frontend.md` 或 `guide/uni-frontend.md`
 - 新增接口、实体、后台能力，更新 `guide/backend.md`
 - 新增共享类型或 API，更新 `guide/shared.md`
+- 新增或重构内置组件，更新 `components/**`
 - 新增测试或测试拆分，更新 `guide/testing.md`
 
 ## 新增一个列表页并支持导出
@@ -111,6 +115,7 @@ pages/console/<module>
 
 1. 写分页查询接口。
 2. 使用 `createExcelExportHandler(...)` 增加 `/export`。
+3. 如果要给表单里的关联选择器复用，再单独提供 options 接口。
 
 前端：
 
@@ -119,6 +124,13 @@ pages/console/<module>
 3. 如果后端暂时返回完整数组，前端可以在筛选结果上做本地分页，但要在文档里明确说明。
 
 这样导出和列表会天然共享同一套筛选条件。
+
+如果这个列表还会被表单里的关联选择器复用，额外遵守：
+
+1. options 接口统一用 `POST`。
+2. 查询参数放在 body，至少包含 `page`、`pageSize`。
+3. 业务过滤字段直接平铺，不再包一层 `search`。
+4. 返回值统一为 `items + meta`。
 
 ## 新增客户端类型
 

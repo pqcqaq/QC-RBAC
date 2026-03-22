@@ -1,9 +1,12 @@
 import { Router } from 'express';
 import type { MenuNodeFormPayload } from '@rbac/api-common';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
+import {
+  listPermissionSummaries,
+  parsePermissionSummarySearchPayload,
+} from '../services/rbac-options';
 import {
   createMenuNode,
   deleteMenuNode,
@@ -16,7 +19,6 @@ import { ok, asyncHandler } from '../utils/http';
 import { badRequest } from '../utils/errors';
 import { findAllUserIds } from '../utils/rbac';
 import { publishRbacMutation } from '../utils/rbac-mutation';
-import { toPermissionSummary } from '../utils/rbac-records';
 
 const menuPayloadSchema = z.object({
   code: z.string().min(2).max(48),
@@ -32,11 +34,20 @@ const menuPayloadSchema = z.object({
   permissionId: z.string().optional().nullable(),
 });
 
-const samePermissionAssignment = (left?: string | null, right?: string | null) => (left ?? null) === (right ?? null);
+const samePermissionAssignment = (left?: string | null, right?: string | null) =>
+  (left ?? null) === (right ?? null);
 
 const menusRouter = Router();
 
 menusRouter.use(authMiddleware);
+
+const handleMenuPermissionOptions = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await listPermissionSummaries(parsePermissionSummarySearchPayload(req)),
+    'Menu permission options',
+  );
+});
 
 menusRouter.get(
   '/current',
@@ -48,13 +59,13 @@ menusRouter.get(
 menusRouter.get(
   '/options/permissions',
   requireAnyPermission('menu.read', 'menu.create', 'menu.update', 'menu.assign-permission'),
-  asyncHandler(async (_req, res) => {
-    const permissions = await prisma.permission.findMany({
-      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
-    });
+  handleMenuPermissionOptions,
+);
 
-    return ok(res, permissions.map(toPermissionSummary), 'Menu permission options');
-  }),
+menusRouter.post(
+  '/options/permissions',
+  requireAnyPermission('menu.read', 'menu.create', 'menu.update', 'menu.assign-permission'),
+  handleMenuPermissionOptions,
 );
 
 menusRouter.get(
@@ -106,7 +117,10 @@ menusRouter.put(
     const payload = menuPayloadSchema.parse(req.body) satisfies MenuNodeFormPayload;
     const current = await getMenuNodeOrThrow(menuId);
 
-    if (!samePermissionAssignment(current.permissionId, payload.permissionId) && !actor.permissions.includes('menu.assign-permission')) {
+    if (
+      !samePermissionAssignment(current.permissionId, payload.permissionId) &&
+      !actor.permissions.includes('menu.assign-permission')
+    ) {
       throw badRequest('Missing permission: menu.assign-permission');
     }
 

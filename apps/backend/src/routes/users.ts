@@ -8,9 +8,10 @@ import { badRequest, notFound } from '../utils/errors';
 import { ok, asyncHandler, parsePagination } from '../utils/http';
 import { getPermissionSource } from '../utils/rbac';
 import { publishRbacMutation } from '../utils/rbac-mutation';
-import { toRoleSummary, toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records';
+import { toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records';
 import { withSnowflakeId } from '../utils/persistence';
 import { authService } from '../services/auth-service';
+import { listRoleSummaries, parseRoleSummarySearchPayload } from '../services/rbac-options';
 import { softDeleteUser, syncUserRoles } from '../services/rbac-write';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
@@ -30,12 +31,13 @@ const sameStringSet = (left: string[], right: string[]) => {
     return false;
   }
   const rightSet = new Set(right);
-  return left.every(item => rightSet.has(item));
+  return left.every((item) => rightSet.has(item));
 };
 
 const usersRouter = Router();
 
-const resolveUserTarget = (user: { username: string; email?: string | null }) => user.email ?? user.username;
+const resolveUserTarget = (user: { username: string; email?: string | null }) =>
+  user.email ?? user.username;
 
 type UserListQuery = {
   q: string;
@@ -75,16 +77,20 @@ const buildUserWhere = ({ q, status, roleId }: UserListQuery): Prisma.UserWhereI
 
 usersRouter.use(authMiddleware);
 
+const handleRoleOptions = asyncHandler(async (req, res) => {
+  return ok(res, await listRoleSummaries(parseRoleSummarySearchPayload(req)), 'Role options');
+});
+
 usersRouter.get(
   '/options/roles',
   requireAnyPermission('user.read', 'user.create', 'user.update', 'user.assign-role'),
-  asyncHandler(async (_req, res) => {
-    const roles = await prisma.role.findMany({
-      orderBy: { name: 'asc' },
-      select: { id: true, code: true, name: true, description: true },
-    });
-    return ok(res, roles.map(toRoleSummary), 'Role options');
-  }),
+  handleRoleOptions,
+);
+
+usersRouter.post(
+  '/options/roles',
+  requireAnyPermission('user.read', 'user.create', 'user.update', 'user.assign-role'),
+  handleRoleOptions,
 );
 
 usersRouter.get(
@@ -133,8 +139,12 @@ usersRouter.get(
       { header: '用户名', width: 20, value: (row) => row.username },
       { header: '昵称', width: 18, value: (row) => row.nickname },
       { header: '邮箱', width: 28, value: (row) => row.email ?? '' },
-      { header: '状态', width: 12, value: (row) => row.status === 'ACTIVE' ? '启用' : '禁用' },
-      { header: '角色', width: 32, value: (row) => row.roles.map(({ role }) => role.name).join(' / ') },
+      { header: '状态', width: 12, value: (row) => (row.status === 'ACTIVE' ? '启用' : '禁用') },
+      {
+        header: '角色',
+        width: 32,
+        value: (row) => row.roles.map(({ role }) => role.name).join(' / '),
+      },
       { header: '创建时间', width: 22, value: (row) => row.createdAt },
       { header: '更新时间', width: 22, value: (row) => row.updatedAt },
     ],
@@ -238,7 +248,13 @@ usersRouter.put(
       select: { roleId: true },
     });
     const nextRoleIds = [...new Set(payload.roleIds)];
-    if (!sameStringSet(currentRoleIds.map(item => item.roleId), nextRoleIds) && !actor.permissions.includes('user.assign-role')) {
+    if (
+      !sameStringSet(
+        currentRoleIds.map((item) => item.roleId),
+        nextRoleIds,
+      ) &&
+      !actor.permissions.includes('user.assign-role')
+    ) {
       throw badRequest('Missing permission: user.assign-role');
     }
 

@@ -1,5 +1,7 @@
 import type { NextFunction, Request, Response } from 'express';
 
+type PaginationInput = Pick<Request, 'query'>['query'] | Record<string, unknown> | undefined | null;
+
 export const ok = <T>(res: Response, data: T, message = 'OK') => {
   return res.json({
     success: true,
@@ -14,12 +16,15 @@ export const asyncHandler =
     void handler(req, res, next).catch(next);
   };
 
-export const parsePagination = (query: Request['query']) => {
-  const page = Math.max(Number(query.page ?? 1), 1);
-  const pageSize = Math.min(Math.max(Number(query.pageSize ?? 10), 1), 50);
+export const parsePaginationInput = (input: PaginationInput) => {
+  const source = input ?? {};
+  const page = Math.max(Number(source.page ?? 1), 1);
+  const pageSize = Math.min(Math.max(Number(source.pageSize ?? 10), 1), 50);
   return {
     page,
     pageSize,
     skip: (page - 1) * pageSize,
   };
 };
+
+export const parsePagination = (query: Request['query']) => parsePaginationInput(query);

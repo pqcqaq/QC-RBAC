@@ -179,7 +179,7 @@ const stopMockOAuthProvider = async () => {
 
 export const bootstrapBackendTestContext = async (options?: { mockOAuthProvider?: boolean }) => {
   process.env.DATABASE_URL = testDatabaseUrl;
-  execPrisma('db', 'push', '--force-reset');
+  execPrisma('db', 'push', '--force-reset', '--accept-data-loss');
 
   const [{ createApp }, prismaModule, { seedDatabase }] = await Promise.all([
     import('../../src/app'),
@@ -203,8 +203,11 @@ export const reseedBackendTestContext = async (context: BackendTestContext) => {
   await context.seedDatabase(context.prisma);
 };
 
-export const teardownBackendTestContext = async (context: BackendTestContext) => {
+export const teardownBackendTestContext = async (context?: BackendTestContext) => {
   await stopMockOAuthProvider();
+  if (!context) {
+    return;
+  }
   await context.prisma.$disconnect();
   await context.prismaRaw.$disconnect();
 

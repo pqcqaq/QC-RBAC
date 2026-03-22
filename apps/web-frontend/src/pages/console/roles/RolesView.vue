@@ -40,15 +40,11 @@
       v-model:visible="dialogVisible"
       :title="editingId ? '编辑角色' : '新建角色'"
       :form="form"
-      :permission-options="permissionOptions"
       :system-role-locked="systemRoleLocked"
       @save="saveRole"
     />
 
-    <RoleDetailDrawer
-      v-model:visible="detailVisible"
-      :role="detailRole"
-    />
+    <RoleDetailDrawer v-model:visible="detailVisible" :role="detailRole" />
   </PageScaffold>
 </template>
 
@@ -60,10 +56,15 @@ import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
-import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
+import {
+  useResourceDetail,
+  useResourceEditor,
+  useResourceRemoval,
+} from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
+import { fetchAllPaginatedItems } from '@/utils/paginated';
 import RoleDetailDrawer from './components/RoleDetailDrawer.vue';
 import RoleEditorDialog from './components/RoleEditorDialog.vue';
 import RolesTable from './components/RolesTable.vue';
@@ -165,7 +166,7 @@ const loadRoles = async () => {
 
 const loadPermissionOptions = async () => {
   try {
-    permissionOptions.value = await api.roles.permissions();
+    permissionOptions.value = await fetchAllPaginatedItems(api.roles.permissions);
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '加载权限选项失败'));
   }

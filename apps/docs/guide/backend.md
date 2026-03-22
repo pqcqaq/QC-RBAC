@@ -92,6 +92,20 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - API 权限检查走 `requirePermission(...)` 中间件。
 - 前端菜单来源于 `/api/menus/current`，并不是写死在前端路由里。
 - 页面权限和按钮权限都来自同一套菜单树与权限码。
+- 角色和权限选择用到的选项接口已经统一成“`POST + body` 查询对象”，避免前端弹窗一次性拉全量数据。
+
+当前分页选项接口：
+
+- `POST /api/users/options/roles`
+- `POST /api/roles/options/permissions`
+- `POST /api/menus/options/permissions`
+- `POST /api/oauth/applications/options/permissions`
+
+请求体约定：
+
+- `page`、`pageSize` 是统一分页字段。
+- 业务过滤字段直接平铺在 body 上，例如 `q`、`code`、`name`、`module`、`action`。
+- 前端 `RelationSelectFormItem` 的 `params.xxx` 直接映射到这些字段，不需要再把搜索 UI 或 URL query 约束写死在组件里。
 
 ## OAuth / OIDC
 
@@ -129,7 +143,7 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - 管理接口当前分成两组：
   - `/api/oauth/providers`
   - `/api/oauth/applications`
-- OAuth 应用还额外提供 `GET /api/oauth/applications/options/permissions`，用于给应用分配可暴露的 permission scope。
+- OAuth 应用还额外提供 `POST /api/oauth/applications/options/permissions`，用于给应用分配可暴露的 permission scope。
 - 登录页拉取启用中的 `OAuthProvider`。
 - `buildExternalProviderAuthorizeUrl` 生成跳转地址。
 - `handleExternalProviderCallback` 处理第三方回调。
