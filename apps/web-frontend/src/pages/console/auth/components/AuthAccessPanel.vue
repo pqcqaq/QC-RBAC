@@ -6,27 +6,6 @@
         <span class="auth-access-panel__mark">控制台入口</span>
       </div>
 
-      <div class="auth-access-panel__switch" role="tablist" aria-label="认证模式切换">
-        <button
-          type="button"
-          class="auth-access-panel__switch-button"
-          :class="{ 'is-active': currentTab === 'login' }"
-          :aria-selected="currentTab === 'login'"
-          @click="currentTab = 'login'"
-        >
-          登录
-        </button>
-        <button
-          type="button"
-          class="auth-access-panel__switch-button"
-          :class="{ 'is-active': currentTab === 'register' }"
-          :aria-selected="currentTab === 'register'"
-          @click="currentTab = 'register'"
-        >
-          注册
-        </button>
-      </div>
-
       <div class="auth-access-panel__intro">
         <p class="auth-access-panel__eyebrow">{{ isLogin ? '欢迎回来' : '创建账号' }}</p>
         <h2>{{ isLogin ? '登录控制台' : '注册后进入控制台' }}</h2>
@@ -44,7 +23,7 @@
         </Transition>
       </div>
 
-      <button type="button" class="auth-access-panel__swap" @click="toggleTab">
+      <button v-if="canSwap" type="button" class="auth-access-panel__swap" @click="toggleTab">
         {{ isLogin ? '没有账号？去注册' : '已有账号？去登录' }}
       </button>
     </div>
@@ -54,9 +33,14 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   tab: string;
-}>();
+  canSwitchToLogin?: boolean;
+  canSwitchToRegister?: boolean;
+}>(), {
+  canSwitchToLogin: true,
+  canSwitchToRegister: true,
+});
 
 const emit = defineEmits<{
   'update:tab': [value: string];
@@ -67,8 +51,13 @@ const currentTab = computed({
   set: (value: string) => emit('update:tab', value),
 });
 const isLogin = computed(() => currentTab.value === 'login');
+const canSwap = computed(() => (isLogin.value ? props.canSwitchToRegister : props.canSwitchToLogin));
 
 const toggleTab = () => {
+  if (!canSwap.value) {
+    return;
+  }
+
   currentTab.value = isLogin.value ? 'register' : 'login';
 };
 </script>
@@ -121,36 +110,6 @@ const toggleTab = () => {
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-}
-
-.auth-access-panel__switch {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 6px;
-  padding: 6px;
-  border-radius: 18px;
-  background: rgba(23, 56, 74, 0.06);
-}
-
-.auth-access-panel__switch-button {
-  min-height: 42px;
-  border: none;
-  border-radius: 14px;
-  background: transparent;
-  color: #697a82;
-  font-size: 14px;
-  font-weight: 700;
-  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
-}
-
-.auth-access-panel__switch-button:hover {
-  color: #17384a;
-}
-
-.auth-access-panel__switch-button.is-active {
-  background: linear-gradient(135deg, #17384a 0%, #2d627b 100%);
-  color: #f7f3ec;
-  box-shadow: 0 14px 28px rgba(23, 56, 74, 0.18);
 }
 
 .auth-access-panel__intro {

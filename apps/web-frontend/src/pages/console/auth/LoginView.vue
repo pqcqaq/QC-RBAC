@@ -2,7 +2,12 @@
   <div class="auth-layout">
     <AuthShowcasePanel :capability-items="capabilityItems" />
 
-    <AuthAccessPanel :tab="tab" @update:tab="tab = $event">
+    <AuthAccessPanel
+      :tab="tab"
+      :can-switch-to-login="hasLoginStrategies"
+      :can-switch-to-register="hasRegisterStrategies"
+      @update:tab="onTabChange"
+    >
       <template #login>
         <div v-loading="loadingStrategies" class="auth-panel__stack">
           <AuthStrategySelector
@@ -68,6 +73,8 @@ import AuthRegisterStrategyForm from './components/AuthRegisterStrategyForm.vue'
 import AuthShowcasePanel from './components/AuthShowcasePanel.vue';
 import AuthStrategySelector from './components/AuthStrategySelector.vue';
 
+type AuthPanelTab = 'login' | 'register';
+
 type StrategyFormState = {
   identifier: string;
   password: string;
@@ -95,7 +102,7 @@ const createEmptyConfig = (): AuthStrategyCollection => ({
 
 const router = useRouter();
 const auth = useAuthStore();
-const tab = ref('login');
+const tab = ref<AuthPanelTab>('login');
 const submitting = ref(false);
 const loadingStrategies = ref(false);
 const selectedLoginStrategyCode = ref('');
@@ -119,6 +126,8 @@ const capabilityItems = [
   },
 ];
 
+const hasLoginStrategies = computed(() => authConfig.loginStrategies.length > 0);
+const hasRegisterStrategies = computed(() => authConfig.registerStrategies.length > 0);
 const selectedLoginStrategy = computed(() =>
   authConfig.loginStrategies.find((item) => item.code === selectedLoginStrategyCode.value) ?? null,
 );
@@ -133,6 +142,25 @@ const ensureForms = (strategies: AuthStrategyDescriptor[]) => {
   });
 };
 
+const isAuthPanelTab = (value: string): value is AuthPanelTab => value === 'login' || value === 'register';
+
+const onTabChange = (value: string) => {
+  if (isAuthPanelTab(value)) {
+    tab.value = value;
+  }
+};
+
+const syncActiveTab = () => {
+  if (tab.value === 'login' && !hasLoginStrategies.value && hasRegisterStrategies.value) {
+    tab.value = 'register';
+    return;
+  }
+
+  if (tab.value === 'register' && !hasRegisterStrategies.value && hasLoginStrategies.value) {
+    tab.value = 'login';
+  }
+};
+
 const loadStrategies = async () => {
   try {
     loadingStrategies.value = true;
@@ -141,6 +169,7 @@ const loadStrategies = async () => {
     ensureForms(payload.strategies);
     selectedLoginStrategyCode.value = payload.loginStrategies[0]?.code ?? '';
     selectedRegisterStrategyCode.value = payload.registerStrategies[0]?.code ?? '';
+    syncActiveTab();
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '加载认证策略失败'));
   } finally {
@@ -267,3 +296,4 @@ onMounted(loadStrategies);
   }
 }
 </style>
+
