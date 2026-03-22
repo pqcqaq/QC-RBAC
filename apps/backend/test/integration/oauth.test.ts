@@ -1,158 +1,41 @@
-import 'dotenv/config';
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import http from 'node:http';
-import { spawnSync } from 'node:child_process';
-import path from 'node:path';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { fileURLToPath } from 'node:url';
-import {
-  AuthClientType,
-  buildAuthClientHeaders,
-} from '@rbac/api-common';
-import type { PrismaClient } from '../src/lib/prisma-generated';
-import type { Express } from 'express';
 import request from 'supertest';
-import { refreshExternalOAuthAccessTokens } from '../src/services/oauth-auth-server';
+import {
+  bootstrapBackendTestContext,
+  type BackendTestContext,
+  reseedBackendTestContext,
+  teardownBackendTestContext,
+  webClient,
+  withClientAuth,
+} from '../support/backend-testkit';
 
-const deriveTestDatabaseUrl = () => {
-  const source = process.env.TEST_DATABASE_URL ?? process.env.DATABASE_URL;
-  if (!source) {
-    throw new Error('DATABASE_URL is required for tests');
-  }
+let context: BackendTestContext;
+let refreshExternalOAuthAccessTokens: typeof import('../../src/services/oauth-auth-server').refreshExternalOAuthAccessTokens;
 
-  const url = new URL(source);
-  const databaseName = url.pathname.replace(/^\//, '');
-  url.pathname = `/${databaseName}_test`;
-  return url.toString();
-};
-
-const testDatabaseUrl = deriveTestDatabaseUrl();
-process.env.DATABASE_URL = testDatabaseUrl;
-const backendRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-
-let app: Express;
-let prisma: PrismaClient;
-let seedDatabase: (prisma: PrismaClient) => Promise<void>;
-let redis: { disconnect: () => Promise<unknown> | void };
-let mockProviderServer: http.Server;
-
-const webClient = {
-  code: 'web-console',
-  secret: 'rbac-web-client-secret',
-  type: AuthClientType.WEB,
-  origin: 'http://localhost:5173',
-};
-
-const withClientAuth = (target: request.Test) => {
-  const headers = buildAuthClientHeaders({
-    code: webClient.code,
-    secret: webClient.secret,
-    type: webClient.type,
-  });
-
-  Object.entries(headers).forEach(([key, value]) => {
-    target = target.set(key, value);
-  });
-
-  return target.set('Origin', webClient.origin);
-};
-
-const execPrisma = (...args: string[]) => {
-  const result = spawnSync(`pnpm exec prisma ${args.join(' ')}`, {
-    cwd: backendRoot,
-    env: { ...process.env, DATABASE_URL: testDatabaseUrl },
-    encoding: 'utf8',
-    shell: true,
-  });
-
-  if (result.status !== 0) {
-    throw new Error([result.stdout, result.stderr].filter(Boolean).join('\n'));
-  }
-};
-
-const startMockProvider = async () => {
-  let refreshCounter = 0;
-  const server = http.createServer(async (req, res) => {
-    const requestUrl = new URL(req.url ?? '/', 'http://localhost:3310');
-
-    if (req.method === 'POST' && requestUrl.pathname === '/oauth2/token') {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) {
-        chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-      }
-      const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
-      const responseBody = form.get('grant_type') === 'refresh_token'
-        ? {
-            access_token: `upstream-access-refreshed-${++refreshCounter}`,
-            refresh_token: 'upstream-refresh-fixed',
-            token_type: 'Bearer',
-            expires_in: 3600,
-            scope: 'openid profile email offline_access',
-          }
-        : {
-            access_token: 'upstream-access-initial',
-            refresh_token: 'upstream-refresh-fixed',
-            token_type: 'Bearer',
-            expires_in: 3600,
-            scope: 'openid profile email offline_access',
-          };
-
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify(responseBody));
-      return;
-    }
-
-    if (req.method === 'GET' && requestUrl.pathname === '/oauth2/userinfo') {
-      res.statusCode = 200;
-      res.setHeader('Content-Type', 'application/json; charset=utf-8');
-      res.end(JSON.stringify({
-        sub: 'demo-upstream-user',
-        preferred_username: 'upstream_admin',
-        name: 'Upstream Admin',
-        email: 'admin@example.com',
-        picture: 'https://example.com/avatar.png',
-      }));
-      return;
-    }
-
-    res.statusCode = 404;
-    res.end();
-  });
-
-  await new Promise<void>((resolve) => {
-    server.listen(3310, () => resolve());
-  });
-  return server;
-};
+const applicationBasicAuthorization =
+  `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`;
 
 before(async () => {
-  execPrisma('db', 'push', '--force-reset');
-  const appModule = await import('../src/app');
-  ({ prisma } = await import('../src/lib/prisma'));
-  ({ redis } = await import('../src/lib/redis'));
-  ({ seedDatabase } = await import('../prisma/seed-data'));
-  app = appModule.createApp();
-  mockProviderServer = await startMockProvider();
+  context = await bootstrapBackendTestContext({ mockOAuthProvider: true });
+  ({ refreshExternalOAuthAccessTokens } = await import('../../src/services/oauth-auth-server'));
 });
 
 beforeEach(async () => {
-  await seedDatabase(prisma);
+  await reseedBackendTestContext(context);
 });
 
 after(async () => {
-  await new Promise<void>((resolve, reject) => {
-    mockProviderServer.close((error) => (error ? reject(error) : resolve()));
-  });
-  await prisma?.$disconnect();
-  await redis?.disconnect();
+  await teardownBackendTestContext(context);
 });
 
 describe('OAuth integration', () => {
   it('supports authorization code + PKCE + userinfo + protected api', async () => {
+    const { app } = context;
     const agent = request.agent(app);
-    await withClientAuth(agent.post('/api/auth/login'))
+
+    await withClientAuth(agent.post('/api/auth/login'), webClient)
       .send({ account: 'admin@example.com', password: 'Admin123!' })
       .expect(200);
 
@@ -172,8 +55,7 @@ describe('OAuth integration', () => {
       })
       .expect(200);
 
-    const html = authorizeResponse.text;
-    const sessionState = /name="session_state" value="([^"]+)"/.exec(html)?.[1];
+    const sessionState = /name="session_state" value="([^"]+)"/.exec(authorizeResponse.text)?.[1];
     assert.ok(sessionState);
 
     const decisionResponse = await agent
@@ -192,7 +74,7 @@ describe('OAuth integration', () => {
 
     const tokenResponse = await request(app)
       .post('/oauth2/token')
-      .set('Authorization', `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`)
+      .set('Authorization', applicationBasicAuthorization)
       .type('form')
       .send({
         grant_type: 'authorization_code',
@@ -222,7 +104,7 @@ describe('OAuth integration', () => {
 
     const introspection = await request(app)
       .post('/oauth2/introspect')
-      .set('Authorization', `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`)
+      .set('Authorization', applicationBasicAuthorization)
       .type('form')
       .send({ token: tokenResponse.body.access_token })
       .expect(200);
@@ -231,14 +113,14 @@ describe('OAuth integration', () => {
 
     await request(app)
       .post('/oauth2/revoke')
-      .set('Authorization', `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`)
+      .set('Authorization', applicationBasicAuthorization)
       .type('form')
       .send({ token: tokenResponse.body.refresh_token })
       .expect(200);
 
     const revokedRefresh = await request(app)
       .post('/oauth2/introspect')
-      .set('Authorization', `Basic ${Buffer.from('demo-oauth-app-client:demo-oauth-app-secret').toString('base64')}`)
+      .set('Authorization', applicationBasicAuthorization)
       .type('form')
       .send({ token: tokenResponse.body.refresh_token })
       .expect(200);
@@ -247,6 +129,8 @@ describe('OAuth integration', () => {
   });
 
   it('supports upstream oauth login, ticket exchange and refresh task', async () => {
+    const { app, prisma } = context;
+
     const strategies = await withClientAuth(request(app).get('/api/auth/strategies')).expect(200);
     assert.ok(
       strategies.body.data.oauthProviders.some((provider: { code: string }) => provider.code === 'demo-provider'),
