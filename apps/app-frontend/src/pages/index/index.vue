@@ -1,8 +1,10 @@
 <script lang="ts" setup>
 import type { DashboardSummary } from '@rbac/api-common'
-import { reactive } from 'vue'
+import dayjs from 'dayjs'
+import { computed, reactive, ref } from 'vue'
 import { getDashboardSummary } from '@/api/login'
 import { useTokenStore, useUserStore } from '@/store'
+import { getErrorMessage } from '@/utils/error'
 
 defineOptions({
   name: 'Home',
@@ -11,13 +13,14 @@ defineOptions({
 definePage({
   type: 'home',
   style: {
-    navigationStyle: 'custom',
-    navigationBarTitleText: '总览',
+    navigationBarTitleText: '首页',
+    enablePullDownRefresh: true,
   },
 })
 
 const tokenStore = useTokenStore()
 const userStore = useUserStore()
+const loading = ref(false)
 const summary = reactive<DashboardSummary>({
   metrics: [],
   roleDistribution: [],
@@ -26,68 +29,210 @@ const summary = reactive<DashboardSummary>({
   auditFeed: [],
 })
 
-onLoad(async () => {
-  await tokenStore.bootstrap()
-  Object.assign(summary, await getDashboardSummary())
+const displayName = computed(() => {
+  return userStore.userInfo.nickname || userStore.userInfo.username || '欢迎'
+})
+
+const latestUsers = computed(() => summary.latestUsers.slice(0, 5))
+const latestAuditFeed = computed(() => summary.auditFeed.slice(0, 6))
+
+function formatTime(value: string) {
+  return dayjs(value).format('MM-DD HH:mm')
+}
+
+async function loadSummary(showError = false) {
+  if (loading.value) {
+    return
+  }
+
+  loading.value = true
+  try {
+    await tokenStore.bootstrap()
+    Object.assign(summary, await getDashboardSummary())
+  }
+  catch (error: unknown) {
+    if (showError) {
+      uni.showToast({
+        title: getErrorMessage(error, '加载失败'),
+        icon: 'none',
+      })
+    }
+  }
+  finally {
+    loading.value = false
+    uni.stopPullDownRefresh()
+  }
+}
+
+function openProfile() {
+  uni.navigateTo({ url: '/pages/me/profile' })
+}
+
+function openSettings() {
+  uni.navigateTo({ url: '/pages/settings/index' })
+}
+
+onLoad(() => {
+  void loadSummary(false)
+})
+
+onPullDownRefresh(() => {
+  void loadSummary(true)
 })
 </script>
 
 <template>
-  <view class="min-h-screen bg-[linear-gradient(180deg,#eff2ea,#f7efe3)] px-4 pt-safe">
-    <view class="mx-auto mt-6 max-w-180 rounded-8 bg-[linear-gradient(135deg,rgba(19,47,63,0.92),rgba(43,74,82,0.9))] p-6 text-[#f6ede0] shadow-[0_24px_80px_rgba(17,33,45,0.14)]">
-      <view class="text-3 uppercase tracking-[0.3em] text-[#d7d9cf]">
-        RBAC mobile deck
+  <view class="native-page">
+    <view class="page-header">
+      <view class="page-title">
+        工作台
       </view>
-      <view class="mt-3 text-8 font-600 leading-tight">
-        {{ userStore.userInfo.nickname || '控制台' }}
+      <view class="page-subtitle">
+        {{ displayName }}，查看账号概览、最近动态和常用入口。
       </view>
-      <view class="mt-3 text-3.8 leading-7 text-[#d7d9cf]">
-        在移动端快速查看用户体量、角色分布和最近审计动作。
+    </view>
+
+    <view class="page-section">
+      <view class="section-caption">
+        快捷入口
       </view>
-      <view class="mt-5 flex flex-wrap gap-2">
-        <view
-          v-for="role in userStore.userInfo.roles"
-          :key="role.id"
-          class="rounded-full bg-white/12 px-3 py-1 text-3"
-        >
-          {{ role.name }}
+      <view class="row-list">
+        <view class="row-item" @click="openProfile">
+          <view class="row-main">
+            <view class="row-title">
+              个人信息
+            </view>
+            <view class="row-desc">
+              查看账号资料、角色和权限。
+            </view>
+          </view>
+          <view class="row-arrow">
+            >
+          </view>
+        </view>
+        <view class="row-item" @click="openSettings">
+          <view class="row-main">
+            <view class="row-title">
+              应用设置
+            </view>
+            <view class="row-desc">
+              查看已同步的个人配置。
+            </view>
+          </view>
+          <view class="row-arrow">
+            >
+          </view>
         </view>
       </view>
     </view>
 
-    <view class="mt-5 grid gap-3">
-      <view
-        v-for="metric in summary.metrics"
-        :key="metric.label"
-        class="rounded-7 bg-white/78 p-5 shadow-[0_14px_40px_rgba(17,33,45,0.08)]"
-      >
-        <view class="text-3 uppercase tracking-[0.22em] text-[#607581]">
-          {{ metric.label }}
+    <view class="page-section">
+      <view class="section-caption">
+        概览
+      </view>
+      <view class="row-list" v-if="summary.metrics.length">
+        <view v-for="metric in summary.metrics" :key="metric.label" class="row-item">
+          <view class="row-main">
+            <view class="row-title">
+              {{ metric.label }}
+            </view>
+            <view class="row-desc">
+              {{ metric.trend }}
+            </view>
+          </view>
+          <view class="row-value row-value--strong">
+            {{ metric.value }}
+          </view>
         </view>
-        <view class="mt-3 text-8 text-[#17384a] font-600">
-          {{ metric.value }}
-        </view>
-        <view class="mt-2 text-3.4 text-[#4e6572]">
-          {{ metric.trend }}
-        </view>
+      </view>
+      <view v-else class="panel-note">
+        {{ loading ? '正在加载概览数据...' : '暂无概览数据' }}
       </view>
     </view>
 
-    <view class="mt-5 rounded-7 bg-white/78 p-5 shadow-[0_14px_40px_rgba(17,33,45,0.08)]">
-      <view class="text-3 uppercase tracking-[0.22em] text-[#607581]">
-        最近审计动作
+    <view class="page-section">
+      <view class="section-caption">
+        角色分布
       </view>
-      <view
-        v-for="item in summary.auditFeed.slice(0, 5)"
-        :key="item.id"
-        class="border-b border-[#17384a]/8 py-3 last:border-none"
-      >
-        <view class="text-4 text-[#17384a]">
-          {{ item.action }}
+      <view class="row-list" v-if="summary.roleDistribution.length">
+        <view v-for="item in summary.roleDistribution" :key="item.roleName" class="row-item">
+          <view class="row-title">
+            {{ item.roleName }}
+          </view>
+          <view class="row-value">
+            {{ item.count }} 人
+          </view>
         </view>
-        <view class="mt-1 text-3 text-[#607581]">
-          {{ item.actor }} -> {{ item.target }}
+      </view>
+      <view v-else class="panel-note">
+        暂无角色分布数据
+      </view>
+    </view>
+
+    <view class="page-section">
+      <view class="section-caption">
+        模块覆盖
+      </view>
+      <view class="row-list" v-if="summary.moduleCoverage.length">
+        <view v-for="item in summary.moduleCoverage" :key="item.module" class="row-item">
+          <view class="row-title">
+            {{ item.module }}
+          </view>
+          <view class="row-value">
+            {{ item.count }} 项
+          </view>
         </view>
+      </view>
+      <view v-else class="panel-note">
+        暂无模块覆盖数据
+      </view>
+    </view>
+
+    <view class="page-section">
+      <view class="section-caption">
+        最近成员
+      </view>
+      <view class="row-list" v-if="latestUsers.length">
+        <view v-for="item in latestUsers" :key="item.id" class="row-item">
+          <view class="row-main">
+            <view class="row-title">
+              {{ item.nickname || item.username }}
+            </view>
+            <view class="row-desc">
+              {{ item.email || '未设置邮箱' }}
+            </view>
+          </view>
+          <view class="row-value">
+            {{ formatTime(item.createdAt) }}
+          </view>
+        </view>
+      </view>
+      <view v-else class="panel-note">
+        暂无成员数据
+      </view>
+    </view>
+
+    <view class="page-section">
+      <view class="section-caption">
+        最近动态
+      </view>
+      <view class="row-list" v-if="latestAuditFeed.length">
+        <view v-for="item in latestAuditFeed" :key="item.id" class="row-item">
+          <view class="row-main">
+            <view class="row-title">
+              {{ item.action }}
+            </view>
+            <view class="row-desc">
+              {{ item.actor }} · {{ item.target }}
+            </view>
+          </view>
+          <view class="row-value">
+            {{ formatTime(item.createdAt) }}
+          </view>
+        </view>
+      </view>
+      <view v-else class="panel-note">
+        暂无动态
       </view>
     </view>
   </view>

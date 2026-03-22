@@ -12,6 +12,7 @@ const userInfoState: CurrentUser = {
   status: 'ACTIVE',
   roles: [],
   permissions: [],
+  preferences: {},
 }
 
 export const useUserStore = defineStore(

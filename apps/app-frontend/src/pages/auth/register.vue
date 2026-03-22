@@ -1,6 +1,9 @@
 <script lang="ts" setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
+import { LOGIN_PAGE } from '@/router/config'
+import { isPageTabbar } from '@/tabbar/store'
 import { useTokenStore } from '@/store/token'
+import { HOME_PAGE } from '@/utils'
 import { getErrorMessage } from '@/utils/error'
 
 definePage({
@@ -10,6 +13,8 @@ definePage({
 })
 
 const tokenStore = useTokenStore()
+const redirectUrl = ref('')
+const submitting = ref(false)
 const form = reactive({
   username: '',
   nickname: '',
@@ -17,10 +22,52 @@ const form = reactive({
   password: '',
 })
 
-async function submit() {
+function normalizeRedirect(value?: string) {
+  if (!value) {
+    return ''
+  }
   try {
-    await tokenStore.register(form)
-    uni.switchTab({ url: '/pages/index/index' })
+    return decodeURIComponent(value)
+  }
+  catch {
+    return value
+  }
+}
+
+function finishAuth() {
+  const url = redirectUrl.value || HOME_PAGE
+  if (isPageTabbar(url)) {
+    uni.switchTab({ url })
+    return
+  }
+  uni.reLaunch({ url })
+}
+
+onLoad((options) => {
+  redirectUrl.value = normalizeRedirect(typeof options?.redirect === 'string' ? options.redirect : '')
+})
+
+async function submit() {
+  if (submitting.value) {
+    return
+  }
+  if (!form.username.trim() || !form.nickname.trim() || !form.email.trim() || !form.password) {
+    uni.showToast({
+      title: '请完整填写注册信息',
+      icon: 'none',
+    })
+    return
+  }
+
+  submitting.value = true
+  try {
+    await tokenStore.register({
+      username: form.username.trim(),
+      nickname: form.nickname.trim(),
+      email: form.email.trim(),
+      password: form.password,
+    })
+    finishAuth()
   }
   catch (error: unknown) {
     uni.showToast({
@@ -28,49 +75,100 @@ async function submit() {
       icon: 'none',
     })
   }
+  finally {
+    submitting.value = false
+  }
+}
+
+function toLogin() {
+  const url = redirectUrl.value
+    ? `${LOGIN_PAGE}?redirect=${encodeURIComponent(redirectUrl.value)}`
+    : LOGIN_PAGE
+  uni.navigateTo({ url })
 }
 </script>
 
 <template>
-  <view class="min-h-screen bg-[linear-gradient(180deg,#eef2ea,#f6efe3)] px-6 pt-safe">
-    <view class="mx-auto mt-8 max-w-150 rounded-8 bg-white/78 p-6 shadow-[0_18px_60px_rgba(17,33,45,0.08)]">
-      <view class="text-3 text-[#5f7380] uppercase tracking-[0.28em]">
-        Register member
+  <view class="native-page native-page--auth">
+    <view class="auth-head">
+      <view class="page-title">
+        注册
       </view>
-      <view class="mt-3 text-9 text-[#17384a] leading-tight font-600">
-        创建移动端账号
+      <view class="page-subtitle">
+        创建账号后将直接登录当前设备。
       </view>
+    </view>
 
-      <view class="mt-8 flex flex-col gap-4">
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            用户名
-          </view>
-          <input v-model="form.username" class="text-4 text-[#17384a]" />
+    <view class="form-sheet">
+      <view class="form-item">
+        <view class="form-label">
+          用户名
         </view>
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            昵称
-          </view>
-          <input v-model="form.nickname" class="text-4 text-[#17384a]" />
-        </view>
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            邮箱
-          </view>
-          <input v-model="form.email" class="text-4 text-[#17384a]" />
-        </view>
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            密码
-          </view>
-          <input v-model="form.password" class="text-4 text-[#17384a]" password />
-        </view>
+        <input v-model="form.username" class="form-input" placeholder="请输入用户名" confirm-type="next" />
       </view>
+      <view class="form-item">
+        <view class="form-label">
+          昵称
+        </view>
+        <input v-model="form.nickname" class="form-input" placeholder="请输入昵称" confirm-type="next" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">
+          邮箱
+        </view>
+        <input v-model="form.email" class="form-input" placeholder="请输入邮箱" confirm-type="next" />
+      </view>
+      <view class="form-item">
+        <view class="form-label">
+          密码
+        </view>
+        <input
+          v-model="form.password"
+          class="form-input"
+          password
+          placeholder="请设置密码"
+          confirm-type="done"
+          @confirm="submit"
+        />
+      </view>
+    </view>
 
-      <button class="mt-6 rounded-full bg-[#17384a] text-[#f7efe3]" @click="submit">
-        注册并进入系统
-      </button>
+    <button class="primary-action auth-action" :loading="submitting" @click="submit">
+      注册
+    </button>
+
+    <view class="auth-footer">
+      <text class="auth-footer__text">已有账号？</text>
+      <text class="auth-footer__link" @click="toLogin">去登录</text>
     </view>
   </view>
 </template>
+
+<style lang="scss" scoped>
+.auth-head {
+  padding-top: 24rpx;
+}
+
+.auth-action {
+  margin-top: 48rpx;
+}
+
+.auth-footer {
+  margin-top: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.auth-footer__text {
+  color: #8b8f97;
+}
+
+.auth-footer__link {
+  color: #111827;
+  font-weight: 500;
+}
+</style>

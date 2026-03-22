@@ -7,7 +7,9 @@ type _LocationUrl =
   "/pages/index/index" |
   "/pages/auth/login" |
   "/pages/auth/register" |
-  "/pages/me/me";
+  "/pages/me/me" |
+  "/pages/me/profile" |
+  "/pages/settings/index";
 
 interface NavigateToOptions {
   url: _LocationUrl;

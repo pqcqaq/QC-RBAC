@@ -4,10 +4,10 @@ import { tabBar } from './src/tabbar/config'
 export default defineUniPages({
   globalStyle: {
     navigationStyle: 'default',
-    navigationBarTitleText: 'RBAC Mobile Console',
-    navigationBarBackgroundColor: '#f3efe7',
+    navigationBarTitleText: '权限管理',
+    navigationBarBackgroundColor: '#f7f7f8',
     navigationBarTextStyle: 'black',
-    backgroundColor: '#eef2ea',
+    backgroundColor: '#f5f6f7',
   },
   easycom: {
     autoscan: true,
@@ -18,6 +18,5 @@ export default defineUniPages({
       '^wd-(.*)': 'wot-design-uni/components/wd-$1/wd-$1.vue',
     },
   },
-  // tabbar 的配置统一在 “./src/tabbar/config.ts” 文件中
   tabBar,
 })

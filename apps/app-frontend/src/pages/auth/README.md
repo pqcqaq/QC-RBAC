@@ -1,20 +1,12 @@
 # 登录页
-需要输入账号、密码/验证码的登录页。
+需要输入账号和密码的登录页。
 
-## 适用性
+## 当前使用方式
 
-本页面主要用于 `h5` 和 `APP`。
+当前项目已经启用小程序端登录页，登录拦截会在未登录时跳转到 `src/pages/auth/login.vue`。
 
-小程序通常有平台的登录方式 `uni.login` 通常用不到登录页，所以不适用于 `小程序`。（即默认情况下，小程序环境是不会走登录拦截逻辑的。）
-
-但是如果您的小程序也需要现实的 `登录页` 那也是可以使用的。
-
-在 `src/router/config.ts` 中有一个变量 `LOGIN_PAGE_ENABLE_IN_MP` 来控制是否在小程序中使用 `H5的登录页`。
-
-更多信息请看 `src/router` 文件夹的内容。
+是否在小程序中启用登录页，由 `src/router/config.ts` 中的 `LOGIN_PAGE_ENABLE_IN_MP` 控制。
 
 ## 登录跳转
 
-目前登录的跳转逻辑主要在 `src/router/interceptor.ts` 和 `src/pages/login/login.vue` 里面，默认会在登录后自动重定向到来源/配置的页面。
-
-如果与您的业务不符，您可以自行修改。
+登录后的跳转逻辑主要在 `src/router/interceptor.ts` 和 `src/pages/auth/login.vue` 中，默认会重定向回来源页面或首页。

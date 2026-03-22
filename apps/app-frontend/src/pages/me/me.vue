@@ -1,12 +1,13 @@
 <script lang="ts" setup>
 import { storeToRefs } from 'pinia'
-import { LOGIN_PAGE } from '@/router/config'
+import { computed } from 'vue'
+import { LOGIN_PAGE, REGISTER_PAGE } from '@/router/config'
 import { useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
 
 definePage({
   style: {
-    navigationBarTitleText: '我的权限',
+    navigationBarTitleText: '我的',
   },
 })
 
@@ -14,23 +15,50 @@ const userStore = useUserStore()
 const tokenStore = useTokenStore()
 const { userInfo } = storeToRefs(userStore)
 
-async function handleLogin() {
+const displayName = computed(() => {
+  return userInfo.value.nickname || userInfo.value.username || '未登录'
+})
+
+const roleSummary = computed(() => {
+  return userInfo.value.roles.map(role => role.name).join('、') || '未分配角色'
+})
+
+function handleLogin() {
   uni.navigateTo({
     url: LOGIN_PAGE,
   })
 }
 
+function handleRegister() {
+  uni.navigateTo({
+    url: REGISTER_PAGE,
+  })
+}
+
+function openProfile() {
+  if (!tokenStore.hasLogin) {
+    handleLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/me/profile' })
+}
+
+function openSettings() {
+  if (!tokenStore.hasLogin) {
+    handleLogin()
+    return
+  }
+  uni.navigateTo({ url: '/pages/settings/index' })
+}
+
 function handleLogout() {
   uni.showModal({
-    title: '提示',
+    title: '退出登录',
     content: '确定要退出登录吗？',
-    success: (res) => {
+    success: async (res) => {
       if (res.confirm) {
-        void useTokenStore().logout()
-        uni.showToast({
-          title: '退出登录成功',
-          icon: 'success',
-        })
+        await tokenStore.logout()
+        uni.reLaunch({ url: LOGIN_PAGE })
       }
     },
   })
@@ -38,58 +66,178 @@ function handleLogout() {
 </script>
 
 <template>
-  <view class="min-h-screen bg-[linear-gradient(180deg,#eef2ea,#f6efe3)] px-4 pt-safe">
-    <view class="mx-auto mt-6 max-w-180 rounded-8 bg-white/80 p-6 shadow-[0_18px_60px_rgba(17,33,45,0.08)]">
-      <view class="text-3 uppercase tracking-[0.28em] text-[#607581]">
-        Permission profile
-      </view>
-      <view class="mt-3 text-8 text-[#17384a] font-600">
-        {{ userInfo.nickname || '未登录' }}
-      </view>
-      <view class="mt-2 text-3.6 text-[#4e6572]">
-        {{ userInfo.email || '未设置邮箱' }}
-      </view>
-    </view>
-
-    <view class="mt-4 rounded-7 bg-white/78 p-5 shadow-[0_14px_40px_rgba(17,33,45,0.08)]">
-      <view class="text-3 uppercase tracking-[0.22em] text-[#607581]">
-        角色
-      </view>
-      <view class="mt-3 flex flex-wrap gap-2">
-        <view
-          v-for="role in userInfo.roles"
-          :key="role.id"
-          class="rounded-full bg-[#17384a]/8 px-3 py-1 text-3 text-[#17384a]"
-        >
-          {{ role.name }}
+  <view class="native-page">
+    <view class="page-section profile-summary">
+      <image class="profile-summary__avatar" :src="userInfo.avatar || '/static/images/default-avatar.png'" mode="aspectFill" />
+      <view class="profile-summary__body">
+        <view class="profile-summary__name">
+          {{ displayName }}
+        </view>
+        <view class="profile-summary__meta">
+          {{ userInfo.email || '未设置邮箱' }}
+        </view>
+        <view class="profile-summary__meta">
+          {{ tokenStore.hasLogin ? roleSummary : '登录后查看账号详情' }}
         </view>
       </view>
     </view>
 
-    <view class="mt-4 rounded-7 bg-white/78 p-5 shadow-[0_14px_40px_rgba(17,33,45,0.08)]">
-      <view class="text-3 uppercase tracking-[0.22em] text-[#607581]">
-        有效权限
-      </view>
-      <view class="mt-3 flex flex-wrap gap-2">
-        <view
-          v-for="permission in userInfo.permissions"
-          :key="permission"
-          class="rounded-full bg-[#17384a]/6 px-3 py-1 text-3 text-[#4e6572]"
-        >
-          {{ permission }}
+    <template v-if="tokenStore.hasLogin">
+      <view class="page-section">
+        <view class="section-caption">
+          账户
+        </view>
+        <view class="row-list">
+          <view class="row-item" @click="openProfile">
+            <view class="row-main">
+              <view class="row-title">
+                个人信息
+              </view>
+              <view class="row-desc">
+                查看账号资料、角色和权限。
+              </view>
+            </view>
+            <view class="row-arrow">
+              >
+            </view>
+          </view>
+          <view class="row-item" @click="openSettings">
+            <view class="row-main">
+              <view class="row-title">
+                应用设置
+              </view>
+              <view class="row-desc">
+                查看已同步的个人配置。
+              </view>
+            </view>
+            <view class="row-arrow">
+              >
+            </view>
+          </view>
         </view>
       </view>
-    </view>
 
-    <view class="mt-4 px-3">
-      <view class="m-auto max-w-160px text-center">
-        <button v-if="tokenStore.hasLogin" type="warn" class="w-full" @click="handleLogout">
+      <view class="page-section">
+        <view class="section-caption">
+          当前状态
+        </view>
+        <view class="row-list">
+          <view class="row-item">
+            <view class="row-title">
+              账号状态
+            </view>
+            <view class="row-value row-value--strong">
+              {{ userInfo.status === 'ACTIVE' ? '正常' : '停用' }}
+            </view>
+          </view>
+          <view class="row-item">
+            <view class="row-title">
+              角色数量
+            </view>
+            <view class="row-value">
+              {{ userInfo.roles.length }}
+            </view>
+          </view>
+          <view class="row-item">
+            <view class="row-main">
+              <view class="row-title">
+                当前角色
+              </view>
+              <view class="row-desc">
+                {{ roleSummary }}
+              </view>
+            </view>
+          </view>
+          <view class="row-item">
+            <view class="row-title">
+              权限数量
+            </view>
+            <view class="row-value">
+              {{ userInfo.permissions.length }}
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="me-actions">
+        <button class="secondary-action" @click="handleLogout">
           退出登录
         </button>
-        <button v-else type="primary" class="w-full" @click="handleLogin">
-          登录
+      </view>
+    </template>
+
+    <template v-else>
+      <view class="page-section">
+        <view class="section-caption">
+          账户
+        </view>
+        <view class="row-list">
+          <view class="row-item">
+            <view class="row-main">
+              <view class="row-title">
+                当前未登录
+              </view>
+              <view class="row-desc">
+                登录后可查看个人信息和同步配置。
+              </view>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <view class="me-actions">
+        <button class="primary-action" @click="handleLogin">
+          去登录
+        </button>
+        <button class="secondary-action me-actions__secondary" @click="handleRegister">
+          去注册
         </button>
       </view>
-    </view>
+    </template>
   </view>
 </template>
+
+<style lang="scss" scoped>
+.profile-summary {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+}
+
+.profile-summary__avatar {
+  width: 112rpx;
+  height: 112rpx;
+  flex-shrink: 0;
+  border-radius: 24rpx;
+  background: #e5e7eb;
+}
+
+.profile-summary__body {
+  margin-left: 24rpx;
+  min-width: 0;
+  flex: 1;
+}
+
+.profile-summary__name {
+  font-size: 36rpx;
+  line-height: 1.4;
+  font-weight: 600;
+  color: #111827;
+}
+
+.profile-summary__meta {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  line-height: 1.5;
+  color: #8b8f97;
+  word-break: break-all;
+}
+
+.me-actions {
+  padding: 32rpx;
+}
+
+.me-actions__secondary {
+  margin-top: 16rpx;
+}
+</style>

@@ -1,7 +1,9 @@
 <script lang="ts" setup>
-import { reactive } from 'vue'
+import { reactive, ref } from 'vue'
 import { REGISTER_PAGE } from '@/router/config'
+import { isPageTabbar } from '@/tabbar/store'
 import { useTokenStore } from '@/store/token'
+import { HOME_PAGE } from '@/utils'
 import { getErrorMessage } from '@/utils/error'
 
 definePage({
@@ -11,22 +13,61 @@ definePage({
 })
 
 const tokenStore = useTokenStore()
+const redirectUrl = ref('')
+const submitting = ref(false)
 const form = reactive({
-  account: 'admin',
-  password: 'Admin123!',
+  account: '',
+  password: '',
+})
+
+function normalizeRedirect(value?: string) {
+  if (!value) {
+    return ''
+  }
+  try {
+    return decodeURIComponent(value)
+  }
+  catch {
+    return value
+  }
+}
+
+function finishAuth() {
+  const url = redirectUrl.value || HOME_PAGE
+  if (isPageTabbar(url)) {
+    uni.switchTab({ url })
+    return
+  }
+  uni.reLaunch({ url })
+}
+
+onLoad((options) => {
+  redirectUrl.value = normalizeRedirect(typeof options?.redirect === 'string' ? options.redirect : '')
 })
 
 async function doLogin() {
-  if (tokenStore.hasLogin) {
-    uni.switchTab({ url: '/pages/index/index' })
+  if (submitting.value) {
     return
   }
+  if (tokenStore.hasLogin) {
+    finishAuth()
+    return
+  }
+  if (!form.account.trim() || !form.password) {
+    uni.showToast({
+      title: '请输入账号和密码',
+      icon: 'none',
+    })
+    return
+  }
+
+  submitting.value = true
   try {
     await tokenStore.login({
-      account: form.account,
+      account: form.account.trim(),
       password: form.password,
     })
-    uni.switchTab({ url: '/pages/index/index' })
+    finishAuth()
   }
   catch (error: unknown) {
     uni.showToast({
@@ -34,54 +75,93 @@ async function doLogin() {
       icon: 'none',
     })
   }
+  finally {
+    submitting.value = false
+  }
 }
 
 function toRegister() {
-  uni.navigateTo({ url: REGISTER_PAGE })
+  const url = redirectUrl.value
+    ? `${REGISTER_PAGE}?redirect=${encodeURIComponent(redirectUrl.value)}`
+    : REGISTER_PAGE
+  uni.navigateTo({ url })
 }
 </script>
 
 <template>
-  <view class="min-h-screen bg-[linear-gradient(160deg,#f7efe3_0%,#e7efe9_52%,#dce7f2_100%)] px-6 pt-safe">
-    <view class="mx-auto mt-10 max-w-150 rounded-8 bg-white/75 p-6 shadow-[0_20px_60px_rgba(17,33,45,0.08)] backdrop-blur-12">
-      <view class="text-3 text-[#5f7380] uppercase tracking-[0.28em]">
-        RBAC mobile access
+  <view class="native-page native-page--auth">
+    <view class="auth-head">
+      <view class="page-title">
+        登录
       </view>
-      <view class="mt-3 text-10 text-[#17384a] leading-tight font-600">
-        登录控制台
+      <view class="page-subtitle">
+        使用账号密码进入系统。
       </view>
-      <view class="mt-3 text-3.6 text-[#4e6572] leading-7">
-        直接连接 monorepo backend，复用共享 API 封装和双 token 会话。
-      </view>
+    </view>
 
-      <view class="mt-8 flex flex-col gap-4">
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            账号
-          </view>
-          <input v-model="form.account" class="text-4 text-[#17384a]" placeholder="用户名" />
+    <view class="form-sheet">
+      <view class="form-item">
+        <view class="form-label">
+          账号
         </view>
-        <view class="rounded-6 bg-[#17384a]/5 px-4 py-3">
-          <view class="mb-2 text-3 text-[#607581]">
-            密码
-          </view>
-          <input v-model="form.password" class="text-4 text-[#17384a]" password placeholder="请输入密码" />
+        <input
+          v-model="form.account"
+          class="form-input"
+          placeholder="用户名或邮箱"
+          confirm-type="next"
+        />
+      </view>
+      <view class="form-item">
+        <view class="form-label">
+          密码
         </view>
+        <input
+          v-model="form.password"
+          class="form-input"
+          password
+          placeholder="请输入密码"
+          confirm-type="done"
+          @confirm="doLogin"
+        />
       </view>
+    </view>
 
-      <button class="mt-6 rounded-full bg-[#17384a] text-[#f7efe3]" @click="doLogin">
-        进入系统
-      </button>
-      <button class="mt-3 rounded-full border-0 bg-[#17384a]/8 text-[#17384a]" @click="toRegister">
-        创建成员账号
-      </button>
+    <button class="primary-action auth-action" :loading="submitting" @click="doLogin">
+      登录
+    </button>
 
-      <view class="mt-6 text-3 text-[#607581]">
-        默认账号：admin / Admin123!
-      </view>
+    <view class="auth-footer">
+      <text class="auth-footer__text">没有账号？</text>
+      <text class="auth-footer__link" @click="toRegister">去注册</text>
     </view>
   </view>
 </template>
 
 <style lang="scss" scoped>
+.auth-head {
+  padding-top: 48rpx;
+}
+
+.auth-action {
+  margin-top: 48rpx;
+}
+
+.auth-footer {
+  margin-top: 32rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.5;
+}
+
+.auth-footer__text {
+  color: #8b8f97;
+}
+
+.auth-footer__link {
+  color: #111827;
+  font-weight: 500;
+}
 </style>
