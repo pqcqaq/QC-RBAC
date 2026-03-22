@@ -114,6 +114,8 @@ pnpm lint
 pnpm build
 
 pnpm --filter @rbac/backend test
+pnpm --filter @rbac/backend test -- auth.test.ts
+pnpm --filter @rbac/backend test -- oauth.test.ts
 pnpm --filter @rbac/docs build
 ```
 
@@ -123,8 +125,12 @@ pnpm --filter @rbac/docs build
 
 后端集成测试默认会从 `DATABASE_URL` 或 `TEST_DATABASE_URL` 推导一个带 `_test` 后缀的数据库。
 
-主测试入口：
+当前测试按目录拆分：
 
 ```text
-apps/backend/test/rbac.test.ts
+apps/backend/test/framework
+apps/backend/test/integration
+apps/backend/test/support/backend-testkit.ts
 ```
+
+完整测试清单和每个用例的覆盖逻辑，直接看 [测试用例](/guide/testing)。

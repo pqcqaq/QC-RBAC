@@ -24,8 +24,12 @@ export default defineConfig({
       { text: '介绍', link: '/guide/introduction' },
       { text: '快速开始', link: '/guide/quick-start' },
       { text: '开发指南', link: '/guide/development' },
+      { text: '测试', link: '/guide/testing' },
       { text: '技术选型', link: '/architecture/tech-stack' },
       { text: '赞助', link: '/support/sponsor' },
+    ],
+    socialLinks: [
+      { icon: 'github', link: 'https://github.com/pqcqaq/QC-RBAC' },
     ],
     sidebar: {
       '/guide/': [
@@ -35,6 +39,7 @@ export default defineConfig({
             { text: '介绍', link: '/guide/introduction' },
             { text: '快速开始', link: '/guide/quick-start' },
             { text: '开发指南', link: '/guide/development' },
+            { text: '测试用例', link: '/guide/testing' },
           ],
         },
         {

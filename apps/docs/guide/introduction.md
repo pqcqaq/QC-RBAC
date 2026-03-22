@@ -34,14 +34,17 @@ description: QC-RBAC 的仓库边界、模块分工和适用范围。
 | 上传与附件 | `MediaAsset` | `apps/backend/src/routes/files.ts`、`apps/backend/src/routes/attachments.ts` |
 | 导出与下载 | Excel 导出工厂、下载组合式 | `apps/backend/src/utils/excel-export.ts`、`apps/web-frontend/src/composables/use-download.ts` |
 | 移动端布局 | 自定义 Header、Tabbar、安全区 | `apps/app-frontend/src/composables/useAppLayout.ts` |
+| 测试体系 | `framework`、`integration`、`backend-testkit` | `apps/backend/test/**` |
 
 ## 关键约定
 
 - 权限常量统一定义在 `packages/api-common/src/constants/permissions.ts`。
 - 后端列表接口统一返回 `items + meta`，Web 列表页默认做分页和导出。
+- 后端如果暂时没有分页接口，Web 页面会在筛选结果上做前端分页，但接口结构仍优先按分页标准设计。
 - Web 控制台路由不手写在固定表里，而是由菜单树和 `viewKey` 动态注册。
 - Uni 前端不依赖第三方 UI 库，页面基础组件全部在 `components/` 中自定义。
 - 受管模型的软删除、审计字段、Snowflake ID、删除引用检查统一放在 Prisma 扩展层。
+- 文档需要跟代码一起更新，尤其是新增页面、接口、共享抽象和测试时。
 
 ## 推荐先读的文件
 

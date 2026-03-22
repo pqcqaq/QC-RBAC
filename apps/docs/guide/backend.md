@@ -122,11 +122,20 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 ### 2. 我们作为 OAuth Client
 
 - 外部 Provider 的管理接口在 `src/routes/oauth.ts`。
+- 管理接口当前分成两组：
+  - `/api/oauth/providers`
+  - `/api/oauth/applications`
+- OAuth 应用还额外提供 `GET /api/oauth/applications/options/permissions`，用于给应用分配可暴露的 permission scope。
 - 登录页拉取启用中的 `OAuthProvider`。
 - `buildExternalProviderAuthorizeUrl` 生成跳转地址。
 - `handleExternalProviderCallback` 处理第三方回调。
 - `exchangeOAuthLoginTicket` 把一次性 ticket 换成本地会话。
 - 外部 access token / refresh token 会落在 `OAuthToken` 表。
+
+Web 控制台对应的管理页面已经落地：
+
+- `/console/oauth/providers`
+- `/console/oauth/applications`
 
 ## 文件上传与附件
 
@@ -211,7 +220,11 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 
 ## 测试
 
-后端集成测试集中在 `apps/backend/test/rbac.test.ts`。
+后端测试已经拆成两层：
+
+- `apps/backend/test/framework`
+- `apps/backend/test/integration`
+- `apps/backend/test/support/backend-testkit.ts`
 
 当前已经覆盖的主链路包括：
 
@@ -225,6 +238,15 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - 列表导出
 - 客户端管理
 - 删除保护
+- OAuth 管理权限边界
+
+按文件查看时：
+
+- `framework/delete-reference-checker.test.ts` 验证删除引用检查器。
+- `framework/excel-export.test.ts` 验证导出抽象。
+- `integration/*.test.ts` 验证真实业务链路。
+
+完整测试清单见 [测试用例](/guide/testing)。
 
 ## 新增后端模块的最短路径
 
@@ -234,4 +256,4 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 4. 在 `src/routes` 新增路由，在 `src/services` 放核心逻辑。
 5. 如果是后台可见模块，补权限码并更新 `system-rbac.ts` 菜单种子。
 6. 如果是列表页，直接接 `createExcelExportHandler`。
-7. 在 `rbac.test.ts` 或新测试文件补集成测试。
+7. 在对应的 `framework` 或 `integration` 测试文件补测试，并同步更新 docs。

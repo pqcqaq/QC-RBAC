@@ -56,6 +56,8 @@ apps/web-frontend/src
 - `AuthRegisterStrategyForm`
 - `AuthOAuthProviders`
 
+第三方登录入口的数据来自 `/api/auth/strategies` 返回的 `oauthProviders`，不是前端写死。
+
 ## 动态路由与菜单
 
 动态路由核心在三个文件：
@@ -118,8 +120,19 @@ pages/console/<module>
 
 - `pages/console/clients`
 - `pages/console/attachments`
+- `pages/console/oauth-providers`
+- `pages/console/oauth-applications`
 
 这和项目的前端约定一致：搜索、列表、编辑、详情尽量拆开，不把所有逻辑堆在一个文件里。
+
+## 当前已落地的控制台页面
+
+- 仪表盘：`dashboard`
+- 身份与授权：`users`、`roles`、`permissions`、`explorer`
+- 运行态：`audit`、`live`、`attachments`
+- 系统配置：`menus`、`clients`、`oauthProviders`、`oauthApplications`
+
+这些页面的入口不是写死在前端，而是由后端菜单树里的 `viewKey` 决定。
 
 ## 列表页的通用抽象
 
@@ -136,6 +149,14 @@ pages/console/<module>
 
 - `pages/console/clients/ClientsView.vue`
 - `pages/console/attachments/AttachmentsView.vue`
+- `pages/console/oauth-providers/OAuthProvidersView.vue`
+- `pages/console/oauth-applications/OAuthApplicationsView.vue`
+
+补充约定：
+
+- 如果后端列表接口本身支持分页，前端直接请求 `page` / `pageSize`。
+- 如果后端暂时返回完整数组，前端页面会在筛选结果上做本地分页，但仍保持同一套表格、筛选和详情结构。
+- OAuth 应用页的权限选择不再复用角色管理接口，而是走 `api.oauth.applications.permissions()`，避免权限边界串到 `role.*`。
 
 ## 控制台布局
 
@@ -158,3 +179,4 @@ pages/console/<module>
 3. 在后端补权限码和菜单节点。
 4. 页面列表查询走分页接口，导出按钮直接接 `api.<module>.export(...)`。
 5. 如果页面需要保存筛选状态，使用 `usePageState(...)`。
+6. 如果页面用到了新的共享 API、菜单入口或权限边界，同步更新 docs。

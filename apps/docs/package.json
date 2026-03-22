@@ -4,9 +4,9 @@
   "version": "0.1.0",
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev . --host 0.0.0.0",
+    "dev": "vitepress dev . --host 0.0.0.0 --port 6174",
     "build": "vitepress build .",
-    "preview": "vitepress preview . --host 0.0.0.0",
+    "preview": "vitepress preview . --host 0.0.0.0 --port 6174",
     "lint": "vue-tsc --noEmit -p tsconfig.json"
   },
   "devDependencies": {

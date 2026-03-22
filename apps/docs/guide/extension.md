@@ -79,12 +79,31 @@ pages/console/<module>
 
 ### 8. 测试
 
-在 `apps/backend/test/rbac.test.ts` 或新的测试文件补集成测试，至少覆盖：
+测试不要再堆到一个总文件里，按职责拆分到：
+
+- `apps/backend/test/framework`
+- `apps/backend/test/integration`
+
+至少覆盖：
 
 - 授权是否生效
 - 列表查询是否可用
 - 新增 / 更新 / 删除是否正常
 - 删除保护是否符合预期
+
+如果改动的是：
+
+- 框架能力：补 `framework/*.test.ts`
+- 业务 API：补 `integration/*.test.ts`
+
+### 9. 文档
+
+功能落地后，同步更新 `apps/docs`：
+
+- 新增页面或菜单，更新 `guide/web-frontend.md` 或 `guide/uni-frontend.md`
+- 新增接口、实体、后台能力，更新 `guide/backend.md`
+- 新增共享类型或 API，更新 `guide/shared.md`
+- 新增测试或测试拆分，更新 `guide/testing.md`
 
 ## 新增一个列表页并支持导出
 
@@ -97,6 +116,7 @@ pages/console/<module>
 
 1. 列表页正常调用分页接口。
 2. 导出按钮传入 `api.<module>.export(...)`。
+3. 如果后端暂时返回完整数组，前端可以在筛选结果上做本地分页，但要在文档里明确说明。
 
 这样导出和列表会天然共享同一套筛选条件。
 
@@ -118,6 +138,8 @@ pages/console/<module>
    - 如果控制台需要管理这个类型，补对应表单组件
 5. `apps/app-frontend`
    - 如果该类型在移动端使用，补请求头构造逻辑
+6. `apps/docs`
+   - 补客户端类型说明和快速开始里的环境变量
 
 ## 新增一个需要引用附件的实体
 
