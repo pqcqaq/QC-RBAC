@@ -12,6 +12,7 @@ import {
   teardownBackendTestContext,
   uniClient,
   webClient,
+  webH5Client,
   withClientAuth,
 } from '../support/backend-testkit';
 
@@ -157,6 +158,32 @@ describe('Auth integration', () => {
     await withClientAuth(request(app).post('/api/auth/logout'))
       .send({ refreshToken: refreshResponse.body.data.tokens.refreshToken })
       .expect(200);
+  });
+
+  it('seeds a dedicated localhost:9000 web client for uni h5 development', async () => {
+    const { app, prisma } = context;
+
+    const seededClient = await prisma.authClient.findUnique({
+      where: { code: webH5Client.code },
+      select: { code: true, type: true, enabled: true, config: true },
+    });
+
+    assert.ok(seededClient);
+    assert.equal(seededClient.code, webH5Client.code);
+    assert.equal(seededClient.type, AuthClientType.WEB);
+    assert.equal(seededClient.enabled, true);
+    assert.deepEqual(seededClient.config, {
+      protocol: 'http',
+      host: 'localhost',
+      port: 9000,
+    });
+
+    await withClientAuth(request(app).get('/api/auth/strategies'), webH5Client)
+      .expect(200);
+
+    const session = await loginAs(app, 'admin@example.com', 'Admin123!', webH5Client);
+    assert.equal(session.client.code, webH5Client.code);
+    assert.equal(verifyAccessToken(session.tokens.accessToken).client.code, webH5Client.code);
   });
 
   it('persists workbench preferences on the current user session', async () => {

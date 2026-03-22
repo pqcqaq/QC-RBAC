@@ -33,7 +33,9 @@
 
 - `AuthClient` 模型定义系统级客户端，当前内置：
   - `web-console`
+  - `web-uni-h5`
   - `uni-wechat-miniapp`
+  - `native-app`
 - 所有认证相关接口都会校验客户端身份：
   - 登录
   - 注册
@@ -256,7 +258,9 @@ pnpm dev:app
 ### 客户端
 
 - `web-console` / `rbac-web-client-secret`
+- `web-uni-h5` / `rbac-web-uni-h5-secret`
 - `uni-wechat-miniapp` / `rbac-uni-miniapp-secret`
+- `native-app` / `rbac-native-app-secret`
 
 ### 认证策略
 

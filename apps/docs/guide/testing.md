@@ -76,6 +76,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - `requires valid client credentials for auth routes and stamps tokens with client identity`：验证认证接口必须带合法客户端凭证，且签发的 token 会记录客户端身份，跨客户端不能混用。
 - `supports register, me, refresh and logout`：验证注册、获取当前用户、刷新 token、登出这条标准会话链路。
+- `seeds a dedicated localhost:9000 web client for uni h5 development`：验证种子会初始化 `web-uni-h5` Web 客户端，并可在 `http://localhost:9000` 上正常完成认证流程。
 - `persists workbench preferences on the current user session`：验证用户工作台配置会持久化到后端，并在 `me`、`refresh` 时返回。
 - `supports strategy discovery, verification and code-based auth flows`：验证认证策略发现、验证码发送与校验、邮箱/手机号验证码登录与注册流程。
 - `links email-code auth to password accounts and respects login toggles`：验证邮箱验证码策略可桥接已有密码账号，并且登录开关关闭后会严格拒绝登录相关操作。
@@ -92,8 +93,9 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 ### `integration/oauth.test.ts`
 
 - `exposes oauth application permission options without depending on role management permissions`：验证 OAuth 应用的权限 scope 选项接口独立受 `oauth-application.*` 权限控制，不依赖角色管理权限。
-- `supports authorization code + PKCE + userinfo + protected api`：验证系统作为 OAuth/OIDC Provider 时，授权码、PKCE、userinfo、受保护 API、introspect、revoke 的完整协议链路。
+- `supports authorization code + PKCE + userinfo + protected api`：验证系统作为 OAuth/OIDC Provider 时，浏览器可从 consent 页真实点击“同意并继续”，并完成授权码、PKCE、userinfo、受保护 API、introspect、revoke 的完整协议链路。
 - `supports upstream oauth login, ticket exchange and refresh task`：验证系统作为 OAuth Client 时，第三方登录回调、本地 ticket 交换和外部 access token 刷新任务的完整链路。
+- `reuses an existing provider link for the same user when the upstream subject changes`：验证第三方账号 subject 变化但仍映射到同一本地用户时，会更新已有 provider 关联，而不是重复插入触发唯一约束错误。
 
 ### `integration/rbac.test.ts`
 

@@ -95,6 +95,18 @@ const renderAuthorizeErrorPage = (description: string) => `<!doctype html>
   </body>
 </html>`;
 
+const buildAuthorizeDecisionUrl = (input: {
+  sessionState: string;
+  decision: 'approve' | 'deny';
+}) => {
+  const query = new URLSearchParams({
+    session_state: input.sessionState,
+    decision: input.decision,
+  });
+
+  return `/oauth2/authorize/decision?${query.toString()}`;
+};
+
 const renderConsentPage = (input: {
   application: { name: string; description?: string | null; logoUrl?: string | null };
   user: { nickname: string; username: string };
@@ -122,7 +134,7 @@ const renderConsentPage = (input: {
       strong { font-size: 15px; }
       span { color: #6b7280; font-size: 14px; }
       .actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
-      button { border: none; border-radius: 12px; padding: 0 18px; height: 42px; font-size: 14px; font-weight: 600; cursor: pointer; }
+      a { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; padding: 0 18px; height: 42px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
       .ghost { background: #eef2f7; color: #334155; }
       .primary { background: #111827; color: #fff; }
     </style>
@@ -135,21 +147,28 @@ const renderConsentPage = (input: {
         <ul>${scopeItems}</ul>
         <p>当前账号：${input.user.nickname}（${input.user.username}）</p>
         <div class="actions">
-          <form method="post" action="/oauth2/authorize/decision">
-            <input type="hidden" name="session_state" value="${input.sessionState}" />
-            <input type="hidden" name="decision" value="deny" />
-            <button type="submit" class="ghost">拒绝</button>
-          </form>
-          <form method="post" action="/oauth2/authorize/decision">
-            <input type="hidden" name="session_state" value="${input.sessionState}" />
-            <input type="hidden" name="decision" value="approve" />
-            <button type="submit" class="primary">同意并继续</button>
-          </form>
+          <a href="${buildAuthorizeDecisionUrl({ sessionState: input.sessionState, decision: 'deny' })}" class="ghost">拒绝</a>
+          <a href="${buildAuthorizeDecisionUrl({ sessionState: input.sessionState, decision: 'approve' })}" class="primary">同意并继续</a>
         </div>
       </section>
     </main>
   </body>
 </html>`;
+};
+
+const readAuthorizeDecision = (req: Request) => {
+  const source = req.method === 'GET' ? req.query : req.body;
+  const sessionState = String(source.session_state ?? '');
+  const decision = String(source.decision ?? '');
+
+  if (!sessionState || !['approve', 'deny'].includes(decision)) {
+    throw badRequest('invalid authorization decision');
+  }
+
+  return {
+    sessionState,
+    decision: decision as 'approve' | 'deny',
+  };
 };
 
 const tryRedirectAuthorizeError = async (input: {
@@ -249,18 +268,14 @@ oauth2Router.get('/oauth2/authorize', async (req, res, next) => {
   }
 });
 
-oauth2Router.post('/oauth2/authorize/decision', async (req, res, next) => {
+const handleAuthorizationDecision = async (req: Request, res: Response, next: (error?: unknown) => void) => {
   try {
     const userId = resolveBrowserSessionUserId(req.cookies[getBrowserSessionCookieName()]);
     if (!userId) {
       throw unauthorized('请先登录后再继续授权');
     }
 
-    const sessionState = String(req.body.session_state ?? '');
-    const decision = String(req.body.decision ?? '');
-    if (!sessionState || !['approve', 'deny'].includes(decision)) {
-      throw badRequest('invalid authorization decision');
-    }
+    const { sessionState, decision } = readAuthorizeDecision(req);
 
     const redirectUrl = decision === 'approve'
       ? await approveAuthorizationRequest(sessionState, userId)
@@ -275,7 +290,10 @@ oauth2Router.post('/oauth2/authorize/decision', async (req, res, next) => {
 
     next(error);
   }
-});
+};
+
+oauth2Router.get('/oauth2/authorize/decision', handleAuthorizationDecision);
+oauth2Router.post('/oauth2/authorize/decision', handleAuthorizationDecision);
 
 oauth2Router.post('/oauth2/token', async (req, res, next) => {
   try {

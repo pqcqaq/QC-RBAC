@@ -119,6 +119,10 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - consent page
 - token introspection / revoke
 
+实现细节：
+
+- Consent 页的“同意 / 拒绝”走同源链接跳转到 `/oauth2/authorize/decision`，避免浏览器在严格 CSP 下拦截表单提交。
+
 ### 2. 我们作为 OAuth Client
 
 - 外部 Provider 的管理接口在 `src/routes/oauth.ts`。
@@ -131,6 +135,7 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `handleExternalProviderCallback` 处理第三方回调。
 - `exchangeOAuthLoginTicket` 把一次性 ticket 换成本地会话。
 - 外部 access token / refresh token 会落在 `OAuthToken` 表。
+- OAuth 用户关联优先按 `(providerId, providerSubject)` 匹配；如果 subject 变化但还是同一个本地用户，会复用已有 `(userId, providerId)` 关联并更新 subject，避免重复建链。
 
 Web 控制台对应的管理页面已经落地：
 

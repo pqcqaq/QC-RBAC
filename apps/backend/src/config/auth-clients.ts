@@ -83,21 +83,28 @@ export const authClientPayloadSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+const parseWebClientConfigFromOrigin = (origin: string): WebAuthClientConfig | null => {
+  try {
+    const parsed = new URL(origin);
+    return {
+      protocol: parsed.protocol.replace(/:$/, '') === 'https' ? 'https' : 'http',
+      host: parsed.hostname,
+      ...(parsed.port ? { port: Number(parsed.port) } : {}),
+    };
+  } catch {
+    return null;
+  }
+};
+
 const parseDefaultWebClientConfig = (): WebAuthClientConfig => {
   for (const origin of clientOrigins) {
-    try {
-      const parsed = new URL(origin);
-      return {
-        protocol: parsed.protocol.replace(/:$/, '') === 'https' ? 'https' : 'http',
-        host: parsed.hostname,
-        ...(parsed.port ? { port: Number(parsed.port) } : {}),
-      };
-    } catch {
-      continue;
+    const config = parseWebClientConfigFromOrigin(origin);
+    if (config) {
+      return config;
     }
   }
 
-  return {
+  return parseWebClientConfigFromOrigin('http://localhost:5173') ?? {
     protocol: 'http',
     host: 'localhost',
     port: 5173,
@@ -112,6 +119,18 @@ export const defaultAuthClientSeeds: BackendAuthClientSeedDefinition[] = [
     description: '浏览器端控制台客户端',
     clientSecret: 'rbac-web-client-secret',
     config: parseDefaultWebClientConfig(),
+  },
+  {
+    code: 'web-uni-h5',
+    name: 'Uni H5 调试端',
+    type: AuthClientType.WEB,
+    description: 'uni-app H5 本地开发客户端',
+    clientSecret: 'rbac-web-uni-h5-secret',
+    config: parseWebClientConfigFromOrigin('http://localhost:9000') ?? {
+      protocol: 'http',
+      host: 'localhost',
+      port: 9000,
+    },
   },
   {
     code: 'uni-wechat-miniapp',

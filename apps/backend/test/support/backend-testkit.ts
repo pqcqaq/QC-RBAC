@@ -69,6 +69,13 @@ export const webClient: WebTestClient = {
   origin: 'http://localhost:5173',
 };
 
+export const webH5Client: WebTestClient = {
+  code: 'web-uni-h5',
+  secret: 'rbac-web-uni-h5-secret',
+  type: AuthClientType.WEB,
+  origin: 'http://localhost:9000',
+};
+
 export const uniClient: UniMiniappTestClient = {
   code: 'uni-wechat-miniapp',
   secret: 'rbac-uni-miniapp-secret',

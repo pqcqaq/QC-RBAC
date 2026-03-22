@@ -40,6 +40,7 @@ Uni 端请求入口在 `src/api/client.ts`。
   - 微信小程序：`UNI_WECHAT_MINIAPP`
   - App：`APP`
   - 其他环境：`WEB`
+- H5 调试固定按 `WEB` 处理，并默认使用 `web-uni-h5` 客户端，避免浏览器环境误用小程序 client
 - 自动拼出客户端请求头：
   - 小程序带 `appId`
   - App 带 `packageName` / `platform`

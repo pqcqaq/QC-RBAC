@@ -37,6 +37,7 @@ Copy-Item apps/app-frontend/env/.env.example apps/app-frontend/env/.env
 | Web | `VITE_AUTH_CLIENT_CODE` / `VITE_AUTH_CLIENT_SECRET` | Web 客户端凭证 |
 | App | `VITE_SERVER_BASEURL` | Uni API 地址 |
 | App | `VITE_AUTH_CLIENT_CODE` / `VITE_AUTH_CLIENT_SECRET` | Uni / App 客户端凭证 |
+| App | `VITE_AUTH_WEB_CLIENT_CODE` / `VITE_AUTH_WEB_CLIENT_SECRET` | Uni H5 调试时使用的 Web 客户端凭证 |
 | App | `VITE_AUTH_CLIENT_APP_ID` / `VITE_APP_PACKAGE_NAME` | 小程序 AppID 或 App 包名 |
 
 ## 3. 启动数据库和缓存
@@ -57,7 +58,7 @@ pnpm --filter @rbac/backend prisma:seed
 
 种子会写入：
 
-- 默认客户端：`web-console`、`uni-wechat-miniapp`、`native-app`
+- 默认客户端：`web-console`、`web-uni-h5`、`uni-wechat-miniapp`、`native-app`
 - 三种认证策略：用户名密码、邮箱验证码、手机号验证码
 - 默认角色、权限目录、菜单树
 - 演示账号

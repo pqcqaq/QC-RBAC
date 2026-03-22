@@ -13,8 +13,6 @@ import {
 } from '@/utils/auth-storage'
 
 const baseUrl = import.meta.env.VITE_SERVER_BASEURL || 'http://localhost:3300/api'
-export const authClientCode = import.meta.env.VITE_AUTH_CLIENT_CODE || 'uni-wechat-miniapp'
-export const authClientSecret = import.meta.env.VITE_AUTH_CLIENT_SECRET || 'rbac-uni-miniapp-secret'
 
 const inferDefaultClientType = () => {
   // #ifdef MP-WEIXIN
@@ -26,7 +24,41 @@ const inferDefaultClientType = () => {
   return AuthClientType.WEB
 }
 
-export const authClientType = (import.meta.env.VITE_AUTH_CLIENT_TYPE as AuthClientType | undefined) || inferDefaultClientType()
+const inferredClientType = inferDefaultClientType()
+
+const resolveAuthClientType = () => {
+  if (inferredClientType === AuthClientType.WEB) {
+    return AuthClientType.WEB
+  }
+
+  return (import.meta.env.VITE_AUTH_CLIENT_TYPE as AuthClientType | undefined) || inferredClientType
+}
+
+const resolveDefaultClientCredentials = (type: AuthClientType) => {
+  if (type === AuthClientType.WEB) {
+    return {
+      code: import.meta.env.VITE_AUTH_WEB_CLIENT_CODE || 'web-uni-h5',
+      secret: import.meta.env.VITE_AUTH_WEB_CLIENT_SECRET || 'rbac-web-uni-h5-secret',
+    }
+  }
+
+  if (type === AuthClientType.APP) {
+    return {
+      code: import.meta.env.VITE_AUTH_APP_CLIENT_CODE || import.meta.env.VITE_AUTH_CLIENT_CODE || 'native-app',
+      secret: import.meta.env.VITE_AUTH_APP_CLIENT_SECRET || import.meta.env.VITE_AUTH_CLIENT_SECRET || 'rbac-native-app-secret',
+    }
+  }
+
+  return {
+    code: import.meta.env.VITE_AUTH_MINIAPP_CLIENT_CODE || import.meta.env.VITE_AUTH_CLIENT_CODE || 'uni-wechat-miniapp',
+    secret: import.meta.env.VITE_AUTH_MINIAPP_CLIENT_SECRET || import.meta.env.VITE_AUTH_CLIENT_SECRET || 'rbac-uni-miniapp-secret',
+  }
+}
+
+export const authClientType = resolveAuthClientType()
+const authClientCredentials = resolveDefaultClientCredentials(authClientType)
+export const authClientCode = authClientCredentials.code
+export const authClientSecret = authClientCredentials.secret
 
 const resolveWebClientConfig = () => {
   const currentLocation = typeof location !== 'undefined' ? location : null

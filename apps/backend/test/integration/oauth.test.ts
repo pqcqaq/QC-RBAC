@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import request from 'supertest';
+import { withSnowflakeId } from '../../src/utils/persistence';
 import {
   bootstrapBackendTestContext,
   type BackendTestContext,
@@ -107,16 +108,13 @@ describe('OAuth integration', () => {
       })
       .expect(200);
 
-    const sessionState = /name="session_state" value="([^"]+)"/.exec(authorizeResponse.text)?.[1];
-    assert.ok(sessionState);
+    const approveDecisionUrl = /href="([^"]*\/oauth2\/authorize\/decision\?[^"]*decision=approve)"/.exec(authorizeResponse.text)?.[1]
+      ?.replace(/&amp;/g, '&');
+    assert.ok(authorizeResponse.text.includes('同意并继续'));
+    assert.ok(approveDecisionUrl);
 
     const decisionResponse = await agent
-      .post('/oauth2/authorize/decision')
-      .type('form')
-      .send({
-        session_state: sessionState,
-        decision: 'approve',
-      })
+      .get(approveDecisionUrl)
       .expect(302);
 
     const redirected = new URL(String(decisionResponse.headers.location));
@@ -245,5 +243,86 @@ describe('OAuth integration', () => {
       },
     });
     assert.ok(refreshedAccessTokenCount >= 2);
+  });
+
+  it('reuses an existing provider link for the same user when the upstream subject changes', async () => {
+    const { app, prisma } = context;
+
+    const [provider, adminUser] = await Promise.all([
+      prisma.oAuthProvider.findUnique({
+        where: { code: 'demo-provider' },
+        select: { id: true },
+      }),
+      prisma.user.findUnique({
+        where: { email: 'admin@example.com' },
+        select: { id: true },
+      }),
+    ]);
+
+    assert.ok(provider);
+    assert.ok(adminUser);
+
+    const existingLink = await prisma.oAuthUser.create({
+      data: withSnowflakeId({
+        providerId: provider.id,
+        providerSubject: 'legacy-demo-subject',
+        userId: adminUser.id,
+        email: 'admin@example.com',
+        username: 'legacy_admin',
+        nickname: 'Legacy Admin',
+        avatarUrl: 'https://example.com/legacy.png',
+        rawProfile: {
+          sub: 'legacy-demo-subject',
+          email: 'admin@example.com',
+        },
+        lastLoginAt: new Date(),
+        lastSyncedAt: new Date(),
+      }),
+      select: {
+        id: true,
+      },
+    });
+
+    const authorizeResult = await withClientAuth(
+      request(app)
+        .get('/api/auth/oauth/providers/demo-provider/authorize-url')
+        .query({ returnTo: '/console' }),
+    ).expect(200);
+
+    const upstreamUrl = new URL(authorizeResult.body.data.redirectUrl);
+    const state = upstreamUrl.searchParams.get('state');
+    assert.ok(state);
+
+    const callback = await request(app)
+      .get('/api/auth/oauth/providers/demo-provider/callback')
+      .query({ code: 'mock-code', state })
+      .expect(302);
+
+    const callbackUrl = new URL(String(callback.headers.location), 'http://localhost:5173');
+    const ticket = callbackUrl.searchParams.get('oauth_ticket');
+    assert.ok(ticket);
+
+    const exchanged = await withClientAuth(request(app).post('/api/auth/oauth/tickets/exchange'))
+      .send({ ticket })
+      .expect(200);
+
+    assert.equal(exchanged.body.data.user.email, 'admin@example.com');
+
+    const providerLinks = await prisma.oAuthUser.findMany({
+      where: {
+        providerId: provider.id,
+        userId: adminUser.id,
+      },
+      select: {
+        id: true,
+        providerSubject: true,
+        email: true,
+      },
+    });
+
+    assert.equal(providerLinks.length, 1);
+    assert.equal(providerLinks[0].id, existingLink.id);
+    assert.equal(providerLinks[0].providerSubject, 'demo-upstream-user');
+    assert.equal(providerLinks[0].email, 'admin@example.com');
   });
 });

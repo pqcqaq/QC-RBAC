@@ -602,6 +602,12 @@ const resolveOAuthIdentity = async (input: {
   const username = readNestedClaim(input.profile, mapping.username);
   const nickname = readNestedClaim(input.profile, mapping.nickname);
   const avatarUrl = readNestedClaim(input.profile, mapping.avatarUrl);
+  const normalizedProfile = {
+    email: typeof email === 'string' ? email.trim().toLowerCase() : null,
+    username: typeof username === 'string' ? username.trim() : null,
+    nickname: typeof nickname === 'string' ? nickname.trim() : null,
+    avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
+  };
 
   let oauthUser = await prisma.oAuthUser.findUnique({
     where: {
@@ -654,16 +660,30 @@ const resolveOAuthIdentity = async (input: {
     userId = user.id;
   }
 
+  if (!oauthUser && userId) {
+    oauthUser = await prisma.oAuthUser.findUnique({
+      where: {
+        userId_providerId: {
+          userId,
+          providerId: input.provider.id,
+        },
+      },
+      include: {
+        user: true,
+      },
+    });
+  }
+
   if (!oauthUser) {
     oauthUser = await prisma.oAuthUser.create({
       data: withSnowflakeId({
         providerId: input.provider.id,
         providerSubject: subject,
         userId,
-        email: typeof email === 'string' ? email.trim().toLowerCase() : null,
-        username: typeof username === 'string' ? username.trim() : null,
-        nickname: typeof nickname === 'string' ? nickname.trim() : null,
-        avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
+        email: normalizedProfile.email,
+        username: normalizedProfile.username,
+        nickname: normalizedProfile.nickname,
+        avatarUrl: normalizedProfile.avatarUrl,
         rawProfile: input.profile as Prisma.InputJsonValue,
         lastLoginAt: new Date(),
         lastSyncedAt: new Date(),
@@ -677,10 +697,11 @@ const resolveOAuthIdentity = async (input: {
       where: { id: oauthUser.id },
       data: {
         userId,
-        email: typeof email === 'string' ? email.trim().toLowerCase() : null,
-        username: typeof username === 'string' ? username.trim() : null,
-        nickname: typeof nickname === 'string' ? nickname.trim() : null,
-        avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
+        providerSubject: subject,
+        email: normalizedProfile.email,
+        username: normalizedProfile.username,
+        nickname: normalizedProfile.nickname,
+        avatarUrl: normalizedProfile.avatarUrl,
         rawProfile: input.profile as Prisma.InputJsonValue,
         lastLoginAt: new Date(),
         lastSyncedAt: new Date(),
@@ -695,12 +716,7 @@ const resolveOAuthIdentity = async (input: {
     userId,
     oauthUser,
     subject,
-    profile: {
-      email: typeof email === 'string' ? email.trim().toLowerCase() : null,
-      username: typeof username === 'string' ? username.trim() : null,
-      nickname: typeof nickname === 'string' ? nickname.trim() : null,
-      avatarUrl: typeof avatarUrl === 'string' ? avatarUrl : null,
-    },
+    profile: normalizedProfile,
   };
 };
 
