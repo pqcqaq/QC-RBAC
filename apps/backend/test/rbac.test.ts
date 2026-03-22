@@ -185,6 +185,12 @@ describe('RBAC backend', () => {
 
     assert.match(invalidWebOriginResponse.body.message, /client/i);
 
+    await withClientAuth(request(app).get('/api/auth/strategies'), {
+      ...webClient,
+      origin: 'http://localhost:4173',
+    })
+      .expect(200);
+
     const invalidMiniappResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
       ...uniClient,
       appId: 'wrong-miniapp-appid',

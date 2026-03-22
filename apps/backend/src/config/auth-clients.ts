@@ -7,6 +7,7 @@ import {
   type WebAuthClientConfig,
 } from '@rbac/api-common';
 import { z } from 'zod';
+import { clientOrigins } from './env.js';
 
 export type BackendAuthClientConfigByType = {
   [AuthClientType.WEB]: WebAuthClientConfig;
@@ -82,6 +83,27 @@ export const authClientPayloadSchema = z.discriminatedUnion('type', [
   }),
 ]);
 
+const parseDefaultWebClientConfig = (): WebAuthClientConfig => {
+  for (const origin of clientOrigins) {
+    try {
+      const parsed = new URL(origin);
+      return {
+        protocol: parsed.protocol.replace(/:$/, '') === 'https' ? 'https' : 'http',
+        host: parsed.hostname,
+        ...(parsed.port ? { port: Number(parsed.port) } : {}),
+      };
+    } catch {
+      continue;
+    }
+  }
+
+  return {
+    protocol: 'http',
+    host: 'localhost',
+    port: 5173,
+  };
+};
+
 export const defaultAuthClientSeeds: BackendAuthClientSeedDefinition[] = [
   {
     code: 'web-console',
@@ -89,11 +111,7 @@ export const defaultAuthClientSeeds: BackendAuthClientSeedDefinition[] = [
     type: AuthClientType.WEB,
     description: '浏览器端控制台客户端',
     clientSecret: 'rbac-web-client-secret',
-    config: {
-      protocol: 'http',
-      host: 'localhost',
-      port: 5173,
-    },
+    config: parseDefaultWebClientConfig(),
   },
   {
     code: 'uni-wechat-miniapp',

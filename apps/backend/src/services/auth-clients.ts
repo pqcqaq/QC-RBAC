@@ -18,6 +18,7 @@ import {
   buildAuthClientSummary,
   parseAuthClientConfig,
 } from '../config/auth-clients.js';
+import { clientOrigins } from '../config/env.js';
 import { prisma } from '../lib/prisma.js';
 import { unauthorized } from '../utils/errors.js';
 import { compareSecret } from '../utils/password.js';
@@ -86,10 +87,18 @@ const normalizePort = (protocol: string, port?: string | number | null) => {
   return normalizeProtocol(protocol) === 'https' ? '443' : '80';
 };
 
+const readForwardedValue = (value?: string | string[]) => {
+  const normalized = readSingleHeader(value);
+  return normalized.split(',')[0]?.trim() ?? '';
+};
+
 const parseOriginUrl = (headers: IncomingHttpHeaders) => {
   const origin = readSingleHeader(headers.origin);
   const referer = readSingleHeader(headers.referer);
-  const source = origin || referer;
+  const forwardedProto = readForwardedValue(headers['x-forwarded-proto']);
+  const forwardedHost = readForwardedValue(headers['x-forwarded-host']);
+  const host = readSingleHeader(headers.host);
+  const source = origin || referer || ((forwardedProto || host) ? `${forwardedProto || 'http'}://${forwardedHost || host}` : '');
 
   if (!source) {
     return null;
@@ -101,6 +110,33 @@ const parseOriginUrl = (headers: IncomingHttpHeaders) => {
     throw unauthorized('Invalid client origin');
   }
 };
+
+const matchesWebOrigin = (url: URL, config: WebAuthClientConfig) => {
+  const actualProtocol = normalizeProtocol(url.protocol);
+  const expectedProtocol = normalizeProtocol(config.protocol);
+  const actualPort = normalizePort(actualProtocol, url.port);
+  const expectedPort = normalizePort(expectedProtocol, config.port);
+
+  return (
+    actualProtocol === expectedProtocol
+    && url.hostname.toLowerCase() === config.host.toLowerCase()
+    && actualPort === expectedPort
+  );
+};
+
+const isAllowedWebOrigin = (url: URL) =>
+  clientOrigins.some((origin) => {
+    try {
+      const parsed = new URL(origin);
+      return matchesWebOrigin(url, {
+        protocol: normalizeProtocol(parsed.protocol) === 'https' ? 'https' : 'http',
+        host: parsed.hostname,
+        ...(parsed.port ? { port: Number(parsed.port) } : {}),
+      });
+    } catch {
+      return false;
+    }
+  });
 
 const parsePersistedAuthClient = <
   TClient extends {
@@ -160,16 +196,7 @@ const validateWebClient = (
     throw unauthorized('Missing client origin');
   }
 
-  const actualProtocol = normalizeProtocol(url.protocol);
-  const expectedProtocol = normalizeProtocol(client.config.protocol);
-  const actualPort = normalizePort(actualProtocol, url.port);
-  const expectedPort = normalizePort(expectedProtocol, client.config.port);
-
-  if (
-    actualProtocol !== expectedProtocol
-    || url.hostname.toLowerCase() !== client.config.host.toLowerCase()
-    || actualPort !== expectedPort
-  ) {
+  if (!matchesWebOrigin(url, client.config) && !isAllowedWebOrigin(url)) {
     throw unauthorized('Invalid client origin');
   }
 };
