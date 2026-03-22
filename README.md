@@ -1,8 +1,15 @@
 # QC-RBAC
 
+[![Docs](https://img.shields.io/badge/docs-rbac.zust.online-1677ff?style=flat-square&logo=vitepress&logoColor=white)](https://rbac.zust.online/)
+[![License](https://img.shields.io/github/license/pqcqaq/QC-RBAC?style=flat-square)](./LICENSE)
+[![Stars](https://img.shields.io/github/stars/pqcqaq/QC-RBAC?style=flat-square)](https://github.com/pqcqaq/QC-RBAC/stargazers)
+[![Last Commit](https://img.shields.io/github/last-commit/pqcqaq/QC-RBAC?style=flat-square)](https://github.com/pqcqaq/QC-RBAC/commits/main)
+
 QC-RBAC 是一个围绕认证、授权、多端接入组织的 Monorepo。仓库当前包含后端服务、Web 控制台、uni-app 移动端、OAuth Provider / Client 测试项目，以及前后端共享的 API 协议层。
 
-根目录 README 只保留仓库入口信息。详细实现、扩展方式和测试说明统一放在 `apps/docs`。
+在线文档：<https://rbac.zust.online/>
+
+根目录 README 只保留仓库入口信息。详细实现、扩展方式和测试说明统一放在在线文档和 `apps/docs`。
 
 ## 核心能力
 
@@ -88,7 +95,8 @@ pnpm dev:docs
 | Web 登录页 | `http://localhost:5173/login` |
 | Backend API | `http://localhost:3300/api` |
 | OAuth / OIDC Provider | `http://localhost:3300/oauth2/*` |
-| 文档站 | `http://localhost:6174` |
+| 在线文档 | `https://rbac.zust.online/` |
+| 本地文档预览 | `http://localhost:6174` |
 | OAuth 测试 Provider | `http://localhost:3310` |
 | OAuth 测试 Application | `http://localhost:3320` |
 
@@ -137,6 +145,7 @@ pnpm --filter @rbac/docs build
 
 ## 文档入口
 
+- 在线文档：<https://rbac.zust.online/>
 - 文档首页：[`apps/docs/index.md`](./apps/docs/index.md)
 - 快速开始：[`apps/docs/guide/quick-start.md`](./apps/docs/guide/quick-start.md)
 - 开发指南：[`apps/docs/guide/development.md`](./apps/docs/guide/development.md)
@@ -146,6 +155,10 @@ pnpm --filter @rbac/docs build
 - 共享抽象：[`apps/docs/guide/shared.md`](./apps/docs/guide/shared.md)
 - 测试用例：[`apps/docs/guide/testing.md`](./apps/docs/guide/testing.md)
 - 扩展指南：[`apps/docs/guide/extension.md`](./apps/docs/guide/extension.md)
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=pqcqaq/QC-RBAC&type=Date)](https://star-history.com/#pqcqaq/QC-RBAC&Date)
 
 ## License
 
