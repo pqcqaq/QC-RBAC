@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import type { Prisma, PrismaClient } from '@prisma/client';
+import type { Prisma, PrismaClient } from '../src/lib/prisma-generated';
 import { defaultAuthClientSeeds } from '../src/config/auth-clients';
 import { bootstrapSystemRbac } from '../src/services/system-rbac';
 import { hashPassword, hashSecret } from '../src/utils/password';

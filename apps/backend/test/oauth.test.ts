@@ -10,7 +10,7 @@ import {
   AuthClientType,
   buildAuthClientHeaders,
 } from '@rbac/api-common';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../src/lib/prisma-generated';
 import type { Express } from 'express';
 import request from 'supertest';
 import { refreshExternalOAuthAccessTokens } from '../src/services/oauth-auth-server';
@@ -128,7 +128,7 @@ const startMockProvider = async () => {
 };
 
 before(async () => {
-  execPrisma('db', 'push', '--skip-generate', '--force-reset');
+  execPrisma('db', 'push', '--force-reset');
   const appModule = await import('../src/app');
   ({ prisma } = await import('../src/lib/prisma'));
   ({ redis } = await import('../src/lib/redis'));

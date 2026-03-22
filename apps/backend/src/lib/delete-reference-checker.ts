@@ -1,4 +1,4 @@
-import { Prisma, type PrismaClient } from '@prisma/client';
+import type { PrismaClient } from './prisma-generated';
 import { badRequest } from '../utils/errors';
 
 type DeleteGuardOperation = 'delete' | 'deleteMany' | 'update' | 'updateMany';
@@ -25,6 +25,9 @@ type DeleteCandidateRecord = Record<string, unknown> & {
 
 type TransactionAwarePrismaClient = PrismaClient & {
   _createItxClient?: (transaction: unknown) => PrismaClient;
+  _engineConfig?: {
+    inlineSchema?: string;
+  };
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
@@ -91,30 +94,158 @@ const getDeleteAtWriteValue = (data?: unknown) => {
   return value;
 };
 
-const buildIncomingReferenceMap = () => {
+const relationFieldListPattern = /\b(fields|references)\s*:\s*\[([^\]]*)\]/g;
+
+const splitSchemaBlocks = (schema: string, keyword: 'model' | 'enum') => {
+  const blocks: Array<{ name: string; body: string }> = [];
+  const pattern = new RegExp(`\\b${keyword}\\s+(\\w+)\\s*\\{`, 'g');
+
+  for (const match of schema.matchAll(pattern)) {
+    const name = match[1];
+    if (!name) {
+      continue;
+    }
+
+    const openBraceIndex = (match.index ?? 0) + match[0].length - 1;
+    let depth = 1;
+    let cursor = openBraceIndex + 1;
+
+    while (cursor < schema.length && depth > 0) {
+      const character = schema[cursor];
+      if (character === '{') {
+        depth += 1;
+      } else if (character === '}') {
+        depth -= 1;
+      }
+
+      cursor += 1;
+    }
+
+    if (depth !== 0) {
+      continue;
+    }
+
+    blocks.push({
+      name,
+      body: schema.slice(openBraceIndex + 1, cursor - 1),
+    });
+  }
+
+  return blocks;
+};
+
+const collectFieldStatements = (modelBody: string) => {
+  const statements: string[] = [];
+  const lines = modelBody
+    .split(/\r?\n/)
+    .map((line) => line.replace(/\/\/.*$/, '').trim())
+    .filter(Boolean);
+
+  let pending = '';
+  let parenBalance = 0;
+
+  for (const line of lines) {
+    if (line.startsWith('@@')) {
+      continue;
+    }
+
+    pending = pending ? `${pending} ${line}` : line;
+    parenBalance += (line.match(/\(/g) ?? []).length;
+    parenBalance -= (line.match(/\)/g) ?? []).length;
+
+    if (parenBalance > 0) {
+      continue;
+    }
+
+    statements.push(pending);
+    pending = '';
+  }
+
+  if (pending) {
+    statements.push(pending);
+  }
+
+  return statements;
+};
+
+const parseRelationFields = (relationArgs: string, key: 'fields' | 'references') => {
+  for (const match of relationArgs.matchAll(relationFieldListPattern)) {
+    if (match[1] !== key) {
+      continue;
+    }
+
+    return match[2]
+      ?.split(',')
+      .map((item) => item.trim())
+      .filter(Boolean) ?? [];
+  }
+
+  return [];
+};
+
+const buildIncomingReferenceMap = (schema: string) => {
   const map = new Map<string, IncomingReference[]>();
 
-  for (const model of Prisma.dmmf.datamodel.models) {
-    for (const field of model.fields) {
-      if (field.kind !== 'object' || !field.relationFromFields?.length || !field.relationToFields?.length) {
+  for (const model of splitSchemaBlocks(schema, 'model')) {
+    for (const statement of collectFieldStatements(model.body)) {
+      if (!statement.includes('@relation(')) {
         continue;
       }
 
-      const existing = map.get(field.type) ?? [];
+      const tokens = statement.split(/\s+/);
+      const sourceField = tokens[0];
+      const targetTypeToken = tokens[1];
+      if (!sourceField || !targetTypeToken) {
+        continue;
+      }
+
+      const sourceType = targetTypeToken.replace(/[?\[\]]/g, '');
+      const relationArgsMatch = statement.match(/@relation\(([\s\S]+)\)/);
+      if (!relationArgsMatch?.[1]) {
+        continue;
+      }
+
+      const fromFields = parseRelationFields(relationArgsMatch[1], 'fields');
+      const toFields = parseRelationFields(relationArgsMatch[1], 'references');
+      if (!fromFields.length || !toFields.length) {
+        continue;
+      }
+
+      if (fromFields.length !== toFields.length) {
+        continue;
+      }
+
+      const existing = map.get(sourceType) ?? [];
       existing.push({
         sourceModel: model.name,
-        sourceField: field.name,
-        fromFields: [...field.relationFromFields],
-        toFields: [...field.relationToFields],
+        sourceField,
+        fromFields,
+        toFields,
       });
-      map.set(field.type, existing);
+      map.set(sourceType, existing);
     }
   }
 
   return map;
 };
 
-const incomingReferenceMap = buildIncomingReferenceMap();
+const incomingReferenceMapCache = new Map<string, Map<string, IncomingReference[]>>();
+
+const getIncomingReferenceMap = (client: PrismaClient) => {
+  const schema = (client as TransactionAwarePrismaClient)._engineConfig?.inlineSchema;
+  if (!schema) {
+    return new Map<string, IncomingReference[]>();
+  }
+
+  const cached = incomingReferenceMapCache.get(schema);
+  if (cached) {
+    return cached;
+  }
+
+  const next = buildIncomingReferenceMap(schema);
+  incomingReferenceMapCache.set(schema, next);
+  return next;
+};
 
 const resolveGuardClient = (client: PrismaClient, internalParams?: unknown) => {
   if (!isPlainObject(internalParams) || !isPlainObject(internalParams.transaction)) {
@@ -187,7 +318,7 @@ const resolveReferenceBlocks = async (input: {
   records: DeleteCandidateRecord[];
   softDeleteModelNames: Set<string>;
 }) => {
-  const references = incomingReferenceMap.get(input.model) ?? [];
+  const references = getIncomingReferenceMap(input.client).get(input.model) ?? [];
   if (!references.length || !input.records.length) {
     return [];
   }
@@ -279,7 +410,7 @@ export const assertNoDeleteReferenceBlocks = async (input: {
   softDeleteModelNames: Set<string>;
   internalParams?: unknown;
 }) => {
-  const references = incomingReferenceMap.get(input.model) ?? [];
+  const references = getIncomingReferenceMap(input.client).get(input.model) ?? [];
   if (!references.length) {
     return;
   }

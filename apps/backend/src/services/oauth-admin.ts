@@ -3,7 +3,7 @@ import type {
   OAuthProviderFormPayload,
   OAuthProviderPublicSummary,
 } from '@rbac/api-common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../lib/prisma-generated';
 import { AuthClientType, type OAuthApplicationClientType } from '@rbac/api-common';
 import { prisma } from '../lib/prisma';
 import { badRequest, notFound, unauthorized } from '../utils/errors';

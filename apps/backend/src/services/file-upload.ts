@@ -8,7 +8,7 @@ import {
   UploadPartCopyCommand,
 } from '@aws-sdk/client-s3';
 import { createPresignedPost } from '@aws-sdk/s3-presigned-post';
-import type { MediaAssetStorageProvider, MediaAssetUploadStrategy } from '@prisma/client';
+import type { MediaAssetStorageProvider, MediaAssetUploadStrategy } from '../lib/prisma-generated';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { createHash, randomUUID } from 'node:crypto';

@@ -1,5 +1,5 @@
 import type { PermissionRecord, UserPermissionSource } from '@rbac/api-common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
 import { cacheDel, cacheGet, cacheSet } from '../lib/redis';
 import { notFound } from './errors';

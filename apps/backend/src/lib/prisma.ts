@@ -1,8 +1,9 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './prisma-generated';
 import {
   assertNoDeleteReferenceBlocks,
   isDeleteGuardedOperation,
 } from './delete-reference-checker';
+import { createPrismaClient } from './prisma-client-factory';
 import { getRequestActorId } from '../utils/request-context';
 import { generateSnowflakeId } from '../utils/snowflake';
 
@@ -128,7 +129,7 @@ const resolveActiveRecordId = async (
   return record?.id ?? '__soft_delete_missing__';
 };
 
-const prismaRaw = new PrismaClient();
+const prismaRaw = createPrismaClient();
 
 export const prisma: PrismaClient = prismaRaw.$extends({
   query: {

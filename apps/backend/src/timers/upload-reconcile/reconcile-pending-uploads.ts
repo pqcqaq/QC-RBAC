@@ -1,5 +1,5 @@
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../lib/prisma-generated';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import {

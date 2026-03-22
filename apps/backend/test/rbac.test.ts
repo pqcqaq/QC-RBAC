@@ -9,7 +9,7 @@ import {
   buildAuthClientHeaders,
 } from '@rbac/api-common';
 import ExcelJS from 'exceljs';
-import type { PrismaClient } from '@prisma/client';
+import type { PrismaClient } from '../src/lib/prisma-generated';
 import type { Express } from 'express';
 import request from 'supertest';
 import { verifyAccessToken } from '../src/utils/token';
@@ -186,7 +186,7 @@ const loginAs = async (account: string, password: string, client = webClient) =>
 };
 
 before(async () => {
-  execPrisma('db', 'push', '--skip-generate', '--force-reset');
+  execPrisma('db', 'push', '--force-reset');
   ({ createApp } = await import('../src/app'));
   ({ prisma } = await import('../src/lib/prisma'));
   ({ redis } = await import('../src/lib/redis'));

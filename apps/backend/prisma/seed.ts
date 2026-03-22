@@ -1,8 +1,8 @@
 import 'dotenv/config';
-import { PrismaClient } from '@prisma/client';
+import { createPrismaClient } from '../src/lib/prisma-client-factory';
 import { seedDatabase } from './seed-data';
 
-const prisma = new PrismaClient();
+const prisma = createPrismaClient();
 
 async function main() {
   await seedDatabase(prisma);

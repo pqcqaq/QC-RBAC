@@ -4,7 +4,7 @@ import type {
   OAuthProviderPublicSummary,
   OAuthProviderRecord,
 } from '@rbac/api-common';
-import type { OAuthApplication, OAuthApplicationPermission, OAuthProvider, Permission, Prisma } from '@prisma/client';
+import type { OAuthApplication, OAuthApplicationPermission, OAuthProvider, Permission, Prisma } from '../lib/prisma-generated';
 import { toPermissionSummary } from './rbac-records';
 
 export const defaultOAuthClaimMapping: OAuthClaimMapping = {

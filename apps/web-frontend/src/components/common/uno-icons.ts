@@ -41,6 +41,7 @@ export const menuIconCatalog = [
   { value: 'i-carbon-settings-services', label: '服务设置', group: '系统', keywords: ['settings', 'services', 'system'] },
   { value: 'i-carbon-data-base', label: '数据', group: '系统', keywords: ['database', 'data', 'storage'] },
   { value: 'i-carbon-api', label: '接口', group: '系统', keywords: ['api', 'endpoint', 'service'] },
+  { value: 'i-carbon-app-connectivity', label: '客户端', group: '系统', keywords: ['client', 'application', 'connectivity'] },
   { value: 'i-carbon-code', label: '代码', group: '系统', keywords: ['code', 'developer', 'action'] },
   { value: 'i-carbon-cloud-upload', label: '上传', group: '动作', keywords: ['upload', 'file', 'avatar'] },
   { value: 'i-carbon-add', label: '新增', group: '动作', keywords: ['add', 'create', 'new'] },
@@ -72,6 +73,11 @@ const menuCodeIconMap: Record<string, string> = {
   live: 'i-carbon-flash',
   system: 'i-carbon-settings',
   menus: 'i-carbon-tree-view-alt',
+  clients: 'i-carbon-app-connectivity',
+};
+
+const legacyInvalidMenuIconMap: Record<string, string> = {
+  'i-carbon-device-accessibility': 'i-carbon-app-connectivity',
 };
 
 const menuTypeFallbackIconMap = {
@@ -92,7 +98,7 @@ export const findMenuIconOption = (value?: string | null) => {
 export const resolveMenuNodeIcon = (node: MenuIconLike) => {
   const storedIcon = node.icon?.trim();
   if (storedIcon) {
-    return storedIcon;
+    return legacyInvalidMenuIconMap[storedIcon] ?? storedIcon;
   }
 
   return menuCodeIconMap[node.code] ?? menuTypeFallbackIconMap[node.type];

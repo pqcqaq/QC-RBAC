@@ -1,6 +1,6 @@
 import type { AuthClientSummary } from '@rbac/api-common';
 import { AuthClientType } from '@rbac/api-common';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../lib/prisma-generated';
 import jwt from 'jsonwebtoken';
 import { createHash, randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma';

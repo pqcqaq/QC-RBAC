@@ -4,7 +4,7 @@ import type {
   AuthVerificationPurpose,
   Prisma,
   User,
-} from '@prisma/client';
+} from '../lib/prisma-generated';
 import { prisma, prismaRaw } from '../lib/prisma';
 import { badRequest, unauthorized } from '../utils/errors';
 import { comparePassword, compareSecret, hashPassword, hashSecret } from '../utils/password';

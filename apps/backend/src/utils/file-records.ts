@@ -1,5 +1,5 @@
 import type { MediaAssetRecord } from '@rbac/api-common';
-import type { MediaAsset, Prisma, User } from '@prisma/client';
+import type { MediaAsset, Prisma, User } from '../lib/prisma-generated';
 
 export const mediaAssetWithOwnerInclude = {
   user: {

@@ -1,4 +1,4 @@
-import type { PrismaClient, Permission, Role } from '@prisma/client';
+import type { PrismaClient, Permission, Role } from '../lib/prisma-generated';
 import { permissionCatalog } from '@rbac/api-common';
 import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
 
@@ -243,7 +243,7 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
         title: '客户端管理',
         caption: 'Clients',
         description: '维护 Web、小程序与 App 客户端身份、密钥与差异化配置。',
-        icon: 'i-carbon-device-accessibility',
+        icon: 'i-carbon-app-connectivity',
         path: '/clients',
         viewKey: 'clients',
         sortOrder: 20,

@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../lib/prisma-generated';
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';

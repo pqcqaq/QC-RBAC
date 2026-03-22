@@ -1,5 +1,5 @@
 import type { MenuNodeFormPayload, MenuNodeRecord } from '@rbac/api-common';
-import type { MenuNodeType, Permission, Prisma } from '@prisma/client';
+import type { MenuNodeType, Permission, Prisma } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
 import { badRequest, notFound } from '../utils/errors';
 import { withSnowflakeId } from '../utils/persistence';

@@ -7,7 +7,7 @@ import type {
   UserRecord,
 } from '@rbac/api-common';
 import { AuthClientType } from '@rbac/api-common';
-import type { AuthClient, Permission, Prisma, Role } from '@prisma/client';
+import type { AuthClient, Permission, Prisma, Role } from '../lib/prisma-generated';
 import { parseAuthClientConfig } from '../config/auth-clients';
 
 export const userRoleSummaryInclude = {

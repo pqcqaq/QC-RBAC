@@ -1,4 +1,4 @@
-import type { Prisma } from '@prisma/client';
+import type { Prisma } from '../lib/prisma-generated';
 import { AuthClientType, isSameAuthClientIdentity } from '@rbac/api-common';
 import { Router } from 'express';
 import { z } from 'zod';

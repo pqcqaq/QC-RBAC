@@ -8,7 +8,7 @@ import type {
   VerificationCodeVerifyResult,
   VerifyVerificationCodePayload,
 } from '@rbac/api-common';
-import type { AuthStrategy, User } from '@prisma/client';
+import type { AuthStrategy, User } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
 import { badRequest } from '../utils/errors';
 import { listEnabledOAuthLoginProviders } from './oauth-admin';
