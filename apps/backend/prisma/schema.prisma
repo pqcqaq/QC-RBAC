@@ -31,6 +31,7 @@ enum AuthVerificationPurpose {
 enum AuthClientType {
   WEB
   UNI_WECHAT_MINIAPP
+  APP
 }
 
 enum MediaAssetStorageProvider {

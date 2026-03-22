@@ -4,7 +4,10 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { before, beforeEach, after, describe, it } from 'node:test';
 import { fileURLToPath } from 'node:url';
-import { AUTH_CLIENT_CODE_HEADER, AUTH_CLIENT_SECRET_HEADER } from '@rbac/api-common';
+import {
+  AuthClientType,
+  buildAuthClientHeaders,
+} from '@rbac/api-common';
 import type { PrismaClient } from '@prisma/client';
 import type { Express } from 'express';
 import request from 'supertest';
@@ -34,17 +37,65 @@ let redis: { disconnect: () => Promise<unknown> | void };
 
 const webClient = {
   code: 'web-console',
-  secret: process.env.AUTH_WEB_CLIENT_SECRET ?? 'rbac-web-client-secret',
+  secret: 'rbac-web-client-secret',
+  type: AuthClientType.WEB,
+  origin: 'http://localhost:5173',
 };
 
 const uniClient = {
   code: 'uni-wechat-miniapp',
-  secret: process.env.AUTH_UNI_WECHAT_MINIAPP_CLIENT_SECRET ?? 'rbac-uni-miniapp-secret',
+  secret: 'rbac-uni-miniapp-secret',
+  type: AuthClientType.UNI_WECHAT_MINIAPP,
+  appId: 'wx-demo-miniapp-appid',
 };
 
-const withClientAuth = (target: request.Test, client = webClient) => target
-  .set(AUTH_CLIENT_CODE_HEADER, client.code)
-  .set(AUTH_CLIENT_SECRET_HEADER, client.secret);
+const appClient = {
+  code: 'native-app',
+  secret: 'rbac-native-app-secret',
+  type: AuthClientType.APP,
+  packageName: 'com.example.rbac',
+  platform: 'android',
+};
+
+const withClientAuth = (
+  target: request.Test,
+  client: typeof webClient | typeof uniClient | typeof appClient = webClient,
+) => {
+  const headers = client.type === AuthClientType.UNI_WECHAT_MINIAPP
+    ? buildAuthClientHeaders({
+        code: client.code,
+        secret: client.secret,
+        type: client.type,
+        config: {
+          appId: client.appId,
+        },
+      })
+    : client.type === AuthClientType.APP
+      ? buildAuthClientHeaders({
+          code: client.code,
+          secret: client.secret,
+          type: client.type,
+          config: {
+            packageName: client.packageName,
+            platform: client.platform,
+          },
+        })
+      : buildAuthClientHeaders({
+          code: client.code,
+          secret: client.secret,
+          type: client.type,
+        });
+
+  Object.entries(headers).forEach(([key, value]) => {
+    target = target.set(key, value);
+  });
+
+  if (client.type === AuthClientType.WEB) {
+    target = target.set('Origin', client.origin);
+  }
+
+  return target;
+};
 
 const execPrisma = (...args: string[]) => {
   const result = spawnSync(`pnpm exec prisma ${args.join(' ')}`, {
@@ -97,17 +148,47 @@ describe('RBAC backend', () => {
     const invalidClientResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
       code: webClient.code,
       secret: 'wrong-client-secret',
+      type: AuthClientType.WEB,
+      origin: webClient.origin,
     })
       .expect(401);
 
     assert.match(invalidClientResponse.body.message, /client/i);
 
+    const invalidWebOriginResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
+      ...webClient,
+      origin: 'https://malicious.example.com',
+    })
+      .expect(401);
+
+    assert.match(invalidWebOriginResponse.body.message, /client/i);
+
+    const invalidMiniappResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
+      ...uniClient,
+      appId: 'wrong-miniapp-appid',
+    })
+      .expect(401);
+
+    assert.match(invalidMiniappResponse.body.message, /client/i);
+
+    const invalidAppResponse = await withClientAuth(request(app).get('/api/auth/strategies'), {
+      ...appClient,
+      packageName: 'com.example.invalid',
+    })
+      .expect(401);
+
+    assert.match(invalidAppResponse.body.message, /client/i);
+
     const webSession = await loginAs('admin@example.com', 'Admin123!', webClient);
     const uniSession = await loginAs('admin@example.com', 'Admin123!', uniClient);
+    const appSession = await loginAs('admin@example.com', 'Admin123!', appClient);
 
     assert.equal(webSession.client.code, webClient.code);
-    assert.equal(verifyAccessToken(webSession.tokens.accessToken).clientCode, webClient.code);
-    assert.equal(verifyAccessToken(uniSession.tokens.accessToken).clientCode, uniClient.code);
+    assert.equal(verifyAccessToken(webSession.tokens.accessToken).client.code, webClient.code);
+    assert.equal(verifyAccessToken(webSession.tokens.accessToken).client.type, webClient.type);
+    assert.equal(verifyAccessToken(uniSession.tokens.accessToken).client.code, uniClient.code);
+    assert.equal(verifyAccessToken(appSession.tokens.accessToken).client.code, appClient.code);
+    assert.equal(verifyAccessToken(appSession.tokens.accessToken).client.type, appClient.type);
 
     const crossClientMe = await withClientAuth(request(app)
       .get('/api/auth/me')

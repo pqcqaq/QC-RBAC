@@ -1,7 +1,7 @@
 import type { ApiEnvelope, AuthSession } from '@rbac/api-common'
 import {
-  AUTH_CLIENT_CODE_HEADER,
-  AUTH_CLIENT_SECRET_HEADER,
+  AuthClientType,
+  buildAuthClientHeaders,
   createApiFactory,
   createUniAdaptor,
 } from '@rbac/api-common'
@@ -15,10 +15,76 @@ import {
 const baseUrl = import.meta.env.VITE_SERVER_BASEURL || 'http://localhost:3300/api'
 export const authClientCode = import.meta.env.VITE_AUTH_CLIENT_CODE || 'uni-wechat-miniapp'
 export const authClientSecret = import.meta.env.VITE_AUTH_CLIENT_SECRET || 'rbac-uni-miniapp-secret'
-export const getClientCredentialHeaders = () => ({
-  [AUTH_CLIENT_CODE_HEADER]: authClientCode,
-  [AUTH_CLIENT_SECRET_HEADER]: authClientSecret,
-})
+
+const inferDefaultClientType = () => {
+  // #ifdef MP-WEIXIN
+  return AuthClientType.UNI_WECHAT_MINIAPP
+  // #endif
+  // #ifdef APP-PLUS
+  return AuthClientType.APP
+  // #endif
+  return AuthClientType.WEB
+}
+
+export const authClientType = (import.meta.env.VITE_AUTH_CLIENT_TYPE as AuthClientType | undefined) || inferDefaultClientType()
+
+const resolveWebClientConfig = () => {
+  const currentLocation = typeof location !== 'undefined' ? location : null
+  const protocol = (import.meta.env.VITE_AUTH_WEB_PROTOCOL || currentLocation?.protocol.replace(/:$/, '') || 'http').toLowerCase()
+  const host = import.meta.env.VITE_AUTH_WEB_HOST || currentLocation?.hostname || 'localhost'
+  const portValue = import.meta.env.VITE_AUTH_WEB_PORT || currentLocation?.port
+  const port = portValue ? Number(portValue) : undefined
+
+  return {
+    protocol: protocol === 'https' ? 'https' : 'http',
+    host,
+    ...(port ? { port } : {}),
+  } as const
+}
+
+const resolveAppPlatform = () => {
+  if (import.meta.env.VITE_APP_PLATFORM) {
+    return import.meta.env.VITE_APP_PLATFORM
+  }
+
+  // #ifdef APP-PLUS
+  return 'android'
+  // #endif
+  return undefined
+}
+
+export const getClientCredentialHeaders = () => {
+  if (authClientType === AuthClientType.UNI_WECHAT_MINIAPP) {
+    return buildAuthClientHeaders({
+      code: authClientCode,
+      secret: authClientSecret,
+      type: authClientType,
+      config: {
+        appId: import.meta.env.VITE_AUTH_CLIENT_APP_ID || import.meta.env.VITE_WX_APPID || '',
+      },
+    })
+  }
+
+  if (authClientType === AuthClientType.APP) {
+    return buildAuthClientHeaders({
+      code: authClientCode,
+      secret: authClientSecret,
+      type: authClientType,
+      config: {
+        packageName: import.meta.env.VITE_APP_PACKAGE_NAME || '',
+        ...(resolveAppPlatform() ? { platform: resolveAppPlatform() } : {}),
+      },
+    })
+  }
+
+  return buildAuthClientHeaders({
+    code: authClientCode,
+    secret: authClientSecret,
+    type: AuthClientType.WEB,
+    config: resolveWebClientConfig(),
+  })
+}
+
 let refreshPromise: Promise<boolean> | null = null
 
 const refreshSession = async () => {

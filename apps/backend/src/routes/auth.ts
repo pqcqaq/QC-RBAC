@@ -1,4 +1,5 @@
 import type { Prisma } from '@prisma/client';
+import { AuthClientType, isSameAuthClientIdentity } from '@rbac/api-common';
 import { Router } from 'express';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -80,8 +81,13 @@ authRouter.use(authClientMiddleware);
 
 const issueSession = async (userId: string, client: NonNullable<Express.Request['authClient']>) => {
   const jti = randomUUID();
-  const accessToken = signAccessToken(userId, client.code);
-  const refresh = signRefreshToken(userId, jti, client.code);
+  const tokenClient = {
+    id: client.id,
+    code: client.code,
+    type: client.type,
+  };
+  const accessToken = signAccessToken(userId, tokenClient);
+  const refresh = signRefreshToken(userId, jti, tokenClient);
 
   await prisma.refreshToken.create({
     data: withSnowflakeId({
@@ -200,7 +206,9 @@ authRouter.post(
       include: {
         client: {
           select: {
+            id: true,
             code: true,
+            type: true,
           },
         },
       },
@@ -209,7 +217,17 @@ authRouter.post(
     if (!existed || existed.expiresAt.getTime() < Date.now()) {
       throw unauthorized('Refresh token expired');
     }
-    if (payload.clientCode !== client.code || existed.client.code !== client.code) {
+    if (
+      !isSameAuthClientIdentity(payload.client, client)
+      || !isSameAuthClientIdentity(
+        {
+          id: existed.client.id,
+          code: existed.client.code,
+          type: existed.client.type as AuthClientType,
+        },
+        client,
+      )
+    ) {
       throw unauthorized('Refresh token client mismatch');
     }
 
@@ -223,12 +241,12 @@ authRouter.post(
   asyncHandler(async (req, res) => {
     const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
-    let payloadClientCode: string | null = null;
+    let payloadClient: Pick<typeof client, 'id' | 'code' | 'type'> | null = null;
     let payloadUserId: string | null = null;
 
     try {
       const payload = verifyRefreshToken(refreshToken);
-      payloadClientCode = payload.clientCode;
+      payloadClient = payload.client;
       payloadUserId = payload.sub;
     } catch (error) {
       if (error instanceof HttpError) {
@@ -239,7 +257,7 @@ authRouter.post(
     if (payloadUserId) {
       setRequestActorId(payloadUserId);
     }
-    if (payloadClientCode && payloadClientCode !== client.code) {
+    if (payloadClient && !isSameAuthClientIdentity(payloadClient, client)) {
       throw unauthorized('Refresh token client mismatch');
     }
 

@@ -1,15 +1,13 @@
 import type { PermissionCode } from '../constants/permissions.js';
+import type { AuthClientSummary } from './auth-client.js';
+
+export * from './auth-client.js';
 
 export type UserStatus = 'ACTIVE' | 'DISABLED';
 export type AuthStrategyCode = 'username-password' | 'email-code' | 'phone-code' | string;
 export type AuthIdentifierType = 'USERNAME' | 'EMAIL' | 'PHONE';
 export type AuthCredentialType = 'PASSWORD' | 'VERIFICATION_CODE';
 export type AuthVerificationPurpose = 'LOGIN' | 'REGISTER';
-export type AuthClientCode = 'web-console' | 'uni-wechat-miniapp' | string;
-export type AuthClientType = 'WEB' | 'UNI_WECHAT_MINIAPP';
-
-export const AUTH_CLIENT_CODE_HEADER = 'X-RBAC-Client-Code';
-export const AUTH_CLIENT_SECRET_HEADER = 'X-RBAC-Client-Secret';
 
 export interface LegacyLoginPayload {
   account: string;
@@ -87,13 +85,6 @@ export interface VerifyVerificationCodePayload {
 export interface VerificationCodeVerifyResult {
   valid: boolean;
   expiresAt: string;
-}
-
-export interface AuthClientSummary {
-  id: string;
-  code: AuthClientCode;
-  name: string;
-  type: AuthClientType;
 }
 
 export interface TokenPair {

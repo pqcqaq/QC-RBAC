@@ -1,17 +1,18 @@
 import jwt from 'jsonwebtoken';
+import type { AuthClientIdentity } from '@rbac/api-common';
 import { addSeconds } from './time.js';
 import { env } from '../config/env.js';
 
-type AccessPayload = {
+export type AccessPayload = {
   sub: string;
-  clientCode: string;
+  client: AuthClientIdentity;
   type: 'access';
 };
 
-type RefreshPayload = {
+export type RefreshPayload = {
   sub: string;
   jti: string;
-  clientCode: string;
+  client: AuthClientIdentity;
   type: 'refresh';
 };
 
@@ -33,14 +34,14 @@ const parseExpiryToSeconds = (value: string) => {
 export const accessTokenTtlSeconds = parseExpiryToSeconds(env.ACCESS_TOKEN_EXPIRES_IN);
 export const refreshTokenTtlSeconds = parseExpiryToSeconds(env.REFRESH_TOKEN_EXPIRES_IN);
 
-export const signAccessToken = (userId: string, clientCode: string) =>
-  jwt.sign({ sub: userId, clientCode, type: 'access' } satisfies AccessPayload, env.JWT_ACCESS_SECRET, {
+export const signAccessToken = (userId: string, client: AuthClientIdentity) =>
+  jwt.sign({ sub: userId, client, type: 'access' } satisfies AccessPayload, env.JWT_ACCESS_SECRET, {
     expiresIn: accessTokenTtlSeconds,
   });
 
-export const signRefreshToken = (userId: string, jti: string, clientCode: string) => {
+export const signRefreshToken = (userId: string, jti: string, client: AuthClientIdentity) => {
   const token = jwt.sign(
-    { sub: userId, jti, clientCode, type: 'refresh' } satisfies RefreshPayload,
+    { sub: userId, jti, client, type: 'refresh' } satisfies RefreshPayload,
     env.JWT_REFRESH_SECRET,
     {
       expiresIn: refreshTokenTtlSeconds,

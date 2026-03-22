@@ -1,7 +1,7 @@
 import type { ApiEnvelope, AuthSession } from '@rbac/api-common';
 import {
-  AUTH_CLIENT_CODE_HEADER,
-  AUTH_CLIENT_SECRET_HEADER,
+  AuthClientType,
+  buildAuthClientHeaders,
   createApiFactory,
 } from '@rbac/api-common';
 import { createProgressFetchAdaptor, trackedFetch } from './progress-fetch-adaptor';
@@ -26,11 +26,27 @@ export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost
 export const wsBaseUrl = import.meta.env.VITE_WS_URL ?? 'http://localhost:3300';
 export const authClientCode = import.meta.env.VITE_AUTH_CLIENT_CODE ?? 'web-console';
 export const authClientSecret = import.meta.env.VITE_AUTH_CLIENT_SECRET ?? 'rbac-web-client-secret';
+export const authClientType = AuthClientType.WEB;
 const refreshUrl = `${apiBaseUrl.replace(/\/$/, '')}/auth/refresh`;
 
-export const getClientCredentialHeaders = () => ({
-  [AUTH_CLIENT_CODE_HEADER]: authClientCode,
-  [AUTH_CLIENT_SECRET_HEADER]: authClientSecret,
+const resolveWebClientConfig = () => {
+  const protocol = (import.meta.env.VITE_AUTH_WEB_PROTOCOL ?? window.location.protocol.replace(/:$/, '') ?? 'http').toLowerCase();
+  const host = import.meta.env.VITE_AUTH_WEB_HOST ?? window.location.hostname ?? 'localhost';
+  const portValue = import.meta.env.VITE_AUTH_WEB_PORT ?? window.location.port;
+  const port = portValue ? Number(portValue) : undefined;
+
+  return {
+    protocol: protocol === 'https' ? 'https' : 'http',
+    host,
+    ...(port ? { port } : {}),
+  } as const;
+};
+
+export const getClientCredentialHeaders = () => buildAuthClientHeaders({
+  code: authClientCode,
+  secret: authClientSecret,
+  type: authClientType,
+  config: resolveWebClientConfig(),
 });
 
 let refreshPromise: Promise<boolean> | null = null;

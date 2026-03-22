@@ -1,4 +1,9 @@
 import type { RequestHandler } from 'express';
+import { isSameAuthClientIdentity } from '@rbac/api-common';
+import {
+  authenticateOptionalHeadersClient,
+  resolveAuthClientSummary,
+} from '../services/auth-clients.js';
 import { buildCurrentUser } from '../utils/rbac.js';
 import { HttpError, unauthorized } from '../utils/errors.js';
 import { setRequestActorId } from '../utils/request-context.js';
@@ -20,7 +25,7 @@ const extractToken = (value?: string | null) => {
 
 export const authMiddleware: RequestHandler = async (req, _res, next) => {
   try {
-    const requestClient = req.authClient;
+    const requestClient = req.authClient ?? await authenticateOptionalHeadersClient(req.headers);
     const token = extractToken(req.headers.authorization);
     if (!token) {
       throw unauthorized('Missing access token');
@@ -30,7 +35,7 @@ export const authMiddleware: RequestHandler = async (req, _res, next) => {
     if (payload.type !== 'access') {
       throw unauthorized('Invalid access token');
     }
-    if (requestClient && payload.clientCode !== requestClient.code) {
+    if (requestClient && !isSameAuthClientIdentity(payload.client, requestClient)) {
       throw unauthorized('Access token client mismatch');
     }
 
@@ -39,6 +44,7 @@ export const authMiddleware: RequestHandler = async (req, _res, next) => {
       throw unauthorized('Account disabled');
     }
 
+    req.authClient = requestClient ?? await resolveAuthClientSummary(payload.client);
     req.auth = auth;
     setRequestActorId(auth.id);
     next();

@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import type { PrismaClient } from '@prisma/client';
-import { env } from '../src/config/env';
+import { listAuthClientDefinitions } from '../src/config/auth-clients';
 import { bootstrapSystemRbac } from '../src/services/system-rbac';
 import { hashPassword, hashSecret } from '../src/utils/password';
 import { withSnowflakeId, withSnowflakeIds } from '../src/utils/persistence';
@@ -35,32 +35,24 @@ export async function seedDatabase(prisma: PrismaClient) {
     throw new Error('System roles bootstrap failed');
   }
 
-  const [webClientSecret, uniMiniappClientSecret] = await Promise.all([
-    hashSecret(env.AUTH_WEB_CLIENT_SECRET),
-    hashSecret(env.AUTH_UNI_WECHAT_MINIAPP_CLIENT_SECRET),
-  ]);
+  const authClients = await Promise.all(
+    listAuthClientDefinitions().map(async (client) => {
+      const secret = await hashSecret(client.clientSecret);
+
+      return {
+        code: client.code,
+        name: client.name,
+        type: client.type,
+        description: client.description ?? null,
+        secretHash: secret.hash,
+        salt: secret.salt,
+        enabled: true,
+      };
+    }),
+  );
 
   await prisma.authClient.createMany({
-    data: withSnowflakeIds([
-      {
-        code: 'web-console',
-        name: 'Web 管理后台',
-        type: 'WEB',
-        description: '浏览器端控制台客户端',
-        secretHash: webClientSecret.hash,
-        salt: webClientSecret.salt,
-        enabled: true,
-      },
-      {
-        code: 'uni-wechat-miniapp',
-        name: 'Uni 微信小程序',
-        type: 'UNI_WECHAT_MINIAPP',
-        description: '基于 uni-app 的微信小程序客户端',
-        secretHash: uniMiniappClientSecret.hash,
-        salt: uniMiniappClientSecret.salt,
-        enabled: true,
-      },
-    ]),
+    data: withSnowflakeIds(authClients),
   });
 
   const [usernamePasswordStrategy, emailCodeStrategy, phoneCodeStrategy] = await Promise.all([
