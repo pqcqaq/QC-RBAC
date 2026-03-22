@@ -9,7 +9,7 @@
       @update:tab="onTabChange"
     >
       <template #login>
-        <div v-loading="loadingStrategies" class="auth-panel__stack">
+        <div v-loading="loadingStrategies || processingOauthTicket" class="auth-panel__stack">
           <AuthStrategySelector
             v-model="selectedLoginStrategyCode"
             label="登录方式"
@@ -30,7 +30,7 @@
       </template>
 
       <template #register>
-        <div v-loading="loadingStrategies" class="auth-panel__stack">
+        <div v-loading="loadingStrategies || processingOauthTicket" class="auth-panel__stack">
           <AuthStrategySelector
             v-model="selectedRegisterStrategyCode"
             label="注册方式"
@@ -49,6 +49,15 @@
           />
         </div>
       </template>
+
+      <template #footer>
+        <AuthOAuthProviders
+          v-if="authConfig.oauthProviders.length > 0"
+          :providers="authConfig.oauthProviders"
+          :loading="processingOauthTicket || loadingStrategies || submitting"
+          @select="startOauthLogin"
+        />
+      </template>
     </AuthAccessPanel>
   </div>
 </template>
@@ -63,12 +72,13 @@ import type {
 } from '@rbac/api-common';
 import { computed, onMounted, reactive, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { useRouter } from 'vue-router';
-import { api } from '@/api/client';
+import { useRoute, useRouter } from 'vue-router';
+import { api, apiBaseUrl } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
 import AuthAccessPanel from './components/AuthAccessPanel.vue';
 import AuthLoginStrategyForm from './components/AuthLoginStrategyForm.vue';
+import AuthOAuthProviders from './components/AuthOAuthProviders.vue';
 import AuthRegisterStrategyForm from './components/AuthRegisterStrategyForm.vue';
 import AuthShowcasePanel from './components/AuthShowcasePanel.vue';
 import AuthStrategySelector from './components/AuthStrategySelector.vue';
@@ -98,13 +108,16 @@ const createEmptyConfig = (): AuthStrategyCollection => ({
   loginStrategies: [],
   registerStrategies: [],
   verificationStrategies: [],
+  oauthProviders: [],
 });
 
+const route = useRoute();
 const router = useRouter();
 const auth = useAuthStore();
 const tab = ref<AuthPanelTab>('login');
 const submitting = ref(false);
 const loadingStrategies = ref(false);
+const processingOauthTicket = ref(false);
 const selectedLoginStrategyCode = ref('');
 const selectedRegisterStrategyCode = ref('');
 const authConfig = reactive<AuthStrategyCollection>(createEmptyConfig());
@@ -161,6 +174,40 @@ const syncActiveTab = () => {
   }
 };
 
+const resolveSafeReturnTo = () => {
+  const value = typeof route.query.returnTo === 'string' ? route.query.returnTo : '';
+  if (!value) {
+    return '';
+  }
+
+  if (value.startsWith('/')) {
+    return value;
+  }
+
+  try {
+    const currentOrigin = window.location.origin;
+    const apiOrigin = new URL(apiBaseUrl).origin;
+    const url = new URL(value);
+    if ([currentOrigin, apiOrigin].includes(url.origin)) {
+      return url.toString();
+    }
+  } catch {
+    return '';
+  }
+
+  return '';
+};
+
+const finishAuthNavigation = async () => {
+  const returnTo = resolveSafeReturnTo();
+  if (returnTo) {
+    window.location.assign(returnTo);
+    return;
+  }
+
+  await router.push('/console');
+};
+
 const loadStrategies = async () => {
   try {
     loadingStrategies.value = true;
@@ -174,6 +221,26 @@ const loadStrategies = async () => {
     ElMessage.error(getErrorMessage(error, '加载认证策略失败'));
   } finally {
     loadingStrategies.value = false;
+  }
+};
+
+const handleOauthTicket = async () => {
+  const ticket = typeof route.query.oauth_ticket === 'string' ? route.query.oauth_ticket : '';
+  if (!ticket) {
+    return false;
+  }
+
+  try {
+    processingOauthTicket.value = true;
+    const session = await api.auth.exchangeOauthTicket(ticket);
+    auth.setSession(session);
+    await finishAuthNavigation();
+    return true;
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '第三方登录失败'));
+    return false;
+  } finally {
+    processingOauthTicket.value = false;
   }
 };
 
@@ -232,7 +299,7 @@ const submitLogin = async () => {
     submitting.value = true;
     await auth.login(payload);
     ElMessage.success('登录成功');
-    await router.push('/console');
+    await finishAuthNavigation();
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '登录失败'));
   } finally {
@@ -264,7 +331,7 @@ const submitRegister = async () => {
     submitting.value = true;
     await auth.register(payload);
     ElMessage.success('注册成功');
-    await router.push('/console');
+    await finishAuthNavigation();
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '注册失败'));
   } finally {
@@ -272,7 +339,22 @@ const submitRegister = async () => {
   }
 };
 
-onMounted(loadStrategies);
+const startOauthLogin = async (providerCode: string) => {
+  try {
+    const result = await api.auth.oauthAuthorizeUrl(providerCode, resolveSafeReturnTo() || '/console');
+    window.location.assign(result.redirectUrl);
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '拉起第三方登录失败'));
+  }
+};
+
+onMounted(async () => {
+  if (await handleOauthTicket()) {
+    return;
+  }
+
+  await loadStrategies();
+});
 </script>
 
 <style scoped lang="scss">
@@ -296,4 +378,3 @@ onMounted(loadStrategies);
   }
 }
 </style>
-

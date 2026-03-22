@@ -8,6 +8,7 @@ export const authClientMiddleware: RequestHandler = async (req, _res, next) => {
     next();
   } catch (error) {
     if (error instanceof HttpError) {
+      console.error(error);
       next(unauthorized('Invalid client credentials'));
       return;
     }

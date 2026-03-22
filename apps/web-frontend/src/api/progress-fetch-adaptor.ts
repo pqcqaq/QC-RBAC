@@ -2,7 +2,7 @@ import type { RequestAdaptor, RequestConfig } from '@rbac/api-common';
 import { trackRequestProgress } from '@/utils/app-progress';
 
 export const trackedFetch = (input: RequestInfo | URL, init?: RequestInit) =>
-  trackRequestProgress(() => fetch(input, init));
+  trackRequestProgress(() => fetch(input, { credentials: 'include', ...init }));
 
 export const createProgressFetchAdaptor = (): RequestAdaptor => ({
   async request<T>({ url, method = 'GET', data, headers }: RequestConfig): Promise<T> {
@@ -18,6 +18,7 @@ export const createProgressFetchAdaptor = (): RequestAdaptor => ({
         method,
         headers,
         body,
+        credentials: 'include',
       });
 
       const payload = await response.json().catch(() => null);

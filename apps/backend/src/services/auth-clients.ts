@@ -233,6 +233,11 @@ const toAuthClientSummary = (client: PersistedAuthClient): AuthClientSummary => 
   config: client.config,
 });
 
+const toWebClientOrigin = (config: WebAuthClientConfig) => {
+  const port = config.port ? `:${config.port}` : '';
+  return `${config.protocol}://${config.host}${port}`;
+};
+
 const loadPersistedAuthClientByCode = async (code: string) => {
   const client = await prisma.authClient.findUnique({
     where: { code },
@@ -338,3 +343,15 @@ export const resolveAuthClientContext = async (identity: AuthClientIdentity) => 
 
 export const resolveAuthClientSummary = async (identity: AuthClientIdentity) =>
   (await resolveAuthClientContext(identity)).client;
+
+export const resolveAuthClientSummaryByCode = async (code: string) =>
+  toAuthClientSummary(await loadPersistedAuthClientByCode(code));
+
+export const resolveWebAuthClientOrigin = async (code: string) => {
+  const client = await loadPersistedAuthClientByCode(code);
+  if (client.type !== AuthClientType.WEB) {
+    throw unauthorized('Client is not a web client');
+  }
+
+  return toWebClientOrigin(client.config);
+};

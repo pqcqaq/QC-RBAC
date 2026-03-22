@@ -16,7 +16,7 @@ export type RefreshPayload = {
   type: 'refresh';
 };
 
-const parseExpiryToSeconds = (value: string) => {
+export const parseExpiryToSeconds = (value: string) => {
   const match = /^(\d+)([smhd])$/.exec(value);
   if (!match) {
     return 60 * 60 * 2;

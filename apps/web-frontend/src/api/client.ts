@@ -91,6 +91,7 @@ export const refreshSession = async () => {
         ...getClientCredentialHeaders(),
       },
       body: JSON.stringify({ refreshToken }),
+      credentials: 'include',
     })
       .then(async (response) => {
         const payload = (await response.json().catch(() => null)) as ApiEnvelope<AuthSession> | null;
@@ -116,7 +117,11 @@ export const createApiUrl = (url: string, params?: Record<string, string | numbe
   buildRequestUrl(apiBaseUrl, url, params);
 
 export const requestWithAuthRetry = async (url: string, init: RequestInit = {}, data?: unknown) => {
-  const execute = () => fetch(url, { ...init, headers: buildAuthorizedHeaders(init.headers, data) });
+  const execute = () => fetch(url, {
+    ...init,
+    headers: buildAuthorizedHeaders(init.headers, data),
+    credentials: 'include',
+  });
 
   let response = await execute();
   if (response.status === 401) {

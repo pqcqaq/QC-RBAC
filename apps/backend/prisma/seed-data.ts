@@ -3,6 +3,7 @@ import type { Prisma, PrismaClient } from '@prisma/client';
 import { defaultAuthClientSeeds } from '../src/config/auth-clients';
 import { bootstrapSystemRbac } from '../src/services/system-rbac';
 import { hashPassword, hashSecret } from '../src/utils/password';
+import { encryptOAuthSecret } from '../src/utils/oauth-security';
 import { withSnowflakeId, withSnowflakeIds } from '../src/utils/persistence';
 import { syncUserRoles } from '../src/services/rbac-write';
 
@@ -12,6 +13,12 @@ export async function seedDatabase(prisma: PrismaClient) {
       "VerificationCode",
       "UserAuthentication",
       "AuthStrategy",
+      "OAuthToken",
+      "OAuthUser",
+      "OAuthState",
+      "OAuthApplicationPermission",
+      "OAuthApplication",
+      "OAuthProvider",
       "MenuNode",
       "RolePermission",
       "UserRole",
@@ -202,6 +209,78 @@ export async function seedDatabase(prisma: PrismaClient) {
         verifiedAt: new Date(),
       },
     ]),
+  });
+
+  const dashboardPermission = await prisma.permission.findUnique({
+    where: { code: 'dashboard.view' },
+    select: { id: true },
+  });
+
+  if (!dashboardPermission) {
+    throw new Error('dashboard.view permission not found');
+  }
+
+  await prisma.oAuthProvider.create({
+    data: withSnowflakeId({
+      code: 'demo-provider',
+      name: 'Demo Provider',
+      description: '本地 OAuth/OIDC 测试供应商',
+      protocol: 'OIDC',
+      issuer: 'http://localhost:3310',
+      discoveryUrl: 'http://localhost:3310/.well-known/openid-configuration',
+      authorizationEndpoint: 'http://localhost:3310/oauth2/authorize',
+      tokenEndpoint: 'http://localhost:3310/oauth2/token',
+      userinfoEndpoint: 'http://localhost:3310/oauth2/userinfo',
+      clientId: 'demo-provider-client',
+      clientSecretEncrypted: encryptOAuthSecret('demo-provider-secret'),
+      defaultScopes: ['openid', 'profile', 'email', 'offline_access'],
+      enabled: true,
+      allowLogin: true,
+      autoRegister: true,
+      autoLinkByEmail: true,
+      usePkce: true,
+      clientAuthMethod: 'CLIENT_SECRET_BASIC',
+      claimMapping: {
+        subject: 'sub',
+        email: 'email',
+        username: 'preferred_username',
+        nickname: 'name',
+        avatarUrl: 'picture',
+      } as unknown as Prisma.InputJsonValue,
+    }),
+  });
+
+  const demoApplicationSecret = await hashSecret('demo-oauth-app-secret');
+  await prisma.oAuthApplication.create({
+    data: withSnowflakeId({
+      code: 'demo-oauth-app',
+      name: 'OAuth 测试应用',
+      description: '用于验证本系统 OAuth/OIDC Provider 能力',
+      homepageUrl: 'http://localhost:3320',
+      clientId: 'demo-oauth-app-client',
+      clientType: 'CONFIDENTIAL',
+      clientSecretHash: demoApplicationSecret.hash,
+      salt: demoApplicationSecret.salt,
+      redirectUris: ['http://localhost:3320/callback'],
+      postLogoutRedirectUris: ['http://localhost:3320/logout/callback'],
+      defaultScopes: ['openid', 'profile', 'email', 'offline_access', 'dashboard.view'],
+      enabled: true,
+      skipConsent: false,
+      requirePkce: true,
+      allowAuthorizationCode: true,
+      allowRefreshToken: true,
+      permissions: {
+        create: [
+          withSnowflakeId({
+            permission: {
+              connect: {
+                id: dashboardPermission.id,
+              },
+            },
+          }),
+        ],
+      },
+    }),
   });
 
   await prisma.chatMessage.createMany({

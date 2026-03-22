@@ -2,12 +2,11 @@ import type { Prisma } from '@prisma/client';
 import { AuthClientType, isSameAuthClientIdentity } from '@rbac/api-common';
 import { Router } from 'express';
 import { z } from 'zod';
-import { randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma.js';
 import { cacheDel, cacheSet } from '../lib/redis.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { authClientMiddleware } from '../middlewares/auth-client.js';
-import { HttpError, unauthorized } from '../utils/errors.js';
+import { forbidden, HttpError, unauthorized } from '../utils/errors.js';
 import { ok, asyncHandler } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
 import { withSnowflakeId } from '../utils/persistence.js';
@@ -26,6 +25,9 @@ import {
   verifyRefreshToken,
 } from '../utils/token.js';
 import { authService } from '../services/auth-service.js';
+import { clearBrowserSessionCookie, setBrowserSessionCookie } from '../utils/browser-session.js';
+import { buildExternalProviderAuthorizeUrl, exchangeOAuthLoginTicket, handleExternalProviderCallback } from '../services/oauth-auth-server.js';
+import { issueUserSession, revokeUserRefreshToken } from '../services/session-service.js';
 
 const loginSchema = z.union([
   z.object({
@@ -75,38 +77,32 @@ const refreshSchema = z.object({
   refreshToken: z.string().min(10),
 });
 
+const oauthTicketExchangeSchema = z.object({
+  ticket: z.string().min(12),
+});
+
 const authRouter = Router();
 
-authRouter.use(authClientMiddleware);
+const syncBrowserSession = (
+  res: Parameters<typeof ok>[0],
+  client: NonNullable<Express.Request['authClient']>,
+  accessToken?: string | null,
+) => {
+  if (client.type !== AuthClientType.WEB) {
+    return;
+  }
+
+  if (accessToken) {
+    setBrowserSessionCookie(res, accessToken);
+    return;
+  }
+
+  clearBrowserSessionCookie(res);
+};
 
 const issueSession = async (userId: string, client: NonNullable<Express.Request['authClient']>) => {
-  const jti = randomUUID();
-  const tokenClient = {
-    id: client.id,
-    code: client.code,
-    type: client.type,
-  };
-  const accessToken = signAccessToken(userId, tokenClient);
-  const refresh = signRefreshToken(userId, jti, tokenClient);
-
-  await prisma.refreshToken.create({
-    data: withSnowflakeId({
-      token: refresh.token,
-      userId,
-      clientId: client.id,
-      expiresAt: refresh.expiresAt,
-    }),
-  });
-  await cacheSet(`refresh:${jti}`, userId, refreshTokenTtlSeconds);
-
-  return {
-    tokens: {
-      accessToken,
-      refreshToken: refresh.token,
-    },
-    user: await buildCurrentUser(userId),
-    client,
-  };
+  const tokens = await issueUserSession(userId, client);
+  return tokens;
 };
 
 const revokeRefreshToken = async (refreshToken: string) => {
@@ -121,13 +117,59 @@ const revokeRefreshToken = async (refreshToken: string) => {
 
 authRouter.get(
   '/strategies',
+  authClientMiddleware,
   asyncHandler(async (_req, res) => {
     return ok(res, await authService.listStrategies(), 'Auth strategies');
   }),
 );
 
+authRouter.get(
+  '/oauth/providers/:code/authorize-url',
+  authClientMiddleware,
+  asyncHandler(async (req, res) => {
+    return ok(
+      res,
+      await buildExternalProviderAuthorizeUrl({
+        providerCode: String(req.params.code),
+        authClient: req.authClient!,
+        returnTo: typeof req.query.returnTo === 'string' ? req.query.returnTo : null,
+      }),
+      'OAuth authorize url',
+    );
+  }),
+);
+
+authRouter.get(
+  '/oauth/providers/:code/callback',
+  asyncHandler(async (req, res) => {
+    const redirect = await handleExternalProviderCallback({
+      providerCode: String(req.params.code),
+      state: String(req.query.state ?? ''),
+      code: String(req.query.code ?? ''),
+    });
+
+    res.redirect(redirect.redirectUrl);
+  }),
+);
+
+authRouter.post(
+  '/oauth/tickets/exchange',
+  authClientMiddleware,
+  asyncHandler(async (req, res) => {
+    const payload = oauthTicketExchangeSchema.parse(req.body);
+    const session = await exchangeOAuthLoginTicket({
+      ticket: payload.ticket,
+      authClient: req.authClient!,
+    });
+
+    syncBrowserSession(res, req.authClient!, session.tokens.accessToken);
+    return ok(res, session, 'OAuth login exchanged');
+  }),
+);
+
 authRouter.post(
   '/verification-codes/send',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const payload = sendVerificationCodeSchema.parse(req.body);
     return ok(res, await authService.sendVerificationCode(payload), 'Verification code sent');
@@ -136,6 +178,7 @@ authRouter.post(
 
 authRouter.post(
   '/verification-codes/verify',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const payload = verifyVerificationCodeSchema.parse(req.body);
     return ok(res, await authService.verifyVerificationCode(payload), 'Verification code verified');
@@ -144,6 +187,7 @@ authRouter.post(
 
 authRouter.post(
   '/register',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const client = req.authClient!;
     const payload = registerSchema.parse(req.body);
@@ -162,12 +206,15 @@ authRouter.post(
       },
     });
 
-    return ok(res, await issueSession(identity.user.id, client), 'Register success');
+    const session = await issueSession(identity.user.id, client);
+    syncBrowserSession(res, client, session.tokens.accessToken);
+    return ok(res, session, 'Register success');
   }),
 );
 
 authRouter.post(
   '/login',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const client = req.authClient!;
     const payload = loginSchema.parse(req.body);
@@ -189,12 +236,15 @@ authRouter.post(
       },
     });
 
-    return ok(res, await issueSession(identity.user.id, client), 'Login success');
+    const session = await issueSession(identity.user.id, client);
+    syncBrowserSession(res, client, session.tokens.accessToken);
+    return ok(res, session, 'Login success');
   }),
 );
 
 authRouter.post(
   '/refresh',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
@@ -231,13 +281,16 @@ authRouter.post(
       throw unauthorized('Refresh token client mismatch');
     }
 
-    await revokeRefreshToken(refreshToken);
-    return ok(res, await issueSession(payload.sub, client), 'Refresh success');
+    await revokeUserRefreshToken(refreshToken);
+    const session = await issueSession(payload.sub, client);
+    syncBrowserSession(res, client, session.tokens.accessToken);
+    return ok(res, session, 'Refresh success');
   }),
 );
 
 authRouter.post(
   '/logout',
+  authClientMiddleware,
   asyncHandler(async (req, res) => {
     const client = req.authClient!;
     const { refreshToken } = refreshSchema.parse(req.body);
@@ -261,7 +314,8 @@ authRouter.post(
       throw unauthorized('Refresh token client mismatch');
     }
 
-    await revokeRefreshToken(refreshToken);
+    await revokeUserRefreshToken(refreshToken);
+    syncBrowserSession(res, client, null);
     return ok(res, { ok: true }, 'Logout success');
   }),
 );
@@ -270,6 +324,10 @@ authRouter.get(
   '/me',
   authMiddleware,
   asyncHandler(async (req, res) => {
+    if (req.authMode === 'oauth') {
+      throw forbidden('OAuth access token cannot access this endpoint');
+    }
+
     const auth = req.auth!;
     const user = await getUserWithRelations(auth.id);
     return ok(
@@ -288,6 +346,10 @@ authRouter.put(
   '/preferences',
   authMiddleware,
   asyncHandler(async (req, res) => {
+    if (req.authMode === 'oauth') {
+      throw forbidden('OAuth access token cannot access this endpoint');
+    }
+
     const auth = req.auth!;
     const payload = userPreferencesSchema.parse(req.body);
     const user = await prisma.user.update({

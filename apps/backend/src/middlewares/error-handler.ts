@@ -24,6 +24,7 @@ export const errorHandler = (
   }
 
   if (error instanceof HttpError) {
+    console.error(error);
     res.status(error.statusCode).json({
       success: false,
       message: error.message,

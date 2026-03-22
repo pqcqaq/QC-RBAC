@@ -4,6 +4,8 @@ import {
   authenticateOptionalHeadersClient,
   resolveAuthClientSummary,
 } from '../services/auth-clients.js';
+import { resolveOAuthAccessContext } from '../services/oauth-auth-server.js';
+import { getBrowserSessionCookieName } from '../utils/browser-session.js';
 import { buildCurrentUser } from '../utils/rbac.js';
 import { HttpError, unauthorized } from '../utils/errors.js';
 import { setRequestActorId } from '../utils/request-context.js';
@@ -11,42 +13,61 @@ import { verifyAccessToken } from '../utils/token.js';
 
 export type AuthContext = Awaited<ReturnType<typeof buildCurrentUser>>;
 
-const extractToken = (value?: string | null) => {
-  if (!value) {
-    return null;
-  }
-
-  if (value.startsWith('Bearer ')) {
-    return value.slice(7);
-  }
-
-  return value;
-};
+const extractAuthorizationToken = (value?: string | null) =>
+  value?.startsWith('Bearer ')
+    ? value.slice(7)
+    : (value ?? null);
 
 export const authMiddleware: RequestHandler = async (req, _res, next) => {
   try {
     const requestClient = req.authClient ?? await authenticateOptionalHeadersClient(req.headers);
-    const token = extractToken(req.headers.authorization);
+    const token = extractAuthorizationToken(req.headers.authorization)
+      ?? req.cookies?.[getBrowserSessionCookieName()]
+      ?? null;
+
     if (!token) {
       throw unauthorized('Missing access token');
     }
 
-    const payload = verifyAccessToken(token);
-    if (payload.type !== 'access') {
-      throw unauthorized('Invalid access token');
-    }
-    if (requestClient && !isSameAuthClientIdentity(payload.client, requestClient)) {
-      throw unauthorized('Access token client mismatch');
+    try {
+      const payload = verifyAccessToken(token);
+      if (payload.type !== 'access') {
+        throw unauthorized('Invalid access token');
+      }
+      if (requestClient && !isSameAuthClientIdentity(payload.client, requestClient)) {
+        throw unauthorized('Access token client mismatch');
+      }
+
+      const auth = await buildCurrentUser(payload.sub);
+      if (auth.status !== 'ACTIVE') {
+        throw unauthorized('Account disabled');
+      }
+
+      req.authClient = requestClient ?? await resolveAuthClientSummary(payload.client);
+      req.auth = auth;
+      req.authMode = 'local';
+      req.oauthApplication = undefined;
+      setRequestActorId(auth.id);
+      next();
+      return;
+    } catch (_error) {
+      // Local JWT verification failed; continue with OAuth access token resolution.
     }
 
-    const auth = await buildCurrentUser(payload.sub);
-    if (auth.status !== 'ACTIVE') {
-      throw unauthorized('Account disabled');
+    if (requestClient) {
+      throw unauthorized('OAuth access token cannot be combined with auth client headers');
     }
 
-    req.authClient = requestClient ?? await resolveAuthClientSummary(payload.client);
-    req.auth = auth;
-    setRequestActorId(auth.id);
+    const oauthContext = await resolveOAuthAccessContext(token);
+    req.auth = oauthContext.user;
+    req.authMode = 'oauth';
+    req.oauthApplication = {
+      id: oauthContext.application.id,
+      code: oauthContext.application.code,
+      clientId: oauthContext.application.clientId,
+    };
+    req.authClient = undefined;
+    setRequestActorId(oauthContext.user.id);
     next();
   } catch (error) {
     if (error instanceof HttpError) {

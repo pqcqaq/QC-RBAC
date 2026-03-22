@@ -17,6 +17,12 @@ const auditedModelNames = new Set([
   'ActivityLog',
   'MediaAsset',
   'ChatMessage',
+  'OAuthProvider',
+  'OAuthApplication',
+  'OAuthApplicationPermission',
+  'OAuthState',
+  'OAuthUser',
+  'OAuthToken',
 ]);
 
 const softDeleteModelNames = new Set(auditedModelNames);

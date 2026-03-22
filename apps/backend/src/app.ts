@@ -8,6 +8,7 @@ import { clientOrigins } from './config/env.js';
 import { errorHandler } from './middlewares/error-handler.js';
 import { requestContextMiddleware } from './middlewares/request-context.js';
 import { apiRouter } from './routes/index.js';
+import { oauth2Router } from './routes/oauth2.js';
 
 export const createApp = () => {
   const app = express();
@@ -25,6 +26,7 @@ export const createApp = () => {
   app.use(cookieParser());
   app.use(morgan('dev'));
   app.use('/uploads', express.static(path.resolve(process.cwd(), 'uploads')));
+  app.use(oauth2Router);
   app.use('/api', apiRouter);
   app.use(errorHandler);
 

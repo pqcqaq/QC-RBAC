@@ -11,6 +11,7 @@ import type {
 import type { AuthStrategy, User } from '@prisma/client';
 import { prisma } from '../lib/prisma.js';
 import { badRequest } from '../utils/errors.js';
+import { listEnabledOAuthLoginProviders } from './oauth-admin.js';
 import {
   createAuthStrategyHandlers,
   normalizeIdentifier,
@@ -150,6 +151,7 @@ class AuthService {
       loginStrategies: descriptors.filter((item) => item.loginEnabled),
       registerStrategies: descriptors.filter((item) => item.registerEnabled),
       verificationStrategies: descriptors.filter((item) => item.verificationEnabled),
+      oauthProviders: await listEnabledOAuthLoginProviders(),
     };
   }
 

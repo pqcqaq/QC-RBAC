@@ -15,6 +15,13 @@ import type {
   VerifyVerificationCodePayload,
 } from '../types/auth.js';
 import type {
+  OAuthApplicationFormPayload,
+  OAuthApplicationRecord,
+  OAuthAuthorizeUrlResult,
+  OAuthProviderFormPayload,
+  OAuthProviderRecord,
+} from '../types/oauth.js';
+import type {
   UploadCallbackPayload,
   UploadCallbackResult,
   UploadPreparePayload,
@@ -97,10 +104,23 @@ export const createApiFactory = (options: ClientOptions) => {
     exportFileName: 'clients.xlsx',
   });
   const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
+  const oauthProviderCrud = createCrudEndpoints<OAuthProviderRecord, OAuthProviderFormPayload>(client, {
+    resource: '/oauth/providers',
+  });
+  const oauthApplicationCrud = createCrudEndpoints<OAuthApplicationRecord, OAuthApplicationFormPayload>(client, {
+    resource: '/oauth/applications',
+  });
 
   return {
     auth: {
       strategies: () => client.request<AuthStrategyCollection>({ url: '/auth/strategies' }),
+      oauthAuthorizeUrl: (providerCode: string, returnTo?: string) =>
+        client.request<OAuthAuthorizeUrlResult>({
+          url: `/auth/oauth/providers/${providerCode}/authorize-url`,
+          params: returnTo ? { returnTo } : undefined,
+        }),
+      exchangeOauthTicket: (ticket: string) =>
+        client.request<AuthSession>({ url: '/auth/oauth/tickets/exchange', method: 'POST', data: { ticket } }),
       sendVerificationCode: (payload: SendVerificationCodePayload) =>
         client.request<VerificationCodeSendResult>({ url: '/auth/verification-codes/send', method: 'POST', data: payload }),
       verifyVerificationCode: (payload: VerifyVerificationCodePayload) =>
@@ -136,6 +156,10 @@ export const createApiFactory = (options: ClientOptions) => {
     },
     clients: {
       ...clientCrud,
+    },
+    oauth: {
+      providers: oauthProviderCrud,
+      applications: oauthApplicationCrud,
     },
     menus: {
       ...menuCrud,

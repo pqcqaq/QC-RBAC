@@ -1,5 +1,6 @@
 import type { PermissionCode } from '../constants/permissions.js';
 import type { AuthClientSummary } from './auth-client.js';
+import type { OAuthProviderPublicSummary } from './oauth.js';
 
 export * from './auth-client.js';
 
@@ -62,6 +63,7 @@ export interface AuthStrategyCollection {
   loginStrategies: AuthStrategyDescriptor[];
   registerStrategies: AuthStrategyDescriptor[];
   verificationStrategies: AuthStrategyDescriptor[];
+  oauthProviders: OAuthProviderPublicSummary[];
 }
 
 export interface SendVerificationCodePayload {

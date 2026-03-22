@@ -26,6 +26,10 @@
       <button v-if="canSwap" type="button" class="auth-access-panel__swap" @click="toggleTab">
         {{ isLogin ? '没有账号？去注册' : '已有账号？去登录' }}
       </button>
+
+      <div v-if="$slots.footer" class="auth-access-panel__footer">
+        <slot name="footer" />
+      </div>
     </div>
   </section>
 </template>
@@ -156,6 +160,11 @@ const toggleTab = () => {
   font-size: 13px;
   font-weight: 700;
 }
+
+.auth-access-panel__footer {
+  display: grid;
+  gap: 12px;
+ }
 
 .auth-panel-fade-enter-active,
 .auth-panel-fade-leave-active {

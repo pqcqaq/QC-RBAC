@@ -5,6 +5,12 @@ declare global {
     interface Request {
       auth?: CurrentUser;
       authClient?: AuthClientSummary;
+      authMode?: 'local' | 'oauth';
+      oauthApplication?: {
+        id: string;
+        code: string;
+        clientId: string;
+      };
     }
   }
 }
