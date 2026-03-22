@@ -1,6 +1,6 @@
 import 'dotenv/config';
-import type { PrismaClient } from '@prisma/client';
-import { listAuthClientDefinitions } from '../src/config/auth-clients';
+import type { Prisma, PrismaClient } from '@prisma/client';
+import { defaultAuthClientSeeds } from '../src/config/auth-clients';
 import { bootstrapSystemRbac } from '../src/services/system-rbac';
 import { hashPassword, hashSecret } from '../src/utils/password';
 import { withSnowflakeId, withSnowflakeIds } from '../src/utils/persistence';
@@ -36,7 +36,7 @@ export async function seedDatabase(prisma: PrismaClient) {
   }
 
   const authClients = await Promise.all(
-    listAuthClientDefinitions().map(async (client) => {
+    defaultAuthClientSeeds.map(async (client) => {
       const secret = await hashSecret(client.clientSecret);
 
       return {
@@ -44,9 +44,10 @@ export async function seedDatabase(prisma: PrismaClient) {
         name: client.name,
         type: client.type,
         description: client.description ?? null,
+        config: client.config as unknown as Prisma.InputJsonValue,
         secretHash: secret.hash,
         salt: secret.salt,
-        enabled: true,
+        enabled: client.enabled ?? true,
       };
     }),
   );

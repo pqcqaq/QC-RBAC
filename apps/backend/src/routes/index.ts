@@ -8,6 +8,7 @@ import { permissionsRouter } from './permissions.js';
 import { menusRouter } from './menus.js';
 import { filesRouter } from './files.js';
 import { realtimeRouter } from './realtime.js';
+import { clientsRouter } from './clients.js';
 import { ok } from '../utils/http.js';
 
 const apiRouter = Router();
@@ -19,6 +20,7 @@ apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/users', usersRouter);
 apiRouter.use('/roles', rolesRouter);
 apiRouter.use('/permissions', permissionsRouter);
+apiRouter.use('/clients', clientsRouter);
 apiRouter.use('/menus', menusRouter);
 apiRouter.use('/files', filesRouter);
 apiRouter.use('/realtime', realtimeRouter);

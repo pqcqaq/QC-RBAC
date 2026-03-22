@@ -22,10 +22,22 @@ export interface WechatMiniappAuthClientConfig {
   appId: string;
 }
 
+export interface ManagedWechatMiniappAuthClientConfig extends WechatMiniappAuthClientConfig {
+  appSecret: string;
+}
+
 export interface AppAuthClientConfig {
   packageName: string;
   platform?: string;
 }
+
+export type AuthClientConfigByType = {
+  [AuthClientType.WEB]: WebAuthClientConfig;
+  [AuthClientType.UNI_WECHAT_MINIAPP]: ManagedWechatMiniappAuthClientConfig;
+  [AuthClientType.APP]: AppAuthClientConfig;
+};
+
+export type AuthClientConfig = AuthClientConfigByType[AuthClientType];
 
 export type AuthClientPublicConfigByType = {
   [AuthClientType.WEB]: WebAuthClientConfig;

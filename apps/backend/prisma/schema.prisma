@@ -87,6 +87,7 @@ model AuthClient {
   name          String
   type          AuthClientType
   description   String?
+  config        Json
   secretHash    String
   salt          String
   enabled       Boolean        @default(true)

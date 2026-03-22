@@ -742,6 +742,107 @@ describe('RBAC backend', () => {
     );
   });
 
+  it('supports client management with typed config and protects the current request client', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+
+    const createdClient = await request(app)
+      .post('/api/clients')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'partner-miniapp',
+        name: '合作方小程序',
+        type: 'UNI_WECHAT_MINIAPP',
+        description: '外部合作微信小程序',
+        enabled: true,
+        clientSecret: 'partner-miniapp-secret',
+        config: {
+          appId: 'wx-partner-appid',
+          appSecret: 'wx-partner-secret',
+        },
+      })
+      .expect(200);
+
+    assert.equal(createdClient.body.data.code, 'partner-miniapp');
+    assert.equal(createdClient.body.data.type, 'UNI_WECHAT_MINIAPP');
+    assert.equal(createdClient.body.data.config.appId, 'wx-partner-appid');
+    assert.equal(createdClient.body.data.config.appSecret, 'wx-partner-secret');
+
+    const clientList = await request(app)
+      .get('/api/clients')
+      .query({ page: 1, pageSize: 20, type: 'UNI_WECHAT_MINIAPP', enabled: 'enabled' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.ok(clientList.body.data.items.some((item: { code: string }) => item.code === 'partner-miniapp'));
+
+    const clientId = createdClient.body.data.id as string;
+    const clientDetail = await request(app)
+      .get(`/api/clients/${clientId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(clientDetail.body.data.name, '合作方小程序');
+
+    const updatedClient = await request(app)
+      .put(`/api/clients/${clientId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'partner-miniapp',
+        name: '合作方小程序二期',
+        type: 'UNI_WECHAT_MINIAPP',
+        description: '升级后的合作方微信小程序',
+        enabled: false,
+        clientSecret: 'partner-miniapp-secret-v2',
+        config: {
+          appId: 'wx-partner-appid-v2',
+          appSecret: 'wx-partner-secret-v2',
+        },
+      })
+      .expect(200);
+
+    assert.equal(updatedClient.body.data.enabled, false);
+    assert.equal(updatedClient.body.data.config.appId, 'wx-partner-appid-v2');
+    assert.equal(updatedClient.body.data.config.appSecret, 'wx-partner-secret-v2');
+
+    const currentWebClient = await prisma.authClient.findUnique({
+      where: { code: webClient.code },
+      select: { id: true },
+    });
+
+    assert.ok(currentWebClient);
+
+    const disableCurrentClient = await request(app)
+      .put(`/api/clients/${currentWebClient.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: webClient.code,
+        name: 'Web 管理后台',
+        type: 'WEB',
+        description: '浏览器端控制台客户端',
+        enabled: false,
+        config: {
+          protocol: 'http',
+          host: 'localhost',
+          port: 5173,
+        },
+      })
+      .expect(400);
+
+    assert.match(disableCurrentClient.body.message, /当前请求使用的客户端/);
+
+    const deleteCurrentClient = await request(app)
+      .delete(`/api/clients/${currentWebClient.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(400);
+
+    assert.match(deleteCurrentClient.body.message, /当前请求使用的客户端/);
+
+    await request(app)
+      .delete(`/api/clients/${clientId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+  });
+
   it('protects audit logs and immutable seed identifiers', async () => {
     const memberSession = await loginAs('user@example.com', 'User123!');
     await request(app)

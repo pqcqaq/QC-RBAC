@@ -22,11 +22,14 @@ import type {
 } from '../types/files.js';
 import type {
   ActivityLogRecord,
+  AuthClientFormPayload,
+  AuthClientRecord,
   DashboardSummary,
   LiveMessage,
   MenuNodeFormPayload,
   MenuNodeRecord,
   PaginatedAuditLogs,
+  PaginatedAuthClients,
   PaginatedLiveMessages,
   PaginatedPermissions,
   PaginatedRoles,
@@ -71,6 +74,9 @@ export const createApiFactory = (options: ClientOptions) => {
   const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload, PaginatedPermissions>(client, {
     resource: '/permissions',
   });
+  const clientCrud = createCrudEndpoints<AuthClientRecord, AuthClientFormPayload, PaginatedAuthClients>(client, {
+    resource: '/clients',
+  });
   const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
 
   return {
@@ -107,6 +113,9 @@ export const createApiFactory = (options: ClientOptions) => {
     permissions: {
       ...permissionCrud,
       modules: () => client.request<string[]>({ url: '/permissions/options/modules' }),
+    },
+    clients: {
+      ...clientCrud,
     },
     menus: {
       ...menuCrud,

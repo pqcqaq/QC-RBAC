@@ -1,32 +1,26 @@
 import {
   AuthClientType,
   type AppAuthClientConfig,
-  type AuthClientCode,
-  type AuthClientIdentity,
   type AuthClientPublicConfig,
   type AuthClientSummary,
-  type WechatMiniappAuthClientConfig,
+  type ManagedWechatMiniappAuthClientConfig,
   type WebAuthClientConfig,
 } from '@rbac/api-common';
 import { z } from 'zod';
-import { env } from './env.js';
-
-export type WechatMiniappPrivateConfig = WechatMiniappAuthClientConfig & {
-  appSecret: string;
-};
 
 export type BackendAuthClientConfigByType = {
   [AuthClientType.WEB]: WebAuthClientConfig;
-  [AuthClientType.UNI_WECHAT_MINIAPP]: WechatMiniappPrivateConfig;
+  [AuthClientType.UNI_WECHAT_MINIAPP]: ManagedWechatMiniappAuthClientConfig;
   [AuthClientType.APP]: AppAuthClientConfig;
 };
 
 export type BackendAuthClientConfig = BackendAuthClientConfigByType[AuthClientType];
 
-export type BackendAuthClientDefinition = {
-  code: AuthClientCode;
+export type BackendAuthClientSeedDefinition = {
+  code: string;
   name: string;
   description?: string | null;
+  enabled?: boolean;
   clientSecret: string;
 } & (
   | {
@@ -43,88 +37,98 @@ export type BackendAuthClientDefinition = {
     }
 );
 
-const webConfigSchema = z.object({
+export const webAuthClientConfigSchema = z.object({
   protocol: z.enum(['http', 'https']),
-  host: z.string().min(1),
+  host: z.string().min(1).max(128),
   port: z.coerce.number().int().min(1).max(65535).optional().nullable(),
 });
 
-const miniappConfigSchema = z.object({
-  appId: z.string().min(1),
-  appSecret: z.string().min(1),
+export const miniappAuthClientConfigSchema = z.object({
+  appId: z.string().min(1).max(64),
+  appSecret: z.string().min(1).max(128),
 });
 
-const appConfigSchema = z.object({
-  packageName: z.string().min(1),
-  platform: z.string().min(1).optional(),
+export const appAuthClientConfigSchema = z.object({
+  packageName: z.string().min(1).max(128),
+  platform: z.string().min(1).max(32).optional(),
 });
 
-const authClientDefinitionSchema = z.discriminatedUnion('type', [
-  z.object({
-    code: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1).optional().nullable(),
+export const authClientConfigSchemaByType = {
+  [AuthClientType.WEB]: webAuthClientConfigSchema,
+  [AuthClientType.UNI_WECHAT_MINIAPP]: miniappAuthClientConfigSchema,
+  [AuthClientType.APP]: appAuthClientConfigSchema,
+} as const;
+
+const authClientFormBaseSchema = z.object({
+  code: z.string().min(3).max(64),
+  name: z.string().min(2).max(48),
+  description: z.string().max(120).nullable().optional(),
+  enabled: z.boolean(),
+  clientSecret: z.string().min(16).max(128).optional(),
+});
+
+export const authClientPayloadSchema = z.discriminatedUnion('type', [
+  authClientFormBaseSchema.extend({
     type: z.literal(AuthClientType.WEB),
-    clientSecret: z.string().min(16),
-    config: webConfigSchema,
+    config: webAuthClientConfigSchema,
   }),
-  z.object({
-    code: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1).optional().nullable(),
+  authClientFormBaseSchema.extend({
     type: z.literal(AuthClientType.UNI_WECHAT_MINIAPP),
-    clientSecret: z.string().min(16),
-    config: miniappConfigSchema,
+    config: miniappAuthClientConfigSchema,
   }),
-  z.object({
-    code: z.string().min(1),
-    name: z.string().min(1),
-    description: z.string().min(1).optional().nullable(),
+  authClientFormBaseSchema.extend({
     type: z.literal(AuthClientType.APP),
-    clientSecret: z.string().min(16),
-    config: appConfigSchema,
+    config: appAuthClientConfigSchema,
   }),
 ]);
 
-const authClientRegistrySchema = z.array(authClientDefinitionSchema).superRefine((items, ctx) => {
-  const seenCodes = new Set<string>();
+export const defaultAuthClientSeeds: BackendAuthClientSeedDefinition[] = [
+  {
+    code: 'web-console',
+    name: 'Web 管理后台',
+    type: AuthClientType.WEB,
+    description: '浏览器端控制台客户端',
+    clientSecret: 'rbac-web-client-secret',
+    config: {
+      protocol: 'http',
+      host: 'localhost',
+      port: 5173,
+    },
+  },
+  {
+    code: 'uni-wechat-miniapp',
+    name: 'Uni 微信小程序',
+    type: AuthClientType.UNI_WECHAT_MINIAPP,
+    description: '基于 uni-app 的微信小程序客户端',
+    clientSecret: 'rbac-uni-miniapp-secret',
+    config: {
+      appId: 'wx-demo-miniapp-appid',
+      appSecret: 'wx-demo-miniapp-secret',
+    },
+  },
+  {
+    code: 'native-app',
+    name: '移动 App',
+    type: AuthClientType.APP,
+    description: '原生 App 客户端',
+    clientSecret: 'rbac-native-app-secret',
+    config: {
+      packageName: 'com.example.rbac',
+      platform: 'android',
+    },
+  },
+];
 
-  items.forEach((item, index) => {
-    if (seenCodes.has(item.code)) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: `Duplicate auth client code: ${item.code}`,
-        path: [index, 'code'],
-      });
-      return;
-    }
-
-    seenCodes.add(item.code);
-  });
-});
-
-const parseAuthClientRegistry = () => {
-  const raw = JSON.parse(env.AUTH_CLIENTS) as unknown;
-  return authClientRegistrySchema.parse(raw) as BackendAuthClientDefinition[];
-};
-
-export const authClientRegistry = parseAuthClientRegistry();
-
-const authClientRegistryMap = new Map(authClientRegistry.map((item) => [item.code, item]));
-
-export const listAuthClientDefinitions = () => authClientRegistry;
-
-export const getAuthClientDefinition = (code: string) => authClientRegistryMap.get(code);
-
-export const getAuthClientDefinitionByIdentity = (
-  identity: Pick<AuthClientIdentity, 'code' | 'type'>,
-) => {
-  const client = authClientRegistryMap.get(identity.code);
-  if (!client || client.type !== identity.type) {
-    return null;
+export const parseAuthClientConfig = (type: AuthClientType, config: unknown): BackendAuthClientConfig => {
+  if (type === AuthClientType.WEB) {
+    return authClientConfigSchemaByType[AuthClientType.WEB].parse(config);
   }
 
-  return client;
+  if (type === AuthClientType.UNI_WECHAT_MINIAPP) {
+    return authClientConfigSchemaByType[AuthClientType.UNI_WECHAT_MINIAPP].parse(config);
+  }
+
+  return authClientConfigSchemaByType[AuthClientType.APP].parse(config);
 };
 
 export const toPublicAuthClientConfig = (
@@ -168,7 +172,7 @@ export const buildAuthClientSummary = (
     config: BackendAuthClientConfig;
   },
 ): AuthClientSummary => {
-  const config = client.type === AuthClientType.WEB
+  const publicConfig = client.type === AuthClientType.WEB
     ? toPublicAuthClientConfig({
         type: client.type,
         config: client.config as BackendAuthClientConfigByType[AuthClientType.WEB],
@@ -189,6 +193,6 @@ export const buildAuthClientSummary = (
     name: client.name,
     type: client.type,
     ...(client.description === undefined ? {} : { description: client.description }),
-    config,
+    config: publicConfig,
   };
 };

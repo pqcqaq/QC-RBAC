@@ -1,11 +1,14 @@
 import type {
+  AuthClientRecord,
   PermissionRecord,
   PermissionSummary,
   RoleRecord,
   RoleSummary,
   UserRecord,
 } from '@rbac/api-common';
-import type { Permission, Prisma, Role } from '@prisma/client';
+import { AuthClientType } from '@rbac/api-common';
+import type { AuthClient, Permission, Prisma, Role } from '@prisma/client';
+import { parseAuthClientConfig } from '../config/auth-clients.js';
 
 export const userRoleSummaryInclude = {
   roles: {
@@ -42,6 +45,10 @@ type PermissionSummaryInput = Pick<
 
 type PermissionRecordInput = PermissionSummaryInput & Pick<Permission, 'createdAt' | 'updatedAt'>;
 type RoleSummaryInput = Pick<Role, 'id' | 'code' | 'name' | 'description'>;
+type AuthClientRecordInput = Pick<
+  AuthClient,
+  'id' | 'code' | 'name' | 'description' | 'type' | 'config' | 'enabled' | 'createdAt' | 'updatedAt'
+>;
 
 type UserWithRoleSummaryRelations = Prisma.UserGetPayload<{
   include: typeof userRoleSummaryInclude;
@@ -84,6 +91,51 @@ export const toUserRecord = (user: UserWithRoleSummaryRelations): UserRecord => 
   updatedAt: user.updatedAt.toISOString(),
   roles: user.roles.map(({ role }) => toRoleSummary(role)),
 });
+
+export const toAuthClientRecord = (client: AuthClientRecordInput): AuthClientRecord => {
+  if (client.type === AuthClientType.WEB) {
+    return {
+      id: client.id,
+      code: client.code,
+      name: client.name,
+      description: client.description ?? undefined,
+      type: AuthClientType.WEB,
+      enabled: client.enabled,
+      config: parseAuthClientConfig(AuthClientType.WEB, client.config) as Extract<AuthClientRecord, { type: AuthClientType.WEB }>['config'],
+      createdAt: client.createdAt.toISOString(),
+      updatedAt: client.updatedAt.toISOString(),
+    };
+  }
+
+  if (client.type === AuthClientType.UNI_WECHAT_MINIAPP) {
+    return {
+      id: client.id,
+      code: client.code,
+      name: client.name,
+      description: client.description ?? undefined,
+      type: AuthClientType.UNI_WECHAT_MINIAPP,
+      enabled: client.enabled,
+      config: parseAuthClientConfig(
+        AuthClientType.UNI_WECHAT_MINIAPP,
+        client.config,
+      ) as Extract<AuthClientRecord, { type: AuthClientType.UNI_WECHAT_MINIAPP }>['config'],
+      createdAt: client.createdAt.toISOString(),
+      updatedAt: client.updatedAt.toISOString(),
+    };
+  }
+
+  return {
+    id: client.id,
+    code: client.code,
+    name: client.name,
+    description: client.description ?? undefined,
+    type: AuthClientType.APP,
+    enabled: client.enabled,
+    config: parseAuthClientConfig(AuthClientType.APP, client.config) as Extract<AuthClientRecord, { type: AuthClientType.APP }>['config'],
+    createdAt: client.createdAt.toISOString(),
+    updatedAt: client.updatedAt.toISOString(),
+  };
+};
 
 export const toRoleRecord = (role: RoleWithPermissionSummaryRelations): RoleRecord => ({
   id: role.id,

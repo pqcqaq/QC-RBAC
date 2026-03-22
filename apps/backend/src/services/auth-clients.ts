@@ -5,20 +5,68 @@ import {
   AUTH_CLIENT_PLATFORM_HEADER,
   AUTH_CLIENT_SECRET_HEADER,
   AuthClientType,
+  type AppAuthClientConfig,
   isSameAuthClientIdentity,
+  type ManagedWechatMiniappAuthClientConfig,
   type AuthClientIdentity,
   type AuthClientSummary,
+  type WebAuthClientConfig,
 } from '@rbac/api-common';
+import type { Prisma } from '@prisma/client';
 import type { IncomingHttpHeaders } from 'node:http';
 import {
   buildAuthClientSummary,
-  getAuthClientDefinition,
-  getAuthClientDefinitionByIdentity,
-  type BackendAuthClientDefinition,
+  parseAuthClientConfig,
 } from '../config/auth-clients.js';
 import { prisma } from '../lib/prisma.js';
 import { unauthorized } from '../utils/errors.js';
 import { compareSecret } from '../utils/password.js';
+
+type PersistedAuthClientBase = {
+  id: string;
+  code: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  secretHash?: string;
+  salt?: string;
+};
+
+type PersistedAuthClient =
+  | (PersistedAuthClientBase & {
+      type: AuthClientType.WEB;
+      config: WebAuthClientConfig;
+    })
+  | (PersistedAuthClientBase & {
+      type: AuthClientType.UNI_WECHAT_MINIAPP;
+      config: ManagedWechatMiniappAuthClientConfig;
+    })
+  | (PersistedAuthClientBase & {
+      type: AuthClientType.APP;
+      config: AppAuthClientConfig;
+    });
+
+const authClientSelect = {
+  id: true,
+  code: true,
+  name: true,
+  description: true,
+  type: true,
+  enabled: true,
+  config: true,
+  secretHash: true,
+  salt: true,
+} satisfies Prisma.AuthClientSelect;
+
+const authClientIdentitySelect = {
+  id: true,
+  code: true,
+  name: true,
+  description: true,
+  type: true,
+  enabled: true,
+  config: true,
+} satisfies Prisma.AuthClientSelect;
 
 const readSingleHeader = (value?: string | string[]) => {
   if (Array.isArray(value)) {
@@ -54,9 +102,58 @@ const parseOriginUrl = (headers: IncomingHttpHeaders) => {
   }
 };
 
+const parsePersistedAuthClient = <
+  TClient extends {
+    id: string;
+    code: string;
+    name: string;
+    description?: string | null;
+    type: string;
+    enabled: boolean;
+    config: Prisma.JsonValue;
+    secretHash?: string;
+    salt?: string;
+  },
+>(client: TClient): PersistedAuthClient => {
+  const base = {
+    id: client.id,
+    code: client.code,
+    name: client.name,
+    description: client.description ?? null,
+    enabled: client.enabled,
+    ...(client.secretHash ? { secretHash: client.secretHash } : {}),
+    ...(client.salt ? { salt: client.salt } : {}),
+  };
+
+  if (client.type === AuthClientType.WEB) {
+    return {
+      ...base,
+      type: AuthClientType.WEB,
+      config: parseAuthClientConfig(AuthClientType.WEB, client.config) as WebAuthClientConfig,
+    };
+  }
+
+  if (client.type === AuthClientType.UNI_WECHAT_MINIAPP) {
+    return {
+      ...base,
+      type: AuthClientType.UNI_WECHAT_MINIAPP,
+      config: parseAuthClientConfig(
+        AuthClientType.UNI_WECHAT_MINIAPP,
+        client.config,
+      ) as ManagedWechatMiniappAuthClientConfig,
+    };
+  }
+
+  return {
+    ...base,
+    type: AuthClientType.APP,
+    config: parseAuthClientConfig(AuthClientType.APP, client.config) as AppAuthClientConfig,
+  };
+};
+
 const validateWebClient = (
   headers: IncomingHttpHeaders,
-  client: Extract<BackendAuthClientDefinition, { type: AuthClientType.WEB }>,
+  client: PersistedAuthClient & { type: AuthClientType.WEB },
 ) => {
   const url = parseOriginUrl(headers);
   if (!url) {
@@ -79,7 +176,7 @@ const validateWebClient = (
 
 const validateMiniappClient = (
   headers: IncomingHttpHeaders,
-  client: Extract<BackendAuthClientDefinition, { type: AuthClientType.UNI_WECHAT_MINIAPP }>,
+  client: PersistedAuthClient & { type: AuthClientType.UNI_WECHAT_MINIAPP },
 ) => {
   const appId = readSingleHeader(headers[AUTH_CLIENT_APP_ID_HEADER.toLowerCase()]);
   if (!appId || appId !== client.config.appId) {
@@ -89,7 +186,7 @@ const validateMiniappClient = (
 
 const validateAppClient = (
   headers: IncomingHttpHeaders,
-  client: Extract<BackendAuthClientDefinition, { type: AuthClientType.APP }>,
+  client: PersistedAuthClient & { type: AuthClientType.APP },
 ) => {
   const packageName = readSingleHeader(headers[AUTH_CLIENT_PACKAGE_NAME_HEADER.toLowerCase()]);
   if (!packageName || packageName !== client.config.packageName) {
@@ -107,7 +204,7 @@ const validateAppClient = (
   }
 };
 
-const validateClientRequestContext = (headers: IncomingHttpHeaders, client: BackendAuthClientDefinition) => {
+const validateClientRequestContext = (headers: IncomingHttpHeaders, client: PersistedAuthClient) => {
   if (client.type === AuthClientType.WEB) {
     validateWebClient(headers, client);
     return;
@@ -121,76 +218,52 @@ const validateClientRequestContext = (headers: IncomingHttpHeaders, client: Back
   validateAppClient(headers, client);
 };
 
-const toAuthClientIdentity = (client: { id: string; code: string; type: string }): AuthClientIdentity => ({
+const toAuthClientIdentity = (client: { id: string; code: string; type: AuthClientType }): AuthClientIdentity => ({
   id: client.id,
   code: client.code,
-  type: client.type as AuthClientType,
+  type: client.type,
+});
+
+const toAuthClientSummary = (client: PersistedAuthClient): AuthClientSummary => buildAuthClientSummary({
+  id: client.id,
+  code: client.code,
+  name: client.name,
+  type: client.type,
+  ...(client.description === undefined ? {} : { description: client.description }),
+  config: client.config,
 });
 
 const loadPersistedAuthClientByCode = async (code: string) => {
   const client = await prisma.authClient.findUnique({
     where: { code },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      type: true,
-      description: true,
-      enabled: true,
-      secretHash: true,
-      salt: true,
-    },
+    select: authClientSelect,
   });
 
   if (!client || !client.enabled) {
     throw unauthorized('Invalid client credentials');
   }
 
-  return client;
+  return parsePersistedAuthClient(client);
 };
 
 const loadPersistedAuthClientByIdentity = async (identity: AuthClientIdentity) => {
   const client = await prisma.authClient.findUnique({
     where: { id: identity.id },
-    select: {
-      id: true,
-      code: true,
-      name: true,
-      type: true,
-      description: true,
-      enabled: true,
-    },
+    select: authClientIdentitySelect,
   });
 
   if (!client || !client.enabled) {
     throw unauthorized('Invalid client identity');
   }
 
-  const persistedIdentity = toAuthClientIdentity(client);
+  const parsed = parsePersistedAuthClient(client);
+  const persistedIdentity = toAuthClientIdentity(parsed);
   if (!isSameAuthClientIdentity(persistedIdentity, identity)) {
     throw unauthorized('Client identity mismatch');
   }
 
-  return client;
+  return parsed;
 };
-
-const mergeClientSummary = (
-  client: {
-    id: string;
-    code: string;
-    name: string;
-    type: string;
-    description?: string | null;
-  },
-  definition: BackendAuthClientDefinition,
-): AuthClientSummary => buildAuthClientSummary({
-  id: client.id,
-  code: client.code,
-  name: client.name,
-  type: client.type as AuthClientType,
-  ...(client.description === undefined ? {} : { description: client.description }),
-  config: definition.config,
-});
 
 export const readOptionalAuthClientCredentials = (headers: IncomingHttpHeaders) => {
   const code = readSingleHeader(headers[AUTH_CLIENT_CODE_HEADER.toLowerCase()]);
@@ -221,17 +294,10 @@ export const authenticateAuthClient = async (input: {
   secret: string;
   headers: IncomingHttpHeaders;
 }): Promise<AuthClientSummary> => {
-  const [client, definition] = await Promise.all([
-    loadPersistedAuthClientByCode(input.code),
-    Promise.resolve(getAuthClientDefinition(input.code)),
-  ]);
+  const client = await loadPersistedAuthClientByCode(input.code);
 
-  if (!definition) {
-    throw unauthorized('Unknown client');
-  }
-
-  if ((client.type as AuthClientType) !== definition.type) {
-    throw unauthorized('Client type mismatch');
+  if (!client.secretHash || !client.salt) {
+    throw unauthorized('Invalid client credentials');
   }
 
   const matched = await compareSecret(input.secret, client.secretHash, client.salt);
@@ -239,8 +305,8 @@ export const authenticateAuthClient = async (input: {
     throw unauthorized('Invalid client credentials');
   }
 
-  validateClientRequestContext(input.headers, definition);
-  return mergeClientSummary(client, definition);
+  validateClientRequestContext(input.headers, client);
+  return toAuthClientSummary(client);
 };
 
 export const authenticateHeadersClient = async (headers: IncomingHttpHeaders) =>
@@ -262,18 +328,11 @@ export const authenticateOptionalHeadersClient = async (headers: IncomingHttpHea
 };
 
 export const resolveAuthClientContext = async (identity: AuthClientIdentity) => {
-  const [client, definition] = await Promise.all([
-    loadPersistedAuthClientByIdentity(identity),
-    Promise.resolve(getAuthClientDefinitionByIdentity(identity)),
-  ]);
-
-  if (!definition) {
-    throw unauthorized('Unknown client');
-  }
+  const client = await loadPersistedAuthClientByIdentity(identity);
 
   return {
-    client: mergeClientSummary(client, definition),
-    definition,
+    client: toAuthClientSummary(client),
+    definition: client,
   };
 };
 

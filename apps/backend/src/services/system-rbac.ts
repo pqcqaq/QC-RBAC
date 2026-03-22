@@ -220,6 +220,23 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
           { code: 'menus-assign-permission', type: 'ACTION', title: '分配菜单权限', icon: 'i-carbon-license', sortOrder: 40, permissionCode: 'menu.assign-permission' },
         ],
       },
+      {
+        code: 'clients',
+        type: 'PAGE',
+        title: '客户端管理',
+        caption: 'Clients',
+        description: '维护 Web、小程序与 App 客户端身份、密钥与差异化配置。',
+        icon: 'i-carbon-device-accessibility',
+        path: '/clients',
+        viewKey: 'clients',
+        sortOrder: 20,
+        permissionCode: 'client.read',
+        children: [
+          { code: 'clients-create', type: 'ACTION', title: '创建客户端', icon: 'i-carbon-add', sortOrder: 10, permissionCode: 'client.create' },
+          { code: 'clients-update', type: 'ACTION', title: '编辑客户端', icon: 'i-carbon-edit', sortOrder: 20, permissionCode: 'client.update' },
+          { code: 'clients-delete', type: 'ACTION', title: '删除客户端', icon: 'i-carbon-trash-can', sortOrder: 30, permissionCode: 'client.delete' },
+        ],
+      },
     ],
   },
 ];
@@ -296,42 +313,43 @@ const ensureSystemRoles = async (prisma: PrismaClient, permissionByCode: Map<str
   return roleByCode;
 };
 
-const createMenuTree = async (
+const ensureMenuTree = async (
   prisma: PrismaClient,
   nodes: SystemMenuSeedNode[],
   permissionByCode: Map<string, Permission>,
   parentId: string | null = null,
 ) => {
   for (const node of nodes) {
-    const created = await prisma.menuNode.create({
-      data: withSnowflakeId({
-        code: node.code,
-        type: node.type,
-        title: node.title,
-        caption: node.caption,
-        description: node.description,
-        icon: node.icon,
-        path: node.type === 'PAGE' ? node.path : null,
-        viewKey: node.type === 'PAGE' ? node.viewKey : null,
-        sortOrder: node.sortOrder,
-        parentId,
-        permissionId: node.permissionCode ? permissionByCode.get(node.permissionCode)?.id : null,
-      }),
+    const existed = await prisma.menuNode.findUnique({
+      where: { code: node.code },
+      select: { id: true },
     });
+    const created = existed
+      ? { id: existed.id }
+      : await prisma.menuNode.create({
+          data: withSnowflakeId({
+            code: node.code,
+            type: node.type,
+            title: node.title,
+            caption: node.caption,
+            description: node.description,
+            icon: node.icon,
+            path: node.type === 'PAGE' ? node.path : null,
+            viewKey: node.type === 'PAGE' ? node.viewKey : null,
+            sortOrder: node.sortOrder,
+            parentId,
+            permissionId: node.permissionCode ? permissionByCode.get(node.permissionCode)?.id : null,
+          }),
+        });
 
     if (node.children?.length) {
-      await createMenuTree(prisma, node.children, permissionByCode, created.id);
+      await ensureMenuTree(prisma, node.children, permissionByCode, created.id);
     }
   }
 };
 
 const ensureDefaultMenuTree = async (prisma: PrismaClient, permissionByCode: Map<string, Permission>) => {
-  const menuCount = await prisma.menuNode.count();
-  if (menuCount > 0) {
-    return;
-  }
-
-  await createMenuTree(prisma, defaultMenuTree, permissionByCode);
+  await ensureMenuTree(prisma, defaultMenuTree, permissionByCode);
 };
 
 export const bootstrapSystemRbac = async (prisma: PrismaClient) => {

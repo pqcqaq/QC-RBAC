@@ -8,43 +8,6 @@ const booleanFromEnv = (defaultValue: boolean) =>
     .default(defaultValue ? 'true' : 'false')
     .transform((value) => value === true || value === 'true' || value === '1');
 
-const defaultAuthClients = JSON.stringify([
-  {
-    code: 'web-console',
-    name: 'Web 管理后台',
-    type: 'WEB',
-    description: '浏览器端控制台客户端',
-    clientSecret: 'rbac-web-client-secret',
-    config: {
-      protocol: 'http',
-      host: 'localhost',
-      port: 5173,
-    },
-  },
-  {
-    code: 'uni-wechat-miniapp',
-    name: 'Uni 微信小程序',
-    type: 'UNI_WECHAT_MINIAPP',
-    description: '基于 uni-app 的微信小程序客户端',
-    clientSecret: 'rbac-uni-miniapp-secret',
-    config: {
-      appId: 'wx-demo-miniapp-appid',
-      appSecret: 'wx-demo-miniapp-secret',
-    },
-  },
-  {
-    code: 'native-app',
-    name: '移动 App',
-    type: 'APP',
-    description: '原生 App 客户端',
-    clientSecret: 'rbac-native-app-secret',
-    config: {
-      packageName: 'com.example.rbac',
-      platform: 'android',
-    },
-  },
-]);
-
 const envSchema = z.object({
   PORT: z.coerce.number().default(3300),
   DATABASE_URL: z.string().min(1),
@@ -55,7 +18,6 @@ const envSchema = z.object({
   REFRESH_TOKEN_EXPIRES_IN: z.string().default('7d'),
   SNOWFLAKE_NODE_ID: z.coerce.number().int().min(0).max(1023).default(1),
   SNOWFLAKE_EPOCH: z.coerce.number().int().positive().default(1704067200000),
-  AUTH_CLIENTS: z.string().default(defaultAuthClients),
   S3_REGION: z.string().optional().default(''),
   S3_BUCKET: z.string().optional().default(''),
   S3_ACCESS_KEY_ID: z.string().optional().default(''),

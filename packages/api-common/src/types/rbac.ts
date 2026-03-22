@@ -1,4 +1,5 @@
 import type { PermissionSummary, RoleSummary, UserStatus } from './auth.js';
+import type { AuthClientConfigByType, AuthClientIdentity, AuthClientType } from './auth-client.js';
 import type { PaginatedResult } from './common.js';
 
 export interface UserRecord {
@@ -92,6 +93,50 @@ export interface MenuNodeFormPayload {
   permissionId?: string | null;
 }
 
+type AuthClientRecordBase = AuthClientIdentity & {
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type AuthClientFormPayloadBase = {
+  code: string;
+  name: string;
+  description?: string | null;
+  enabled: boolean;
+  clientSecret?: string;
+};
+
+export type AuthClientRecord =
+  | (AuthClientRecordBase & {
+      type: AuthClientType.WEB;
+      config: AuthClientConfigByType[AuthClientType.WEB];
+    })
+  | (AuthClientRecordBase & {
+      type: AuthClientType.UNI_WECHAT_MINIAPP;
+      config: AuthClientConfigByType[AuthClientType.UNI_WECHAT_MINIAPP];
+    })
+  | (AuthClientRecordBase & {
+      type: AuthClientType.APP;
+      config: AuthClientConfigByType[AuthClientType.APP];
+    });
+
+export type AuthClientFormPayload =
+  | (AuthClientFormPayloadBase & {
+      type: AuthClientType.WEB;
+      config: AuthClientConfigByType[AuthClientType.WEB];
+    })
+  | (AuthClientFormPayloadBase & {
+      type: AuthClientType.UNI_WECHAT_MINIAPP;
+      config: AuthClientConfigByType[AuthClientType.UNI_WECHAT_MINIAPP];
+    })
+  | (AuthClientFormPayloadBase & {
+      type: AuthClientType.APP;
+      config: AuthClientConfigByType[AuthClientType.APP];
+    });
+
 export interface UserPermissionSource {
   user: UserRecord;
   groups: PermissionSourceGroup[];
@@ -128,5 +173,6 @@ export interface LiveMessage {
 export type PaginatedUsers = PaginatedResult<UserRecord>;
 export type PaginatedRoles = PaginatedResult<RoleRecord>;
 export type PaginatedPermissions = PaginatedResult<PermissionRecord>;
+export type PaginatedAuthClients = PaginatedResult<AuthClientRecord>;
 export type PaginatedAuditLogs = PaginatedResult<ActivityLogRecord>;
 export type PaginatedLiveMessages = PaginatedResult<LiveMessage>;

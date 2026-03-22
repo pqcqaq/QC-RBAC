@@ -165,3 +165,19 @@ export const softDeletePermission = async (permissionId: string) => {
     });
   });
 };
+
+export const softDeleteAuthClient = async (clientId: string) => {
+  const actorId = getRequestActorId();
+  const deleteAt = new Date();
+
+  await prismaRaw.$transaction(async (tx) => {
+    await tx.authClient.updateMany({
+      where: { id: clientId, deleteAt: null },
+      data: { deleteAt, updateId: actorId },
+    });
+    await tx.refreshToken.updateMany({
+      where: { clientId, deleteAt: null },
+      data: { deleteAt, updateId: actorId },
+    });
+  });
+};
