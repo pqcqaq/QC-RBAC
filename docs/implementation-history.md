@@ -2,140 +2,118 @@
 
 Last updated: 2026-03-22
 
-This document summarizes the major implementation changes completed across the recent long-running development cycle. It is intended to help future sessions resume work without reconstructing the history from commit diffs.
+本文档记录最近一轮主要实现成果，用于帮助后续开发者快速恢复项目上下文。它不是计划，也不是宣传文案，而是“已经落地了什么”的摘要。
 
-## 1. Monorepo foundation and RBAC baseline
+## 1. Monorepo 基线建立
 
-- Consolidated the repository into a pnpm monorepo with:
+- 仓库按 `pnpm workspace` 收敛为统一 monorepo。
+- 明确分为四个主要边界：
   - `apps/backend`
   - `apps/web-frontend`
   - `apps/app-frontend`
   - `packages/api-common`
-- Established the backend as a real database-backed RBAC service rather than a mock demo.
-- Kept the app client on top of the official unibest structure and only customized request/auth integration.
-- Centralized cross-platform request and type reuse in `packages/api-common`.
+- 共享请求适配器、类型和 Header 常量下沉到 `api-common`，避免 Web 与 Uni 两端重复维护接口契约。
 
-## 2. Upload system overhaul
+## 2. 后端 RBAC 基础能力落地
 
-- Fixed the invalid avatar upload flow by moving the web client to direct browser uploads against S3-compatible object storage.
-- Expanded the file model and upload flow to support:
-  - pre-signed upload creation
-  - upload result callback
-  - single-part direct uploads
-  - multipart/chunked upload sessions for large files
-- Standardized the backend around S3-compatible libraries so MinIO, OSS, COS, and other S3-adapter providers can be swapped in through compatible configuration.
-- Kept the browser upload mechanism POST-based for the direct-upload flow.
+- 完成用户、角色、权限及关联表建模。
+- 实现用户、角色、权限的完整 CRUD。
+- 支持权限来源分析，用于解释某个用户为何拥有某个权限。
+- 补齐 dashboard 汇总、实时频道和审计日志能力。
 
-## 3. Backend timer registry and upload reconciliation
+## 3. 认证体系从单一登录升级为“Client + Strategy”
 
-- Added a shared timer registry under `apps/backend/src/timers`, backed by `toad-scheduler`.
-- Moved upload reconciliation into the main backend process as a registered timer instead of a separate worker package.
-- Implemented an hourly upload reconciliation job that checks unfinished file uploads against S3.
-- The reconciliation strategy is intentionally conservative:
-  - single-part uploads are checked remotely and marked `SUCCESS` or `FAILED`
-  - multipart uploads are skipped when still incomplete, because partial chunks may already exist
-- New backend timers are expected to register through the shared abstraction rather than introducing standalone processes by default.
+- 新增 `AuthClient` 模型，系统级客户端需要通过 code + secret 才能调用认证接口。
+- 新增 `AuthStrategy`、`UserAuthentication`、`VerificationCode` 三张核心表。
+- 认证逻辑改为策略模式，当前内置：
+  - 用户名密码
+  - 邮箱验证码
+  - 手机验证码
+- 登录、注册、验证码发送、验证码校验不再写死在单一路径里，而是根据策略配置走不同处理器。
+- strategy 支持 mock 开关和 mock value，便于本地联调。
+- 刷新令牌与 token 链路保留 client 来源语义，避免多客户端之间相互串用。
 
-## 4. Menu tree and permission model redesign
+## 4. ORM 层统一审计字段、软删除与雪花 ID
 
-- Added a menu table and menu-tree service on the backend.
-- Introduced a three-level information model:
+- 核心实体统一包含：
+  - `id`
+  - `createId`
+  - `updateId`
+  - `createdAt`
+  - `updatedAt`
+  - `deleteAt`
+- 雪花算法成为统一主键生成方式。
+- Prisma 扩展层统一注入 create/update/delete 语义：
+  - 创建时自动补齐 `id/createId/updateId`
+  - 更新时自动补齐 `updateId`
+  - 删除时映射为 `deleteAt`
+  - 查询默认过滤逻辑删除记录
+
+## 5. 上传链路生产化
+
+- Web 端头像上传改为直传 S3 兼容对象存储。
+- 支持本地降级、单片上传和分片上传。
+- 上传回调负责落库完成状态与 URL。
+- 未完成单片直传会进入后台补偿流程。
+
+## 6. 定时任务从独立 worker 合并到 backend timers
+
+- 原先独立的后台 jobs 目录被移除。
+- 统一在 `apps/backend/src/timers` 内建立 timer 注册中心。
+- 基于 `toad-scheduler` 封装可复用 interval timer。
+- 上传巡检已迁入 backend 主进程，在启动与关闭阶段统一纳管。
+
+## 7. 菜单树与控制台路由体系重构
+
+- 后端菜单表成为导航事实来源。
+- 菜单节点明确区分：
   - directory
   - page
   - action
-- Defined structure rules:
-  - directories may contain directories and pages
-  - pages may contain actions
-  - action nodes do not own child menus
-- Enabled permission assignment on page nodes and action nodes.
-- Added backend CRUD and query endpoints for:
-  - full menu tree management
-  - current-user accessible menu tree
-  - menu-permission option loading
-- Reworked login bootstrapping so the web frontend loads the current user's menu tree from the backend and renders navigation from that tree.
-- Reinitialized seed data so menus, icons, and labels align with the new hierarchy and produce cleaner subtitles.
+- 页面路由从“静态前端主导”收敛为“后端菜单 + 前端页面注册”协作模式。
+- 控制台页面统一迁到 `/console/**`。
+- 公共介绍页独立为 `/` 命名空间，对外展示项目能力而不是直接暴露后台壳子。
 
-## 5. Page metadata refactor with `definePage`
+## 8. Web 前端工作台与页面规范收敛
 
-- Replaced the old split metadata pattern with a page-local macro approach.
-- Added `definePage(...)` and a Vite virtual page registry so page metadata can live directly inside the page component.
-- Reduced the responsibility of page-local metadata:
-  - keep-alive and cache behavior remain page-owned
-  - title/caption/description/code remain page-owned
-  - route path, order, and most navigation concerns moved out of page JSON and into the backend menu tree
-- This makes page development more direct while keeping navigation and permission ownership server-driven.
+- 建立统一的 ConsoleLayout / FrontendLayout 分层。
+- 后台页面陆续按统一目录规范重构：
+  - 搜索表单
+  - 列表
+  - 详情
+  - 编辑
+  - 页面局部组件
+- 页面目录内新增 `components` 子目录，用于拆出细节组件。
+- `PageScaffold`、工作台标签、菜单注入和页面元信息继续作为控制台体验基石。
 
-## 6. Generic right-click context menu system
+## 9. 菜单管理与右键菜单完善
 
-- Added a reusable `ContextMenuHost` component in the common component layer.
-- Designed it as a configuration-driven wrapper so right-click menus can be attached to arbitrary interactive regions.
-- Integrated it into list-style pages to support ergonomic right-click row actions such as deleting a single record.
-- Extended the same interaction model to global workbench components:
-  - right-click cached tabs for close actions
-  - middle-click cached tabs to close
-- This established a shared interaction primitive rather than duplicating ad-hoc context menus per page.
+- 菜单结构管理页从原先难维护的交互模式重构为更明确的树面板 + 检查面板 + 弹窗编辑模式。
+- 解决了树节点区域留白过大、展开/收起不顺手等问题。
+- 为菜单页补齐右键菜单能力，统一结构性操作入口。
+- 共享右键菜单抽象也应用于控制台其他区域。
 
-## 7. Type cleanup and TypeScript configuration corrections
+## 10. 前端权限裁剪能力落地
 
-- Audited frontend typing and removed `any` usage in the affected workbench/context-menu related code.
-- Fixed TypeScript configuration warnings across the repo, including:
-  - deprecated `baseUrl` warnings
-  - `rootDir` / common source directory warnings
-- Kept the project aligned with stricter typing and safer TS upgrades.
+- 新增 `v-permission` 与 `v-role` 指令。
+- 支持 `and` / `or` 运算语义。
+- 指令基于登录后拿到的角色列表和权限列表决定元素是否展示。
+- 这是一层展示优化，不替代后端真实鉴权。
 
-## 8. Menu management UX improvements
+## 11. 公共前台与登录页视觉升级
 
-- Reworked the menu management page into a more ergonomic CRUD surface.
-- Moved create/edit/delete flows to modal-based interactions instead of forcing inline tree editing for every operation.
-- Added an UnoCSS icon picker so menu nodes can store icon identifiers directly.
-- Updated sidebar rendering to consume menu icons from backend menu data.
+- 公共前台新增项目首页、系统架构页、认证策略页。
+- Header / Footer 统一由布局管理。
+- 登录页重构为更正式的展示型布局，兼顾策略切换、验证码发送和项目价值表达。
 
-## 9. Workbench, shell, and layout evolution
+## 12. 当前结果
 
-- Refined the global admin shell around a more productized workbench model.
-- Added or completed:
-  - sidebar light/dark appearance switching
-  - page transition mode selection
-  - cached-tab display mode selection
-  - responsive sidebar collapse/expand
-  - automatic compact behavior on smaller screens
-  - hidden cached tabs in top-navigation mode
-  - browser-style cached tab rendering
-  - cached tab scrolling and navigation controls
-  - header user dropdown with animated interactions
-  - header icon-button cleanup
-  - page description moved to the header instead of duplicating it in the page body
-  - cached tabs integrated into the header area rather than floating as a separate strip
-- Fixed several regressions and polish issues during this evolution:
-  - collapsed sidebar icon visibility
-  - sidebar header height jumpiness
-  - submenu subtitle positioning
-  - tab icons not rendering in the header
-  - page body being blocked by sticky header/tab overlap
-  - browser-tab styling producing the wrong geometry and overflow
-  - missing horizontal scrolling for cached tabs
-  - header controls wrapping into too many rows on narrow screens
-- Final layout tuning reduced excessive whitespace in:
-  - sidebar
-  - header
-  - tabs
-  - page scaffold
-  - table panels
-  - footer
+到目前为止，这个仓库已经不是一个“登录 + 用户表 + 菜单页”的基础示例，而是一套具备以下特征的工程底座：
 
-## 10. Development tooling and diagnostics
-
-- Added `vite-plugin-vue-devtools` to the web frontend in serve mode, making it easier to inspect component trees and jump to source code while developing.
-
-## 11. Current result
-
-At the end of this cycle, the project is no longer just a CRUD starter. It now behaves more like an extensible admin framework with:
-
-- real RBAC backend behavior
-- direct-to-S3 upload infrastructure
-- integrated backend timer infrastructure
-- server-driven menu/navigation ownership
-- page-local metadata via `definePage`
-- reusable context-menu infrastructure
-- persistent workbench preferences
-- a denser and more coherent admin-shell UI
+- 真正数据库驱动的 RBAC
+- 多客户端、多策略认证
+- 前台与控制台双命名空间
+- 审计字段、软删除、雪花 ID 的数据层基线
+- S3 兼容上传与补偿 timer
+- 统一页面规范、右键菜单和展示层权限指令
+- 可继续向更复杂业务系统演进的 Monorepo 结构

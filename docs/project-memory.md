@@ -2,195 +2,290 @@
 
 Last updated: 2026-03-22
 
-## 1. Project goal
+## 1. 项目定位
 
-This repository is a production-oriented RBAC monorepo starter, not a toy CRUD demo. The intended outcome is a reusable admin/business foundation that already includes:
+这是一个面向长期演进的 RBAC / Console 基础工程，不是一次性 CRUD Demo。仓库目标是提供一套可以继续扩展为中后台、运营平台、SaaS 控制台或多端账号中心的统一底座。
 
-- a real backend RBAC service
-- a professional web admin console
-- an app client that stays on official unibest structure
-- a shared `api-common` package for cross-platform request/type reuse
-- a backend timer registry for scheduled tasks
+当前目标包含：
 
-## 2. Fixed boundaries and stack
+- 真实的后端 RBAC 服务
+- 对外可展示的 Web 前台
+- 专业化的 Web 控制台
+- 保持官方结构的 Uni 客户端接入位点
+- 跨端共享的 API 请求与类型边界
+- 具备审计、软删除、策略认证和后台 timer 的基础设施
 
-### Monorepo structure
+## 2. 固定边界
+
+### Monorepo 结构
 
 - `apps/backend`
-- `packages/api-common`
 - `apps/web-frontend`
 - `apps/app-frontend`
+- `packages/api-common`
 
-### Stack constraints
+### 不应轻易改变的结构决策
 
-- Web: Vue 3 + TypeScript + Element Plus + Pinia + Vue Router + Vite 8
-- Backend: Node.js + Express + TypeScript + Prisma + PostgreSQL + Redis + JWT + bcrypt + S3-compatible object storage + Socket.io
-- Backend timers: `apps/backend/src/timers` + `toad-scheduler`
-- App: must remain based on official unibest structure
-- Shared API: `packages/api-common` remains the shared request/type layer for Web and App
+- Web 继续维持 `frontend` 与 `console` 双命名空间。
+- App 继续维持 unibest 官方结构。
+- 后端 timer 统一在 `apps/backend/src/timers` 注册。
+- 跨端契约继续由 `packages/api-common` 承担。
 
-### Product constraints
+## 3. 当前技术栈
 
-- RBAC must stay real and database-backed
-- Web admin must keep evolving as a coherent management framework
-- Menu, permission, upload, and audit flows must remain production-minded
-- Shared abstractions should be preferred over repeated page-local logic
+### Backend
 
-## 3. Current implemented state
+- Node.js
+- Express
+- TypeScript
+- Prisma
+- PostgreSQL
+- Redis
+- JWT
+- bcrypt
+- Socket.io
+- S3 compatible storage
+- toad-scheduler
 
-### 3.1 Backend
+### Web
 
-Implemented:
+- Vue 3
+- TypeScript
+- Element Plus
+- Pinia
+- Vue Router
+- Vite
+- UnoCSS / Iconify
 
-- auth: register / login / refresh / logout / current user
-- RBAC permission guard and permission-source analysis
-- users / roles / permissions / audit log CRUD and queries
-- menu tree CRUD and current-user accessible menu tree
-- dashboard summary and realtime channel
-- S3-compatible upload flow with pre-sign creation and upload callback
-- file records extended for direct upload and multipart upload tracking
+### App
 
-### 3.2 Backend timers
+- uni-app
+- unibest structure
+- Wot UI
+- Pinia
 
-Implemented:
+### Shared
 
-- dedicated hourly upload reconciliation in `apps/backend/src/timers`
-- unfinished single-part upload state checking against S3
-- conservative multipart behavior that leaves partial multipart uploads untouched until completed by normal flow
+- `packages/api-common`
+  - API factory
+  - fetch adaptor
+  - uni adaptor
+  - shared auth / rbac / file DTO
+  - auth client header constants
 
-### 3.3 Web admin
+## 4. 当前已实现状态
 
-Implemented:
+### 4.1 Backend
 
-- login flow and route guard
-- admin shell with sidebar or top-navigation layout
-- responsive sidebar collapse behavior
-- integrated header + cached tabs workbench model
-- persistent workbench settings:
-  - theme preset
-  - layout mode
-  - sidebar appearance
-  - page transition
-  - cached-tab display mode
-- `definePage(...)` page-local metadata macro with virtual page registry
-- backend-driven menu/navigation tree loaded after login
-- modal-based menu management with permission binding and icon selection
-- generic `ContextMenuHost` abstraction used by list pages and workbench tabs
-- workbench tabs with close-on-context-menu and middle-click close
-- route description shown in header instead of duplicated inside page bodies
-- dev-only Vue devtools plugin integration
+已实现：
 
-### 3.4 App frontend
+- 认证：
+  - 登录
+  - 注册
+  - 刷新令牌
+  - 登出
+  - 当前用户
+  - 认证策略列表
+  - 验证码发送
+  - 验证码校验
+- RBAC：
+  - 用户 / 角色 / 权限 CRUD
+  - 权限来源分析
+  - 菜单树 CRUD
+  - 当前用户可访问菜单树
+- 其他：
+  - dashboard summary
+  - audit logs
+  - realtime channel
+  - avatar upload
+  - upload reconcile timer
 
-Current direction:
+### 4.2 认证模型
 
-- official unibest structure preserved
-- shared `api-common` adaptor integrated
-- token/request customization added without replacing unibest architecture
+认证分两层：
 
-## 4. Important architecture decisions
+1. `AuthClient`
+   - 系统级客户端身份
+   - 通过 `X-RBAC-Client-Code` 与 `X-RBAC-Client-Secret` 校验
+2. `AuthStrategy`
+   - 认证方式定义
+   - 当前内置三种：
+     - `username-password`
+     - `email-code`
+     - `phone-code`
 
-### 4.1 Ports
+相关模型：
 
-- backend default port is `3300`
-- Web and App request defaults were aligned to this port
+- `AuthClient`
+- `AuthStrategy`
+- `UserAuthentication`
+- `VerificationCode`
+- `RefreshToken`
 
-Do not change ports casually without updating the whole repo together.
+当前 seed：
 
-### 4.2 Shared request layer
+- client：
+  - `web-console`
+  - `uni-wechat-miniapp`
+- mock code：
+  - 邮箱 `123456`
+  - 手机 `654321`
 
-`packages/api-common` owns:
+### 4.3 数据层规则
 
-- shared API factory
-- shared DTO/types
-- fetch adaptor for Web
-- uni adaptor for App
+受管实体默认具备：
 
-If `api-common` changes, rebuild it and then verify dependents.
+- `id`
+- `createId`
+- `updateId`
+- `createdAt`
+- `updatedAt`
+- `deleteAt`
 
-### 4.3 Upload architecture
+当前语义：
 
-The upload system is now based on direct-to-S3-compatible storage.
+- 主键统一雪花 ID
+- `delete` -> `deleteAt`
+- 查询默认排除逻辑删除
+- 审计字段通过 Prisma 扩展自动处理
 
-Current model:
+### 4.4 Web 前端
 
-- backend creates file records and returns upload instructions
-- browser uploads directly to object storage
-- backend callback finalizes the result
-- backend timers reconcile stuck single-part uploads
+当前结构：
 
-This architecture should remain the default for future upload features.
+- `pages/frontend`
+  - 项目首页
+  - 系统架构页
+  - 认证策略页
+  - 404 页
+- `pages/console`
+  - 登录页
+  - 仪表盘
+  - 用户管理
+  - 角色管理
+  - 权限管理
+  - 菜单结构管理
+  - 审计日志
+  - 权限来源分析
+  - 实时协作
 
-### 4.4 Navigation ownership
+当前特性：
 
-The backend menu table is now the source of truth for:
+- FrontendLayout / ConsoleLayout 分离
+- 控制台路由集中在 `/console/**`
+- 登录后动态注入菜单与控制台页面
+- 工作台标签、布局偏好、页面过渡等状态持久化
+- `v-permission` / `v-role`
+- 页面目录下 `components` 子目录规范
+- 搜索表单、列表、详情、编辑等细节从页面组件中下沉
 
-- navigation hierarchy
-- menu ordering
-- menu icons
-- route path ownership
-- permission attachment for pages/actions
+### 4.5 App 前端
 
-`definePage(...)` is only for page-local metadata such as title, caption, description, keep-alive, and cache naming. Do not move navigation ownership back into scattered page JSON files.
+当前方向：
 
-### 4.5 Web workbench architecture
+- 保持 unibest 项目组织方式
+- 复用 `api-common`
+- 已包含登录 / 注册 / 首页 / 我的 / 权限相关接入位点
 
-Key anchors:
+## 5. 关键架构原则
 
-- `apps/web-frontend/src/layouts/ShellLayout.vue`
-- `apps/web-frontend/src/stores/workbench.ts`
-- `apps/web-frontend/src/components/workbench/PageScaffold.vue`
-- `apps/web-frontend/src/components/workbench/WorkbenchTabs.vue`
-- `apps/web-frontend/src/components/workbench/WorkbenchSettings.vue`
-- `apps/web-frontend/src/components/common/ContextMenuHost.vue`
-- `apps/web-frontend/src/meta/page-definition.ts`
+### 5.1 后端定义，前端消费
 
-The workbench owns persistent UI behavior and should remain the place for shell-level preferences and interactions.
+以下内容应继续以后端为事实来源：
 
-### 4.6 Theme and layout system
+- 菜单树
+- 页面/动作权限绑定
+- 认证策略开关
+- 客户端身份校验
 
-Key anchors:
+前端主要负责：
 
-- `apps/web-frontend/src/themes/index.ts`
-- `apps/web-frontend/src/themes/styles/_tokens.scss`
-- `apps/web-frontend/src/styles/_shell.scss`
-- `apps/web-frontend/src/styles/_workbench.scss`
+- 读取配置
+- 渲染对应 UI
+- 在展示层裁剪无权限操作
 
-The current direction is a denser, more integrated admin-shell style. When fixing visual rhythm, prefer shared token/shell/workbench changes before page-specific overrides.
+### 5.2 公共前台与控制台必须分离
 
-## 5. Documentation and source of truth
+- `/` 命名空间用于介绍项目、承接外部访问和信任建立。
+- `/console` 命名空间用于后台业务操作。
+- 不要让控制台壳子重新吞掉公共前台入口。
 
-Start here when resuming work:
+### 5.3 页面组件只做编排
+
+对 Web 管理页，默认规范是：
+
+- 页面组件负责 orchestration
+- 搜索表单、表格、详情、编辑弹窗、右键菜单等拆到 `components`
+- 共享体验问题优先在全局样式、共享组件、布局层修复
+
+### 5.4 展示层权限不是最终裁决
+
+- `v-permission` / `v-role` 只负责隐藏按钮与操作入口
+- 后端 RBAC 才是最终权限裁决
+
+### 5.5 文档需要同步维护
+
+发生架构变化时，至少同步更新：
+
+- `README.md`
+- `docs/project-memory.md`
+- `docs/development-guidelines.md`
+
+## 6. 默认端口与入口
+
+- backend：`3300`
+- web：默认 `5173`
+- public frontend：`/`
+- login：`/login`
+- console：`/console`
+
+不要单独修改某一端口而不同时更新依赖它的环境变量和文档。
+
+## 7. 优先查看的文件
+
+继续开发前，先看：
 
 1. `README.md`
-2. `docs/project-memory.md`
-3. `docs/implementation-history.md`
+2. `docs/README.md`
+3. `docs/project-memory.md`
 4. `docs/development-guidelines.md`
-5. `docs/plans/2026-03-20-rbac-monorepo-design.md`
+5. `docs/implementation-history.md`
 
-Then inspect these implementation anchors if needed:
+关键实现锚点：
 
-- backend menu APIs: `apps/backend/src/routes/menus.ts`
-- backend menu service: `apps/backend/src/services/menu-tree.ts`
-- backend timer registry: `apps/backend/src/timers/index.ts`
-- web shell: `apps/web-frontend/src/layouts/ShellLayout.vue`
-- page definition macro: `apps/web-frontend/src/meta/page-definition.ts`
-- workbench state: `apps/web-frontend/src/stores/workbench.ts`
+- backend 启动入口：`apps/backend/src/main.ts`
+- backend timers：`apps/backend/src/timers/index.ts`
+- Prisma 扩展：`apps/backend/src/lib/prisma.ts`
+- 认证策略：`apps/backend/src/services/auth-strategies.ts`
+- auth routes：`apps/backend/src/routes/auth.ts`
+- web router：`apps/web-frontend/src/router/index.ts`
+- access directives：`apps/web-frontend/src/directives/access.ts`
+- frontend 内容：`apps/web-frontend/src/pages/frontend`
+- console 页面：`apps/web-frontend/src/pages/console`
 
-## 6. Verification workflow
+## 8. 验证方式
 
-- backend: `pnpm --filter @rbac/backend lint` and `pnpm --filter @rbac/backend test`
-- web: `pnpm --filter @rbac/web-frontend lint` and `pnpm --filter @rbac/web-frontend build`
-- api-common: `pnpm --filter @rbac/api-common lint` and `pnpm --filter @rbac/api-common build`
-- app: `pnpm --filter @rbac/app-frontend type-check`
+- Backend：
+  - `pnpm --filter @rbac/backend lint`
+  - `pnpm --filter @rbac/backend test`
+  - `pnpm --filter @rbac/backend build`
+- Shared API：
+  - `pnpm --filter @rbac/api-common lint`
+  - `pnpm --filter @rbac/api-common build`
+- Web：
+  - `pnpm --filter @rbac/web-frontend lint`
+  - `pnpm --filter @rbac/web-frontend build`
+- App：
+  - `pnpm --filter @rbac/app-frontend type-check`
 
-## 7. Non-negotiable continuation rules
+## 9. 不可退化的约束
 
-- backend RBAC must stay real and database-backed
-- app frontend must stay unibest-based
-- backend menu tree remains the source of truth for navigation and page/action permission binding
-- `definePage(...)` remains the page-local metadata primitive
-- shared request/type logic remains in `packages/api-common`
-- background timers remain registered inside `apps/backend/src/timers`
-- no `any`
-- run the relevant verification commands before considering work complete
+- RBAC 必须保持真实数据库驱动
+- App 必须保持 unibest 结构
+- 控制台路由必须继续聚合在 `/console/**`
+- 菜单树继续作为控制台导航事实来源
+- 认证接口必须继续校验 client 身份
+- 认证流程继续由 strategy 模式承载
+- 核心实体继续维持审计字段 + 软删除 + 雪花 ID
+- 后台定时任务继续收敛到 backend timers
+- Web 页面继续遵守“页面编排 + 目录内 components 拆分”的规范

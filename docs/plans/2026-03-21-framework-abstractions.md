@@ -1,5 +1,7 @@
 # 2026-03-21 Framework Abstractions
 
+> Historical snapshot: 这是 2026-03-21 的阶段性设计记录。当前实际实现与约束请优先参考 `README.md`、`docs/project-memory.md` 与 `docs/development-guidelines.md`。
+
 ## Goal
 
 Reduce repetitive CRUD and RBAC mutation code across the monorepo so future pages and routes can be added with less duplicated wiring.

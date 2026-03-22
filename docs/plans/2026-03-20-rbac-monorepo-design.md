@@ -1,5 +1,7 @@
 # RBAC Monorepo Implementation Plan
 
+> Historical snapshot: 这是 2026-03-20 的初始设计计划。当前真实状态请优先参考 `README.md`、`docs/project-memory.md` 与 `docs/development-guidelines.md`。
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** 构建一个可直接扩展的 monorepo RBAC 基础项目，覆盖 backend、web、app 与共享 API 层。
