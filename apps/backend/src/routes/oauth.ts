@@ -1,8 +1,10 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
+import { prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
-import { requirePermission } from '../middlewares/require-permission';
+import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
 import { ok, asyncHandler } from '../utils/http';
+import { toPermissionSummary } from '../utils/rbac-records';
 import {
   createOAuthApplication,
   createOAuthProvider,
@@ -123,6 +125,18 @@ oauthManagementRouter.get(
       await listOAuthApplications(req.query as { q?: string; enabled?: string }),
       'OAuth application list',
     );
+  }),
+);
+
+oauthManagementRouter.get(
+  '/applications/options/permissions',
+  requireAnyPermission('oauth-application.read', 'oauth-application.create', 'oauth-application.update'),
+  asyncHandler(async (_req, res) => {
+    const permissions = await prisma.permission.findMany({
+      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+    });
+
+    return ok(res, permissions.map(toPermissionSummary), 'OAuth application permission options');
   }),
 );
 

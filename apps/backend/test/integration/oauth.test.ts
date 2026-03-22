@@ -5,6 +5,7 @@ import request from 'supertest';
 import {
   bootstrapBackendTestContext,
   type BackendTestContext,
+  loginAs,
   reseedBackendTestContext,
   teardownBackendTestContext,
   webClient,
@@ -31,6 +32,57 @@ after(async () => {
 });
 
 describe('OAuth integration', () => {
+  it('exposes oauth application permission options without depending on role management permissions', async () => {
+    const { app, prisma } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const oauthApplicationPermission = await prisma.permission.findUnique({
+      where: { code: 'oauth-application.update' },
+      select: { id: true },
+    });
+    assert.ok(oauthApplicationPermission);
+
+    const createdRole = await request(app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'oauth-application-editor',
+        name: 'OAuth 应用维护员',
+        description: '仅维护 OAuth 应用配置',
+        permissionIds: [oauthApplicationPermission.id],
+      })
+      .expect(200);
+
+    await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        username: 'oauthappeditor',
+        email: 'oauthappeditor@example.com',
+        nickname: 'OAuth 应用维护员',
+        password: 'OauthApp123!',
+        status: 'ACTIVE',
+        roleIds: [createdRole.body.data.id],
+      })
+      .expect(200);
+
+    const editorSession = await loginAs(app, 'oauthappeditor@example.com', 'OauthApp123!');
+
+    const permissionOptions = await request(app)
+      .get('/api/oauth/applications/options/permissions')
+      .set('Authorization', `Bearer ${editorSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.ok(
+      permissionOptions.body.data.some((item: { code: string }) => item.code === 'dashboard.view'),
+    );
+
+    await request(app)
+      .get('/api/roles/options/permissions')
+      .set('Authorization', `Bearer ${editorSession.tokens.accessToken}`)
+      .expect(403);
+  });
+
   it('supports authorization code + PKCE + userinfo + protected api', async () => {
     const { app } = context;
     const agent = request.agent(app);

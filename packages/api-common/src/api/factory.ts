@@ -170,7 +170,10 @@ export const createApiFactory = (options: ClientOptions) => {
     },
     oauth: {
       providers: oauthProviderCrud,
-      applications: oauthApplicationCrud,
+      applications: {
+        ...oauthApplicationCrud,
+        permissions: () => client.request<PermissionSummary[]>({ url: '/oauth/applications/options/permissions' }),
+      },
     },
     menus: {
       ...menuCrud,
