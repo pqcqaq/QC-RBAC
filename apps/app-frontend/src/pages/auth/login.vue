@@ -8,6 +8,7 @@ import { getErrorMessage } from '@/utils/error'
 
 definePage({
   style: {
+    navigationStyle: 'custom',
     navigationBarTitleText: '登录',
   },
 })
@@ -165,3 +166,4 @@ function toRegister() {
   font-weight: 500;
 }
 </style>
+

@@ -28,6 +28,7 @@
       "path": "pages/auth/login",
       "type": "page",
       "style": {
+        "navigationStyle": "custom",
         "navigationBarTitleText": "登录"
       }
     },

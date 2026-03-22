@@ -38,7 +38,7 @@ const envSchema = z.object({
   UPLOAD_RECONCILE_INTERVAL_MINUTES: z.coerce.number().int().positive().default(60),
   UPLOAD_PENDING_TIMEOUT_MINUTES: z.coerce.number().int().positive().default(60),
   UPLOAD_RECONCILE_BATCH_SIZE: z.coerce.number().int().positive().default(100),
-  CLIENT_ORIGIN: z.string().default('http://localhost:5173'),
+  CLIENT_ORIGIN: z.string().default('http://localhost:5173,http://127.0.0.1:5173,http://localhost:4173,http://127.0.0.1:4173,http://localhost:9000,http://127.0.0.1:9000'),
 });
 
 export const env = envSchema.parse(process.env);
@@ -46,3 +46,4 @@ export const env = envSchema.parse(process.env);
 export const clientOrigins = env.CLIENT_ORIGIN.split(',')
   .map((item) => item.trim())
   .filter(Boolean);
+
