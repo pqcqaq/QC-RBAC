@@ -1,13 +1,5 @@
 <template>
   <el-form label-position="top" class="page-form-grid auth-form-grid" @submit.prevent="emit('submit')">
-    <div class="auth-form-header page-form-grid__full">
-      <div>
-        <span class="auth-form-header__eyebrow">当前方式</span>
-        <strong>{{ strategy.name }}</strong>
-      </div>
-      <p>{{ resolveMethodHelper(strategy) }}</p>
-    </div>
-
     <el-form-item :label="resolveIdentifierLabel(strategy)" class="page-form-grid__full">
       <el-input
         v-model="form.identifier"
@@ -83,14 +75,6 @@ const resolveIdentifierPlaceholder = (strategy: AuthStrategyDescriptor) => {
   return '请输入用户名';
 };
 
-const resolveMethodHelper = (strategy: AuthStrategyDescriptor) => {
-  if (strategy.credentialType === 'PASSWORD') {
-    return '输入账号和密码后即可继续。';
-  }
-
-  return '先发送验证码，再完成身份校验。';
-};
-
 const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
   if (strategy.identifierType === 'EMAIL') {
     return '验证码会发送到填写的邮箱。';
@@ -110,38 +94,11 @@ const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
   row-gap: 12px;
 }
 
-.auth-form-header {
-  display: grid;
-  gap: 8px;
-  padding: 18px 18px 16px;
-  border: 1px solid rgba(18, 43, 57, 0.08);
-  border-radius: 22px;
-  background: linear-gradient(180deg, rgba(247, 243, 236, 0.8) 0%, rgba(255, 255, 255, 0.96) 100%);
-}
-
-.auth-form-header__eyebrow {
-  color: #7a847d;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
-.auth-form-header strong {
-  color: #17384a;
-  font-size: 20px;
-  line-height: 1.2;
-}
-
-.auth-form-header p,
 .auth-form-note {
+  padding: 0 2px;
   color: #607078;
   font-size: 13px;
   line-height: 1.7;
-}
-
-.auth-form-note {
-  padding: 0 2px;
 }
 
 .auth-form-grid :deep(.el-form-item__label) {
@@ -188,3 +145,5 @@ const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
   font-weight: 700;
 }
 </style>
+
+

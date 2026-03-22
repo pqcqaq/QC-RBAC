@@ -174,6 +174,57 @@ describe('RBAC backend', () => {
       .expect(200);
   });
 
+  it('persists workbench preferences on the current user session', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+    const preferencesPayload = {
+      workbench: {
+        themePresetId: 'graphite',
+        sidebarAppearance: 'light',
+        sidebarCollapsed: true,
+        layoutMode: 'tabs',
+        pageTransition: 'slide',
+        cachedTabDisplayMode: 'browser',
+        visitedTabs: [
+          {
+            path: '/console/dashboard',
+            name: 'console-dashboard',
+            title: '控制台总览',
+            code: 'dashboard',
+            icon: 'i-carbon-home',
+            closable: false,
+          },
+        ],
+        pageStateMap: {
+          'users:list': {
+            keyword: 'admin',
+            page: 2,
+          },
+        },
+      },
+    };
+
+    const updateResponse = await withClientAuth(request(app)
+      .put('/api/auth/preferences')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`))
+      .send(preferencesPayload)
+      .expect(200);
+
+    assert.deepEqual(updateResponse.body.data, preferencesPayload);
+
+    const meResponse = await withClientAuth(request(app)
+      .get('/api/auth/me')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`))
+      .expect(200);
+
+    assert.deepEqual(meResponse.body.data.preferences, preferencesPayload);
+
+    const refreshResponse = await withClientAuth(request(app).post('/api/auth/refresh'))
+      .send({ refreshToken: adminSession.tokens.refreshToken })
+      .expect(200);
+
+    assert.deepEqual(refreshResponse.body.data.user.preferences, preferencesPayload);
+  });
+
   it('supports strategy discovery, verification and code-based auth flows', async () => {
     const strategiesResponse = await withClientAuth(request(app).get('/api/auth/strategies'))
       .expect(200);
@@ -930,4 +981,5 @@ describe('RBAC backend', () => {
     assert.match(updateRoleDenied.body.message, /role\.assign-permission/);
   });
 });
+
 

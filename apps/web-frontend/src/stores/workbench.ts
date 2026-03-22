@@ -1,4 +1,10 @@
+import type {
+  UserPreferences,
+  UserWorkbenchPreferences,
+  WorkbenchVisitedTab,
+} from '@rbac/api-common';
 import { defineStore } from 'pinia';
+import { api } from '@/api/client';
 import {
   applySidebarAppearance,
   applyThemePreset,
@@ -10,34 +16,25 @@ import { pageRegistryMap } from '@/meta/pages';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
 import { useMenuStore } from '@/stores/menus';
 
-export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
-export type PageTransitionMode = 'none' | 'fade' | 'slide';
-export type CachedTabDisplayMode = 'hidden' | 'classic' | 'browser';
+export type WorkbenchLayoutMode = UserWorkbenchPreferences['layoutMode'];
+export type PageTransitionMode = UserWorkbenchPreferences['pageTransition'];
+export type CachedTabDisplayMode = UserWorkbenchPreferences['cachedTabDisplayMode'];
+export type VisitedTab = WorkbenchVisitedTab;
 
-export type VisitedTab = {
-  path: string;
-  name: string;
-  title: string;
-  code: string;
-  icon: string;
-  closable: boolean;
+type WorkbenchSnapshot = UserWorkbenchPreferences & {
+  cachedViewNames: string[];
 };
 
-type WorkbenchSnapshot = {
-  themePresetId: string;
-  sidebarAppearance: SidebarAppearance;
-  sidebarCollapsed: boolean;
-  layoutMode: WorkbenchLayoutMode;
-  pageTransition: PageTransitionMode;
-  cachedTabDisplayMode: CachedTabDisplayMode;
-  visitedTabs: VisitedTab[];
-  cachedViewNames: string[];
-  pageStateMap: Record<string, unknown>;
+type ApplySnapshotOptions = {
+  persistLocal?: boolean;
+  syncRemote?: boolean;
 };
 
 const STORAGE_KEY = 'rbac-workbench';
+const REMOTE_SYNC_DEBOUNCE_MS = 400;
+let remoteSyncTimer: ReturnType<typeof setTimeout> | null = null;
 
-const createDefaultState = (): WorkbenchSnapshot => ({
+const createDefaultPreferences = (): UserWorkbenchPreferences => ({
   themePresetId: defaultThemePresetId,
   sidebarAppearance: defaultSidebarAppearance,
   sidebarCollapsed: false,
@@ -45,8 +42,52 @@ const createDefaultState = (): WorkbenchSnapshot => ({
   pageTransition: 'fade',
   cachedTabDisplayMode: 'classic',
   visitedTabs: [],
-  cachedViewNames: [],
   pageStateMap: {},
+});
+
+const createDefaultState = (): WorkbenchSnapshot => ({
+  ...createDefaultPreferences(),
+  cachedViewNames: [],
+});
+
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
+
+const isVisitedTab = (value: unknown): value is VisitedTab => {
+  if (!isRecord(value)) {
+    return false;
+  }
+
+  return [
+    typeof value.path === 'string',
+    typeof value.name === 'string',
+    typeof value.title === 'string',
+    typeof value.code === 'string',
+    typeof value.icon === 'string',
+    typeof value.closable === 'boolean',
+  ].every(Boolean);
+};
+
+const normalizeVisitedTabPayload = (value: unknown): VisitedTab[] => {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.filter(isVisitedTab).map((tab) => ({ ...tab }));
+};
+
+const normalizePageStateMap = (value: unknown) => (isRecord(value) ? value : {});
+
+const normalizePreferences = (value?: Partial<UserWorkbenchPreferences> | null): UserWorkbenchPreferences => ({
+  themePresetId: typeof value?.themePresetId === 'string' && value.themePresetId ? value.themePresetId : defaultThemePresetId,
+  sidebarAppearance: value?.sidebarAppearance === 'light' ? 'light' : defaultSidebarAppearance,
+  sidebarCollapsed: Boolean(value?.sidebarCollapsed),
+  layoutMode: value?.layoutMode === 'tabs' ? 'tabs' : 'sidebar',
+  pageTransition: value?.pageTransition === 'none' || value?.pageTransition === 'slide' ? value.pageTransition : 'fade',
+  cachedTabDisplayMode: value?.cachedTabDisplayMode === 'hidden' || value?.cachedTabDisplayMode === 'browser'
+    ? value.cachedTabDisplayMode
+    : 'classic',
+  visitedTabs: normalizeVisitedTabPayload(value?.visitedTabs),
+  pageStateMap: normalizePageStateMap(value?.pageStateMap),
 });
 
 const safeParse = (): WorkbenchSnapshot => {
@@ -60,10 +101,14 @@ const safeParse = (): WorkbenchSnapshot => {
       return createDefaultState();
     }
 
+    const parsed = JSON.parse(raw) as Partial<WorkbenchSnapshot>;
     return {
       ...createDefaultState(),
-      ...JSON.parse(raw),
-    } satisfies WorkbenchSnapshot;
+      ...normalizePreferences(parsed),
+      cachedViewNames: Array.isArray(parsed.cachedViewNames)
+        ? parsed.cachedViewNames.filter((item): item is string => typeof item === 'string')
+        : [],
+    };
   } catch {
     return createDefaultState();
   }
@@ -125,9 +170,11 @@ const resolveCacheNames = (tabs: VisitedTab[]) => Array.from(
   ),
 );
 
+const serializePreferences = (preferences: UserWorkbenchPreferences) => JSON.stringify(preferences);
+
 type TabStateStore = {
   visitedTabs: VisitedTab[];
-  persist: () => void;
+  persist: (options?: { syncRemote?: boolean }) => void;
   syncCacheFromTabs: () => void;
 };
 
@@ -150,55 +197,140 @@ export const useWorkbenchStore = defineStore('workbench', {
     visitedTabs: [] as VisitedTab[],
     cachedViewNames: [] as string[],
     pageStateMap: {} as Record<string, unknown>,
+    activeUserId: null as string | null,
+    lastRemotePreferencesFingerprint: '',
   }),
   getters: {
     cacheInclude: (state) => state.cachedViewNames,
   },
   actions: {
-    persist() {
-      if (typeof window === 'undefined') {
-        return;
-      }
-
-      const snapshot: WorkbenchSnapshot = {
+    buildPreferences(): UserWorkbenchPreferences {
+      return {
         themePresetId: this.themePresetId,
         sidebarAppearance: this.sidebarAppearance,
         sidebarCollapsed: this.sidebarCollapsed,
         layoutMode: this.layoutMode,
         pageTransition: this.pageTransition,
         cachedTabDisplayMode: this.cachedTabDisplayMode,
-        visitedTabs: this.visitedTabs,
-        cachedViewNames: this.cachedViewNames,
-        pageStateMap: this.pageStateMap,
+        visitedTabs: this.visitedTabs.map((tab) => ({ ...tab })),
+        pageStateMap: { ...this.pageStateMap },
+      };
+    },
+    cancelRemoteSync() {
+      if (!remoteSyncTimer) {
+        return;
+      }
+
+      clearTimeout(remoteSyncTimer);
+      remoteSyncTimer = null;
+    },
+    async pushPreferencesToRemote() {
+      if (!this.activeUserId) {
+        return;
+      }
+
+      const userId = this.activeUserId;
+      const payload: UserPreferences = {
+        workbench: this.buildPreferences(),
       };
 
-      window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      try {
+        const preferences = await api.auth.updatePreferences(payload);
+        if (this.activeUserId !== userId) {
+          return;
+        }
+
+        this.lastRemotePreferencesFingerprint = serializePreferences(
+          normalizePreferences(preferences.workbench ?? payload.workbench),
+        );
+      } catch {
+        // Keep local state and retry on the next change.
+      }
+    },
+    scheduleRemoteSync() {
+      if (typeof window === 'undefined' || !this.activeUserId) {
+        return;
+      }
+
+      const nextPreferences = this.buildPreferences();
+      const nextFingerprint = serializePreferences(nextPreferences);
+      if (nextFingerprint === this.lastRemotePreferencesFingerprint) {
+        return;
+      }
+
+      this.cancelRemoteSync();
+      remoteSyncTimer = setTimeout(() => {
+        remoteSyncTimer = null;
+        void this.pushPreferencesToRemote();
+      }, REMOTE_SYNC_DEBOUNCE_MS);
+    },
+    persist(options: { syncRemote?: boolean } = {}) {
+      if (typeof window !== 'undefined') {
+        const snapshot: WorkbenchSnapshot = {
+          ...this.buildPreferences(),
+          cachedViewNames: [...this.cachedViewNames],
+        };
+
+        window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
+      }
+
+      if (options.syncRemote !== false) {
+        this.scheduleRemoteSync();
+      }
     },
     syncCacheFromTabs() {
       this.cachedViewNames = resolveCacheNames(this.visitedTabs);
+    },
+    applySnapshot(snapshot: Partial<UserWorkbenchPreferences> | null | undefined, options: ApplySnapshotOptions = {}) {
+      const menus = useMenuStore();
+      const next = normalizePreferences(snapshot);
+
+      this.themePresetId = next.themePresetId;
+      this.sidebarAppearance = next.sidebarAppearance;
+      this.sidebarCollapsed = next.sidebarCollapsed;
+      this.layoutMode = next.layoutMode;
+      this.pageTransition = next.pageTransition;
+      this.cachedTabDisplayMode = next.cachedTabDisplayMode;
+      this.visitedTabs = menus.ready ? normalizeVisitedTabs(next.visitedTabs) : next.visitedTabs;
+      this.cachedViewNames = resolveCacheNames(this.visitedTabs);
+      this.pageStateMap = { ...next.pageStateMap };
+      applyThemePreset(this.themePresetId);
+      applySidebarAppearance(this.sidebarAppearance);
+
+      if (options.persistLocal !== false) {
+        this.persist({ syncRemote: options.syncRemote });
+      }
     },
     bootstrap() {
       if (this.initialized) {
         return;
       }
 
-      const menus = useMenuStore();
-      const snapshot = safeParse();
-      this.themePresetId = snapshot.themePresetId;
-      this.sidebarAppearance = snapshot.sidebarAppearance === 'light' ? 'light' : 'dark';
-      this.sidebarCollapsed = Boolean(snapshot.sidebarCollapsed);
-      this.layoutMode = snapshot.layoutMode === 'tabs' ? 'tabs' : 'sidebar';
-      this.pageTransition = snapshot.pageTransition === 'none' || snapshot.pageTransition === 'slide' ? snapshot.pageTransition : 'fade';
-      this.cachedTabDisplayMode = snapshot.cachedTabDisplayMode === 'hidden' || snapshot.cachedTabDisplayMode === 'browser'
-        ? snapshot.cachedTabDisplayMode
-        : 'classic';
-      this.visitedTabs = menus.ready ? normalizeVisitedTabs(snapshot.visitedTabs) : (snapshot.visitedTabs ?? []);
-      this.cachedViewNames = menus.ready ? resolveCacheNames(this.visitedTabs) : (snapshot.cachedViewNames ?? []);
-      this.pageStateMap = snapshot.pageStateMap ?? {};
-      applyThemePreset(this.themePresetId);
-      applySidebarAppearance(this.sidebarAppearance);
+      this.applySnapshot(safeParse(), { persistLocal: false, syncRemote: false });
       this.initialized = true;
-      this.persist();
+      this.persist({ syncRemote: false });
+    },
+    hydrateUserPreferences(userId: string, preferences: UserPreferences = {}) {
+      if (!this.initialized) {
+        this.bootstrap();
+      }
+
+      this.cancelRemoteSync();
+      this.activeUserId = userId;
+
+      if (preferences.workbench) {
+        this.applySnapshot(preferences.workbench, { syncRemote: false });
+        this.lastRemotePreferencesFingerprint = serializePreferences(this.buildPreferences());
+        return;
+      }
+
+      this.lastRemotePreferencesFingerprint = '';
+      this.scheduleRemoteSync();
+    },
+    clearUserPreferencesContext() {
+      this.cancelRemoteSync();
+      this.activeUserId = null;
+      this.lastRemotePreferencesFingerprint = '';
     },
     syncWithMenus() {
       if (!this.initialized) {
@@ -308,7 +440,7 @@ export const useWorkbenchStore = defineStore('workbench', {
       return this.pageStateMap[key] as T | undefined;
     },
     resetWorkbenchPreferences(activePath?: string) {
-      const next = createDefaultState();
+      const next = createDefaultPreferences();
       const homeTab = buildTabFromPath(useMenuStore().homePath);
       if (homeTab) {
         next.visitedTabs.push(homeTab);
@@ -318,20 +450,8 @@ export const useWorkbenchStore = defineStore('workbench', {
       if (activeTab && !next.visitedTabs.some((tab) => tab.path === activeTab.path)) {
         next.visitedTabs.push(activeTab);
       }
-      next.cachedViewNames = resolveCacheNames(next.visitedTabs);
 
-      this.themePresetId = next.themePresetId;
-      this.sidebarAppearance = next.sidebarAppearance;
-      this.sidebarCollapsed = next.sidebarCollapsed;
-      this.layoutMode = next.layoutMode;
-      this.pageTransition = next.pageTransition;
-      this.cachedTabDisplayMode = next.cachedTabDisplayMode;
-      this.visitedTabs = next.visitedTabs.map((tab) => ({ ...tab }));
-      this.cachedViewNames = [...next.cachedViewNames];
-      this.pageStateMap = {};
-      applyThemePreset(this.themePresetId);
-      applySidebarAppearance(this.sidebarAppearance);
-      this.persist();
+      this.applySnapshot(next);
     },
   },
 });

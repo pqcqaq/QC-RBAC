@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { cacheDel, cacheGet, cacheSet } from '../lib/redis.js';
 import { notFound } from './errors.js';
 import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records.js';
+import { normalizeUserPreferences } from './user-preferences.js';
 
 const userInclude = {
   roles: {
@@ -77,6 +78,7 @@ export const buildCurrentUser = async (userId: string) => {
   return {
     ...toUserRecord(user),
     permissions: await getUserPermissionCodes(userId),
+    preferences: normalizeUserPreferences(user.preferences),
   };
 };
 

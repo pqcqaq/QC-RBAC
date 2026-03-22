@@ -117,7 +117,7 @@
       <section class="settings-section">
         <header>
           <h4>工作台缓存</h4>
-          <span>打开过的标签、主题与筛选条件会持久化到 localStorage。</span>
+          <span>主题、标签和筛选会跟随当前账号保存。</span>
         </header>
         <div class="settings-kv-list">
           <div>
@@ -209,3 +209,4 @@ const onLayoutChange = (value: string | number | boolean) => {
   }
 };
 </script>
+

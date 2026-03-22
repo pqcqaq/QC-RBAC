@@ -9,6 +9,7 @@ import type {
   RegisterPayload,
   RoleSummary,
   SendVerificationCodePayload,
+  UserPreferences,
   VerificationCodeSendResult,
   VerificationCodeVerifyResult,
   VerifyVerificationCodePayload,
@@ -82,6 +83,8 @@ export const createApiFactory = (options: ClientOptions) => {
       login: (payload: LoginPayload) => client.request<AuthSession>({ url: '/auth/login', method: 'POST', data: payload }),
       register: (payload: RegisterPayload) => client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
       me: () => client.request<CurrentUser>({ url: '/auth/me' }),
+      updatePreferences: (payload: UserPreferences) =>
+        client.request<UserPreferences>({ url: '/auth/preferences', method: 'PUT', data: payload }),
       refresh: (refreshToken: string) => client.request<AuthSession>({ url: '/auth/refresh', method: 'POST', data: { refreshToken } }),
       logout: (refreshToken: string) => client.request<{ ok: true }>({ url: '/auth/logout', method: 'POST', data: { refreshToken } }),
     },

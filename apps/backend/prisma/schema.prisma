@@ -63,6 +63,7 @@ model User {
   email           String?              @unique
   nickname        String
   avatar          String?
+  preferences     Json?
   status          UserStatus           @default(ACTIVE)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
@@ -342,3 +343,4 @@ model ChatMessage {
 
   @@index([deleteAt])
 }
+

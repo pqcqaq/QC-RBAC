@@ -117,6 +117,35 @@ export interface PermissionSummary {
   description?: string;
 }
 
+export type WorkbenchSidebarAppearance = 'light' | 'dark';
+export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
+export type WorkbenchPageTransitionMode = 'none' | 'fade' | 'slide';
+export type WorkbenchCachedTabDisplayMode = 'hidden' | 'classic' | 'browser';
+
+export interface WorkbenchVisitedTab {
+  path: string;
+  name: string;
+  title: string;
+  code: string;
+  icon: string;
+  closable: boolean;
+}
+
+export interface UserWorkbenchPreferences {
+  themePresetId: string;
+  sidebarAppearance: WorkbenchSidebarAppearance;
+  sidebarCollapsed: boolean;
+  layoutMode: WorkbenchLayoutMode;
+  pageTransition: WorkbenchPageTransitionMode;
+  cachedTabDisplayMode: WorkbenchCachedTabDisplayMode;
+  visitedTabs: WorkbenchVisitedTab[];
+  pageStateMap: Record<string, unknown>;
+}
+
+export interface UserPreferences {
+  workbench?: UserWorkbenchPreferences;
+}
+
 export interface CurrentUser {
   id: string;
   username: string;
@@ -126,6 +155,7 @@ export interface CurrentUser {
   status: UserStatus;
   roles: RoleSummary[];
   permissions: string[];
+  preferences: UserPreferences;
 }
 
 export interface AuthSession {
@@ -133,3 +163,4 @@ export interface AuthSession {
   user: CurrentUser;
   client: AuthClientSummary;
 }
+

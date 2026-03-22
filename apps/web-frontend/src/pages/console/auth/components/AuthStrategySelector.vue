@@ -1,11 +1,6 @@
 <template>
   <div class="auth-strategy-picker">
-    <div v-if="strategies.length" class="auth-strategy-picker__head">
-      <span>{{ label }}</span>
-      <p>{{ selectedStrategy ? resolveStrategySummary(selectedStrategy) : '' }}</p>
-    </div>
-
-    <div v-if="strategies.length" class="auth-strategy-picker__group" role="listbox" :aria-label="label">
+    <div v-if="strategies.length > 1" class="auth-strategy-picker__group" role="listbox" :aria-label="label">
       <button
         v-for="strategy in strategies"
         :key="strategy.code"
@@ -19,15 +14,14 @@
       </button>
     </div>
 
-    <el-empty v-else :description="emptyText" />
+    <el-empty v-else-if="!strategies.length" :description="emptyText" />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
 import type { AuthStrategyDescriptor } from '@rbac/api-common';
 
-const props = defineProps<{
+defineProps<{
   modelValue: string;
   label: string;
   strategies: AuthStrategyDescriptor[];
@@ -37,49 +31,12 @@ const props = defineProps<{
 const emit = defineEmits<{
   'update:modelValue': [value: string];
 }>();
-
-const selectedStrategy = computed(() => props.strategies.find((item) => item.code === props.modelValue) ?? null);
-
-const resolveStrategySummary = (strategy: AuthStrategyDescriptor) => {
-  if (strategy.credentialType === 'PASSWORD') {
-    return '使用账号和密码完成身份校验';
-  }
-
-  if (strategy.identifierType === 'EMAIL') {
-    return '通过邮箱验证码完成登录或注册';
-  }
-
-  if (strategy.identifierType === 'PHONE') {
-    return '通过手机验证码完成登录或注册';
-  }
-
-  return '通过验证码完成身份校验';
-};
 </script>
 
 <style scoped lang="scss">
 .auth-strategy-picker {
   display: grid;
   gap: 12px;
-}
-
-.auth-strategy-picker__head {
-  display: grid;
-  gap: 6px;
-}
-
-.auth-strategy-picker__head span {
-  color: #7a847d;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.24em;
-  text-transform: uppercase;
-}
-
-.auth-strategy-picker__head p {
-  color: #5c6d76;
-  font-size: 13px;
-  line-height: 1.65;
 }
 
 .auth-strategy-picker__group {

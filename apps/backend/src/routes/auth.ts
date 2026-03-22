@@ -1,3 +1,4 @@
+import type { Prisma } from '@prisma/client';
 import { Router } from 'express';
 import { z } from 'zod';
 import { randomUUID } from 'node:crypto';
@@ -16,6 +17,7 @@ import {
   invalidatePermissionCache,
   mapUserRecord,
 } from '../utils/rbac.js';
+import { normalizeUserPreferences, userPreferencesSchema } from '../utils/user-preferences.js';
 import {
   refreshTokenTtlSeconds,
   signAccessToken,
@@ -257,9 +259,30 @@ authRouter.get(
       {
         ...mapUserRecord(user),
         permissions: auth.permissions,
+        preferences: normalizeUserPreferences(user.preferences),
       },
       'Current user',
     );
+  }),
+);
+
+authRouter.put(
+  '/preferences',
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    const auth = req.auth!;
+    const payload = userPreferencesSchema.parse(req.body);
+    const user = await prisma.user.update({
+      where: { id: auth.id },
+      data: {
+        preferences: payload as Prisma.InputJsonValue,
+      },
+      select: {
+        preferences: true,
+      },
+    });
+
+    return ok(res, normalizeUserPreferences(user.preferences), 'Preferences updated');
   }),
 );
 

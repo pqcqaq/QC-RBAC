@@ -3,6 +3,7 @@ import { defineStore } from 'pinia';
 import { api, clearStoredTokens, getStoredAccessToken, getStoredRefreshToken, persistTokens } from '@/api/client';
 import type { AccessDirectiveValue } from '@/utils/access-control';
 import { matchAccess } from '@/utils/access-control';
+import { useWorkbenchStore } from '@/stores/workbench';
 
 export const useAuthStore = defineStore('auth', {
   state: () => ({
@@ -18,15 +19,19 @@ export const useAuthStore = defineStore('auth', {
   actions: {
     setSession(payload: { user: CurrentUser; tokens: { accessToken: string; refreshToken: string } }) {
       persistTokens(payload.tokens);
-      this.user = payload.user;
+      this.setUser(payload.user, { syncWorkbench: true });
       this.ready = true;
     },
-    setUser(user: CurrentUser) {
+    setUser(user: CurrentUser, options: { syncWorkbench?: boolean } = {}) {
       this.user = user;
+      if (options.syncWorkbench !== false) {
+        useWorkbenchStore().hydrateUserPreferences(user.id, user.preferences);
+      }
     },
     clearSession() {
       clearStoredTokens();
       this.user = null;
+      useWorkbenchStore().clearUserPreferencesContext();
       this.ready = true;
     },
     hasPermission(permission: string) {
@@ -43,19 +48,21 @@ export const useAuthStore = defineStore('auth', {
     },
     async bootstrap() {
       if (!getStoredAccessToken()) {
+        useWorkbenchStore().clearUserPreferencesContext();
         this.ready = true;
         return;
       }
 
       try {
-        this.user = await api.auth.me();
-      } catch (error) {
+        const user = await api.auth.me();
+        this.setUser(user, { syncWorkbench: true });
+      } catch (_error) {
         const refreshToken = getStoredRefreshToken();
         if (refreshToken) {
           try {
             const session = await api.auth.refresh(refreshToken);
             this.setSession(session);
-          } catch (refreshError) {
+          } catch (_refreshError) {
             this.clearSession();
           }
         } else {
@@ -74,7 +81,8 @@ export const useAuthStore = defineStore('auth', {
       this.setSession(session);
     },
     async syncCurrentUser() {
-      this.user = await api.auth.me();
+      const user = await api.auth.me();
+      this.setUser(user, { syncWorkbench: false });
       return this.user;
     },
     async logout() {
