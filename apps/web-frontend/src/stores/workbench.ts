@@ -23,6 +23,7 @@ export type VisitedTab = WorkbenchVisitedTab;
 
 type WorkbenchSnapshot = UserWorkbenchPreferences & {
   cachedViewNames: string[];
+  ownerUserId: string | null;
 };
 
 type ApplySnapshotOptions = {
@@ -48,6 +49,7 @@ const createDefaultPreferences = (): UserWorkbenchPreferences => ({
 const createDefaultState = (): WorkbenchSnapshot => ({
   ...createDefaultPreferences(),
   cachedViewNames: [],
+  ownerUserId: null,
 });
 
 const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null;
@@ -108,6 +110,7 @@ const safeParse = (): WorkbenchSnapshot => {
       cachedViewNames: Array.isArray(parsed.cachedViewNames)
         ? parsed.cachedViewNames.filter((item): item is string => typeof item === 'string')
         : [],
+      ownerUserId: typeof parsed.ownerUserId === 'string' ? parsed.ownerUserId : null,
     };
   } catch {
     return createDefaultState();
@@ -198,6 +201,7 @@ export const useWorkbenchStore = defineStore('workbench', {
     cachedViewNames: [] as string[],
     pageStateMap: {} as Record<string, unknown>,
     activeUserId: null as string | null,
+    localSnapshotOwnerId: null as string | null,
     lastRemotePreferencesFingerprint: '',
   }),
   getters: {
@@ -269,6 +273,7 @@ export const useWorkbenchStore = defineStore('workbench', {
         const snapshot: WorkbenchSnapshot = {
           ...this.buildPreferences(),
           cachedViewNames: [...this.cachedViewNames],
+          ownerUserId: this.localSnapshotOwnerId,
         };
 
         window.localStorage.setItem(STORAGE_KEY, JSON.stringify(snapshot));
@@ -306,7 +311,9 @@ export const useWorkbenchStore = defineStore('workbench', {
         return;
       }
 
-      this.applySnapshot(safeParse(), { persistLocal: false, syncRemote: false });
+      const snapshot = safeParse();
+      this.localSnapshotOwnerId = snapshot.ownerUserId;
+      this.applySnapshot(snapshot, { persistLocal: false, syncRemote: false });
       this.initialized = true;
       this.persist({ syncRemote: false });
     },
@@ -319,9 +326,15 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.activeUserId = userId;
 
       if (preferences.workbench) {
+        this.localSnapshotOwnerId = userId;
         this.applySnapshot(preferences.workbench, { syncRemote: false });
         this.lastRemotePreferencesFingerprint = serializePreferences(this.buildPreferences());
         return;
+      }
+
+      if (this.localSnapshotOwnerId !== userId) {
+        this.localSnapshotOwnerId = userId;
+        this.applySnapshot(createDefaultPreferences(), { syncRemote: false });
       }
 
       this.lastRemotePreferencesFingerprint = '';
@@ -455,3 +468,4 @@ export const useWorkbenchStore = defineStore('workbench', {
     },
   },
 });
+
