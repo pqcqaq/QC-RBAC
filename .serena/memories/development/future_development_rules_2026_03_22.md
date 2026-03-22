@@ -17,9 +17,9 @@ Recorded on 2026-03-22. Consolidated development rules and product expectations 
 - Treat app-frontend as a mobile/mini-program product, not a shrunk web admin.
 - Follow native mobile simplicity: compact spacing, restrained borders, minimal chrome, efficient vertical space usage.
 - Do not stack large rounded-rectangle containers unless there is a strong functional reason. Avoid heavy cardification.
-- Prefer Wot UI as the base design system and keep theme/tokens centralized instead of scattered handwritten styles.
-- Keep shared mobile structure through root theme provider and shared page shell/section components.
-- Use native tabbar for primary navigation instead of custom simulated tabbars when possible.
+- Use project-owned custom components in `apps/app-frontend/src/components` as the base design system and keep shared style tokens/layout variables centralized instead of scattered handwritten styles.
+- Keep shared mobile structure through shared page shell/section/navigation components and unified safe-area handling.
+- Use custom header and custom tabbar for primary navigation, with complete notch / bottom safe-area avoidance.
 
 4. Auth page rules
 - Login/register pages must not show mock state, current auth mode labels, username-password mode labels, or other development/debug information.
@@ -41,7 +41,7 @@ Recorded on 2026-03-22. Consolidated development rules and product expectations 
 - app-frontend H5 requests must be validated against real request traffic, not only prefetch behavior. A successful prefetch does not prove the real auth request path works.
 - For local H5 auth, keep backend CORS aligned with the actual frontend origin including localhost:9000.
 - Shared request and type boundaries should continue through packages/api-common.
-- Backend route handlers stay thin; business logic belongs in services. Scheduled/background work belongs in apps/backend-jobs.
+- Backend route handlers stay thin; business logic belongs in services. Scheduled/background work belongs in the backend timer/task registration under `apps/backend/src/timers`, not in ad-hoc scripts.
 - Keep RBAC real and DB-backed.
 
 8. Type and code quality rules
