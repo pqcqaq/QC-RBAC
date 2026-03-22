@@ -6,10 +6,19 @@ import App from './App.vue';
 import { registerAccessDirectives } from './directives/access';
 import { pinia } from './stores';
 import { router } from './router';
+import { beginBootProgress, markAppReady } from './utils/app-progress';
 import './styles/main.scss';
+
+beginBootProgress();
 
 const app = createApp(App);
 
 registerAccessDirectives(app);
 
 app.use(pinia).use(router).mount('#app');
+
+void router.isReady().finally(() => {
+  window.requestAnimationFrame(() => {
+    markAppReady();
+  });
+});

@@ -3,8 +3,8 @@ import {
   AUTH_CLIENT_CODE_HEADER,
   AUTH_CLIENT_SECRET_HEADER,
   createApiFactory,
-  createFetchAdaptor,
 } from '@rbac/api-common';
+import { createProgressFetchAdaptor, trackedFetch } from './progress-fetch-adaptor';
 
 const ACCESS_TOKEN_KEY = 'rbac_access_token';
 const REFRESH_TOKEN_KEY = 'rbac_refresh_token';
@@ -43,7 +43,7 @@ const refreshSession = async () => {
   }
 
   if (!refreshPromise) {
-    refreshPromise = fetch(refreshUrl, {
+    refreshPromise = trackedFetch(refreshUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -73,7 +73,7 @@ const refreshSession = async () => {
 
 export const api = createApiFactory({
   baseUrl: apiBaseUrl,
-  adaptor: createFetchAdaptor(),
+  adaptor: createProgressFetchAdaptor(),
   getAccessToken: getStoredAccessToken,
   getDefaultHeaders: getClientCredentialHeaders,
   onUnauthorized: async () => {

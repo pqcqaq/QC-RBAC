@@ -1,11 +1,318 @@
 <!doctype html>
-<html lang="zh-CN">
+<html lang="zh-CN" data-app-ready="false">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>RBAC Control Deck</title>
+    <meta name="theme-color" content="#0b1d2d" />
+    <title>RBAC Console Foundation</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --boot-bg: #081521;
+        --boot-bg-soft: #10283d;
+        --boot-ink: rgba(245, 250, 255, 0.94);
+        --boot-muted: rgba(198, 216, 233, 0.74);
+        --boot-line: rgba(124, 174, 212, 0.18);
+        --boot-accent: #3eb4ff;
+        --boot-accent-soft: rgba(62, 180, 255, 0.2);
+        --boot-warm: #ffb85c;
+        --boot-panel: rgba(7, 18, 29, 0.78);
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        margin: 0;
+        min-height: 100%;
+        background:
+          radial-gradient(circle at top, rgba(44, 122, 198, 0.16), transparent 38%),
+          linear-gradient(180deg, #081521 0%, #0d2032 54%, #08131f 100%);
+        font-family: "Segoe UI Variable Text", "PingFang SC", "Microsoft YaHei", sans-serif;
+      }
+
+      body {
+        min-height: 100vh;
+      }
+
+      #app {
+        min-height: 100vh;
+      }
+
+      .app-progress {
+        position: fixed;
+        inset: 0 0 auto;
+        z-index: 2000;
+        height: 3px;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.22s ease;
+      }
+
+      .app-progress.is-active {
+        opacity: 1;
+      }
+
+      .app-progress__bar {
+        width: 100%;
+        height: 100%;
+        transform-origin: left center;
+        transform: scaleX(0.22);
+        background: linear-gradient(90deg, #3eb4ff 0%, #67d0ff 48%, #ffd06e 100%);
+        box-shadow:
+          0 0 18px rgba(62, 180, 255, 0.5),
+          0 0 30px rgba(255, 208, 110, 0.26);
+        transition: transform 0.2s ease-out;
+      }
+
+      .boot-screen {
+        position: fixed;
+        inset: 0;
+        z-index: 1900;
+        display: grid;
+        place-items: center;
+        overflow: hidden;
+        background:
+          linear-gradient(180deg, rgba(8, 20, 34, 0.4), rgba(8, 20, 34, 0.8)),
+          linear-gradient(180deg, #081521 0%, #0d2032 54%, #08131f 100%);
+        transition:
+          opacity 0.42s ease,
+          visibility 0.42s ease,
+          transform 0.42s ease;
+      }
+
+      .boot-screen.is-hidden {
+        opacity: 0;
+        visibility: hidden;
+        transform: scale(1.02);
+      }
+
+      .boot-screen__grid,
+      .boot-screen__glow {
+        position: absolute;
+        inset: 0;
+        pointer-events: none;
+      }
+
+      .boot-screen__grid {
+        background-image:
+          linear-gradient(rgba(126, 170, 207, 0.08) 1px, transparent 1px),
+          linear-gradient(90deg, rgba(126, 170, 207, 0.08) 1px, transparent 1px);
+        background-size: 36px 36px;
+        mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.92), transparent 92%);
+      }
+
+      .boot-screen__glow::before,
+      .boot-screen__glow::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        filter: blur(16px);
+      }
+
+      .boot-screen__glow::before {
+        width: 360px;
+        height: 360px;
+        top: -80px;
+        left: -60px;
+        background: rgba(62, 180, 255, 0.18);
+      }
+
+      .boot-screen__glow::after {
+        width: 260px;
+        height: 260px;
+        right: -70px;
+        bottom: 60px;
+        background: rgba(255, 184, 92, 0.12);
+      }
+
+      .boot-panel {
+        position: relative;
+        width: min(680px, calc(100vw - 40px));
+        padding: 30px 30px 26px;
+        border: 1px solid var(--boot-line);
+        border-radius: 28px;
+        background:
+          linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.015)),
+          var(--boot-panel);
+        box-shadow:
+          0 24px 64px rgba(0, 8, 15, 0.42),
+          inset 0 1px 0 rgba(255, 255, 255, 0.08);
+        backdrop-filter: blur(16px);
+      }
+
+      .boot-panel__signal {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+        color: var(--boot-muted);
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.2em;
+        text-transform: uppercase;
+      }
+
+      .boot-panel__signal::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: linear-gradient(180deg, #6fd1ff 0%, #38b2ff 100%);
+        box-shadow: 0 0 0 6px rgba(62, 180, 255, 0.12);
+        animation: bootPulse 1.4s ease-in-out infinite;
+      }
+
+      .boot-panel__title {
+        margin: 0;
+        color: var(--boot-ink);
+        font-size: clamp(28px, 5vw, 46px);
+        line-height: 1.04;
+        letter-spacing: -0.04em;
+      }
+
+      .boot-panel__text {
+        margin: 14px 0 0;
+        max-width: 520px;
+        color: var(--boot-muted);
+        font-size: 14px;
+        line-height: 1.8;
+      }
+
+      .boot-panel__footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 18px;
+        margin-top: 26px;
+      }
+
+      .boot-panel__meter {
+        position: relative;
+        flex: 1;
+        min-width: 0;
+        height: 10px;
+        border-radius: 999px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.08);
+      }
+
+      .boot-panel__meter::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+          linear-gradient(90deg, rgba(62, 180, 255, 0.9), rgba(95, 210, 255, 0.9), rgba(255, 184, 92, 0.9));
+        transform: translateX(-58%);
+        animation: bootScan 1.35s ease-in-out infinite;
+      }
+
+      .boot-panel__capsules {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: flex-end;
+        gap: 10px;
+      }
+
+      .boot-panel__capsule {
+        padding: 8px 10px;
+        border: 1px solid rgba(126, 170, 207, 0.14);
+        border-radius: 999px;
+        color: var(--boot-ink);
+        font-size: 11px;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        background: rgba(255, 255, 255, 0.03);
+      }
+
+      .boot-noscript {
+        position: fixed;
+        inset: auto 18px 18px;
+        z-index: 2100;
+        max-width: 420px;
+        padding: 14px 16px;
+        border-radius: 18px;
+        background: rgba(16, 31, 47, 0.9);
+        color: #f4f8fb;
+        font-size: 13px;
+        line-height: 1.7;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      @keyframes bootScan {
+        0% {
+          transform: translateX(-58%);
+        }
+
+        50% {
+          transform: translateX(0%);
+        }
+
+        100% {
+          transform: translateX(58%);
+        }
+      }
+
+      @keyframes bootPulse {
+        0%,
+        100% {
+          opacity: 0.65;
+          transform: scale(0.92);
+        }
+
+        50% {
+          opacity: 1;
+          transform: scale(1.08);
+        }
+      }
+
+      @media (max-width: 720px) {
+        .boot-panel {
+          padding: 24px 20px 20px;
+          border-radius: 24px;
+        }
+
+        .boot-panel__footer {
+          flex-direction: column;
+          align-items: stretch;
+        }
+
+        .boot-panel__capsules {
+          justify-content: flex-start;
+        }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-progress" class="app-progress is-active" aria-hidden="true">
+      <div id="app-progress-bar" class="app-progress__bar"></div>
+    </div>
+    <div id="app-boot-screen" class="boot-screen" role="status" aria-live="polite">
+      <div class="boot-screen__grid"></div>
+      <div class="boot-screen__glow"></div>
+      <section class="boot-panel">
+        <div class="boot-panel__signal">Booting Console Workspace</div>
+        <h1 class="boot-panel__title">RBAC Console Foundation</h1>
+        <p class="boot-panel__text">
+          正在装载前端资源、动态菜单、权限上下文与控制台工作台。即使网络偏慢，也先把系统状态明确展示出来。
+        </p>
+        <div class="boot-panel__footer">
+          <div class="boot-panel__meter" aria-hidden="true"></div>
+          <div class="boot-panel__capsules">
+            <span class="boot-panel__capsule">Client Auth</span>
+            <span class="boot-panel__capsule">Strategy Login</span>
+            <span class="boot-panel__capsule">Console Ready</span>
+          </div>
+        </div>
+      </section>
+    </div>
+    <noscript>
+      <div class="boot-noscript">
+        当前页面依赖 JavaScript 才能加载控制台与动态菜单。请启用浏览器脚本能力后重新访问。
+      </div>
+    </noscript>
     <div id="app"></div>
     <script type="module" src="/src/main.ts"></script>
   </body>

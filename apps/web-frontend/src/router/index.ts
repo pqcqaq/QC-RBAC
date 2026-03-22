@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router';
 import { useAuthStore } from '@/stores/auth';
 import { useMenuStore } from '@/stores/menus';
 import { useWorkbenchStore } from '@/stores/workbench';
+import { beginRouteProgress, endRouteProgress } from '@/utils/app-progress';
 import { pinia } from '@/stores';
 
 const routes = [
@@ -49,12 +50,33 @@ const routes = [
   },
 ];
 
+let routeProgressActive = false;
+
+const startRouteProgress = () => {
+  if (routeProgressActive) {
+    return;
+  }
+
+  routeProgressActive = true;
+  beginRouteProgress();
+};
+
+const finishRouteProgress = () => {
+  if (!routeProgressActive) {
+    return;
+  }
+
+  routeProgressActive = false;
+  endRouteProgress();
+};
+
 export const router = createRouter({
   history: createWebHistory(),
   routes,
 });
 
 router.beforeEach(async (to) => {
+  startRouteProgress();
   const auth = useAuthStore(pinia);
   const menus = useMenuStore(pinia);
   const isConsoleTarget = to.path === '/console' || to.path.startsWith('/console/');
@@ -107,4 +129,10 @@ router.afterEach((to) => {
   if (to.matched.some((record) => record.meta.requiresAuth) && menus.hasPagePath(to.path)) {
     workbench.addVisitedTab(to.path);
   }
+
+  finishRouteProgress();
+});
+
+router.onError(() => {
+  finishRouteProgress();
 });
