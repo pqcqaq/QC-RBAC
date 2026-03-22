@@ -52,6 +52,10 @@ export const menuIconCatalog = [
   { value: 'i-carbon-dot-mark', label: '动作点', group: '动作', keywords: ['dot', 'action'] },
 ] satisfies UnoIconOption[];
 
+export const menuIconPrefetchList = Array.from(
+  new Set(menuIconCatalog.map((item) => item.value)),
+);
+
 const menuIconLookup = new Map<string, UnoIconOption>(
   menuIconCatalog.map((item) => [item.value, item]),
 );
@@ -75,14 +79,6 @@ const menuTypeFallbackIconMap = {
   PAGE: 'i-carbon-document',
   ACTION: 'i-carbon-dot-mark',
 } satisfies Record<MenuIconLike['type'], string>;
-
-export const menuIconSafelist = Array.from(
-  new Set([
-    ...menuIconCatalog.map((item) => item.value),
-    ...Object.values(menuCodeIconMap),
-    ...Object.values(menuTypeFallbackIconMap),
-  ]),
-);
 
 export const findMenuIconOption = (value?: string | null) => {
   const nextValue = value?.trim();

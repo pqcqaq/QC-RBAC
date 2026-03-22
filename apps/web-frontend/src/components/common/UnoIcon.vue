@@ -12,12 +12,10 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { CSSProperties } from 'vue';
-import { Icon, addCollection } from '@iconify/vue';
-import { carbonMenuIconCollection } from './carbon-menu-icons.generated';
+import { Icon } from '@iconify/vue';
+import { normalizeIconName } from './iconify-runtime';
 
 defineOptions({ name: 'UnoIcon' });
-
-addCollection(carbonMenuIconCollection);
 
 const props = withDefaults(defineProps<{
   name?: string | null;
@@ -42,14 +40,7 @@ const iconClass = computed(() => {
 });
 
 const iconName = computed(() => {
-  const currentClass = iconClass.value;
-  const match = currentClass.match(/^i-([a-z0-9]+)-(.*)$/i);
-
-  if (!match) {
-    return '';
-  }
-
-  return `${match[1]}:${match[2]}`;
+  return normalizeIconName(iconClass.value);
 });
 
 const iconStyle = computed<CSSProperties>(() => {

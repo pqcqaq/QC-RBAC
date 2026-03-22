@@ -3,6 +3,8 @@ import 'element-plus/es/components/loading/style/css';
 import 'element-plus/es/components/message/style/css';
 import 'element-plus/es/components/message-box/style/css';
 import App from './App.vue';
+import { preloadIconNames } from './components/common/iconify-runtime';
+import { menuIconPrefetchList } from './components/common/uno-icons';
 import { registerAccessDirectives } from './directives/access';
 import { pinia } from './stores';
 import { router } from './router';
@@ -10,6 +12,7 @@ import { beginBootProgress, markAppReady } from './utils/app-progress';
 import './styles/main.scss';
 
 beginBootProgress();
+preloadIconNames(menuIconPrefetchList);
 
 const app = createApp(App);
 
