@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
@@ -12,6 +12,7 @@ import { toRoleSummary, toUserRecord, userRoleSummaryInclude } from '../utils/rb
 import { withSnowflakeId } from '../utils/persistence.js';
 import { authService } from '../services/auth-service.js';
 import { softDeleteUser, syncUserRoles } from '../services/rbac-write.js';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
 
 const userPayloadSchema = z.object({
   username: z.string().min(3).max(24),
@@ -36,6 +37,42 @@ const usersRouter = Router();
 
 const resolveUserTarget = (user: { username: string; email?: string | null }) => user.email ?? user.username;
 
+type UserListQuery = {
+  q: string;
+  status: '' | 'ACTIVE' | 'DISABLED';
+  roleId: string;
+};
+
+const parseUserListQuery = (query: Request['query']): UserListQuery => ({
+  q: String(query.q ?? '').trim(),
+  status: ['ACTIVE', 'DISABLED'].includes(String(query.status ?? '').trim())
+    ? (String(query.status ?? '').trim() as UserListQuery['status'])
+    : '',
+  roleId: String(query.roleId ?? '').trim(),
+});
+
+const buildUserWhere = ({ q, status, roleId }: UserListQuery): Prisma.UserWhereInput => {
+  const where: Prisma.UserWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { username: { contains: q, mode: 'insensitive' } },
+      { email: { contains: q, mode: 'insensitive' } },
+      { nickname: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+
+  if (status) {
+    where.status = status;
+  }
+
+  if (roleId) {
+    where.roles = { some: { roleId, deleteAt: null } };
+  }
+
+  return where;
+};
+
 usersRouter.use(authMiddleware);
 
 usersRouter.get(
@@ -55,24 +92,7 @@ usersRouter.get(
   requirePermission('user.read'),
   asyncHandler(async (req, res) => {
     const { page, pageSize, skip } = parsePagination(req.query);
-    const q = String(req.query.q ?? '').trim();
-    const status = String(req.query.status ?? '').trim();
-    const roleId = String(req.query.roleId ?? '').trim();
-
-    const where: Prisma.UserWhereInput = {};
-    if (q) {
-      where.OR = [
-        { username: { contains: q, mode: 'insensitive' } },
-        { email: { contains: q, mode: 'insensitive' } },
-        { nickname: { contains: q, mode: 'insensitive' } },
-      ];
-    }
-    if (status === 'ACTIVE' || status === 'DISABLED') {
-      where.status = status;
-    }
-    if (roleId) {
-      where.roles = { some: { roleId, deleteAt: null } };
-    }
+    const where = buildUserWhere(parseUserListQuery(req.query));
 
     const [total, users] = await prisma.$transaction([
       prisma.user.count({ where }),
@@ -93,6 +113,31 @@ usersRouter.get(
       },
       'User list',
     );
+  }),
+);
+
+usersRouter.get(
+  '/export',
+  requirePermission('user.read'),
+  createExcelExportHandler({
+    fileName: () => createTimestampedExcelFileName('users'),
+    sheetName: 'Users',
+    parseQuery: parseUserListQuery,
+    queryRows: async (query) =>
+      prisma.user.findMany({
+        where: buildUserWhere(query),
+        orderBy: { createdAt: 'desc' },
+        include: userWithRolesInclude,
+      }),
+    columns: [
+      { header: '用户名', width: 20, value: (row) => row.username },
+      { header: '昵称', width: 18, value: (row) => row.nickname },
+      { header: '邮箱', width: 28, value: (row) => row.email ?? '' },
+      { header: '状态', width: 12, value: (row) => row.status === 'ACTIVE' ? '启用' : '禁用' },
+      { header: '角色', width: 32, value: (row) => row.roles.map(({ role }) => role.name).join(' / ') },
+      { header: '创建时间', width: 22, value: (row) => row.createdAt },
+      { header: '更新时间', width: 22, value: (row) => row.updatedAt },
+    ],
   }),
 );
 

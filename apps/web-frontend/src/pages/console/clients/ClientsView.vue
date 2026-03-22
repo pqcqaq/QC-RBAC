@@ -3,6 +3,7 @@
     <template #actions>
       <el-space>
         <el-button @click="loadData">刷新</el-button>
+        <ListExportButton :request="buildExportRequest" error-message="导出客户端失败" />
         <el-button v-permission="'client.create'" type="primary" @click="openCreate">新增客户端</el-button>
       </el-space>
     </template>
@@ -51,6 +52,7 @@ import { ElMessage } from 'element-plus';
 import { AuthClientType, type AuthClientFormPayload, type AuthClientRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import { api } from '@/api/client';
 import { usePageState } from '@/composables/use-page-state';
 import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
@@ -114,15 +116,21 @@ const stats = computed(() => [
   { label: '当前页小程序', value: miniappCount.value },
 ]);
 
+const buildFilterParams = () => ({
+  q: pageState.filters.q || undefined,
+  type: pageState.filters.type || undefined,
+  enabled: pageState.filters.enabled || undefined,
+});
+
+const buildExportRequest = () => api.clients.export(buildFilterParams());
+
 const loadData = async () => {
   try {
     loading.value = true;
     const response = await api.clients.list({
       page: pageState.page,
       pageSize,
-      q: pageState.filters.q || undefined,
-      type: pageState.filters.type || undefined,
-      enabled: pageState.filters.enabled || undefined,
+      ...buildFilterParams(),
     });
 
     const totalPages = Math.max(Math.ceil(response.meta.total / pageSize), 1);

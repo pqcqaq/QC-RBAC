@@ -3,6 +3,7 @@
     <template #actions>
       <el-space>
         <el-button @click="loadUsers">刷新</el-button>
+        <ListExportButton :request="buildExportRequest" error-message="导出用户失败" />
         <el-button
           v-permission:and="['user.create', 'user.assign-role']"
           type="primary"
@@ -63,6 +64,7 @@ import { ElMessage } from 'element-plus';
 import type { UserFormPayload, UserPermissionSource, UserRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
@@ -143,15 +145,21 @@ const stats = computed(() => {
   ];
 });
 
+const buildFilterParams = () => ({
+  q: pageState.filters.q || undefined,
+  status: pageState.filters.status || undefined,
+  roleId: pageState.filters.roleId || undefined,
+});
+
+const buildExportRequest = () => api.users.export(buildFilterParams());
+
 const loadUsers = async () => {
   try {
     loading.value = true;
     const response = await api.users.list({
       page: pageState.page,
       pageSize,
-      q: pageState.filters.q || undefined,
-      status: pageState.filters.status || undefined,
-      roleId: pageState.filters.roleId || undefined,
+      ...buildFilterParams(),
     });
 
     users.value = response.items;

@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { permissionCatalog } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
@@ -12,6 +12,7 @@ import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { withSnowflakeId } from '../utils/persistence.js';
 import { toPermissionRecord } from '../utils/rbac-records.js';
 import { softDeletePermission } from '../services/rbac-write.js';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
 
 const permissionPayloadSchema = z.object({
   code: z.string().min(3).max(48),
@@ -30,6 +31,48 @@ type PermissionWithRoles = Prisma.PermissionGetPayload<{
 }>;
 
 const permissionsRouter = Router();
+
+type PermissionListQuery = {
+  q: string;
+  module: string;
+  sourceType: '' | 'seed' | 'custom';
+};
+
+const parsePermissionListQuery = (query: Request['query']): PermissionListQuery => {
+  const sourceType = String(query.sourceType ?? '').trim();
+
+  return {
+    q: String(query.q ?? '').trim(),
+    module: String(query.module ?? '').trim(),
+    sourceType: sourceType === 'seed' || sourceType === 'custom' ? sourceType : '',
+  };
+};
+
+const buildPermissionWhere = (
+  { q, module, sourceType }: PermissionListQuery,
+  seedCodes: string[],
+): Prisma.PermissionWhereInput => {
+  const where: Prisma.PermissionWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { code: { contains: q, mode: 'insensitive' } },
+      { name: { contains: q, mode: 'insensitive' } },
+      { description: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+  if (module) {
+    where.module = module;
+  }
+  if (sourceType === 'seed') {
+    where.code = { in: seedCodes };
+  }
+  if (sourceType === 'custom') {
+    where.code = { notIn: seedCodes };
+  }
+
+  return where;
+};
 
 permissionsRouter.use(authMiddleware);
 
@@ -51,28 +94,9 @@ permissionsRouter.get(
   requirePermission('permission.read'),
   asyncHandler(async (req, res) => {
     const { page, pageSize, skip } = parsePagination(req.query);
-    const q = String(req.query.q ?? '').trim();
-    const module = String(req.query.module ?? '').trim();
-    const sourceType = String(req.query.sourceType ?? '').trim();
+    const query = parsePermissionListQuery(req.query);
     const seedCodes = permissionCatalog.map((item) => item.code);
-
-    const where: Prisma.PermissionWhereInput = {};
-    if (q) {
-      where.OR = [
-        { code: { contains: q, mode: 'insensitive' } },
-        { name: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
-      ];
-    }
-    if (module) {
-      where.module = module;
-    }
-    if (sourceType === 'seed') {
-      where.code = { in: seedCodes };
-    }
-    if (sourceType === 'custom') {
-      where.code = { notIn: seedCodes };
-    }
+    const where = buildPermissionWhere(query, seedCodes);
 
     const [total, permissions] = await prisma.$transaction([
       prisma.permission.count({ where }),
@@ -92,6 +116,33 @@ permissionsRouter.get(
       },
       'Permission list',
     );
+  }),
+);
+
+permissionsRouter.get(
+  '/export',
+  requirePermission('permission.read'),
+  createExcelExportHandler({
+    fileName: () => createTimestampedExcelFileName('permissions'),
+    sheetName: 'Permissions',
+    parseQuery: parsePermissionListQuery,
+    queryRows: async (query) => {
+      const seedCodes = permissionCatalog.map((item) => item.code);
+      return prisma.permission.findMany({
+        where: buildPermissionWhere(query, seedCodes),
+        orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+      });
+    },
+    columns: [
+      { header: '权限码', width: 28, value: (row) => row.code },
+      { header: '名称', width: 18, value: (row) => row.name },
+      { header: '模块', width: 16, value: (row) => row.module },
+      { header: '动作', width: 16, value: (row) => row.action },
+      { header: '来源', width: 12, value: (row) => permissionCatalog.some((item) => item.code === row.code) ? '系统种子' : '自定义' },
+      { header: '描述', width: 36, value: (row) => row.description ?? '' },
+      { header: '创建时间', width: 22, value: (row) => row.createdAt },
+      { header: '更新时间', width: 22, value: (row) => row.updatedAt },
+    ],
   }),
 );
 

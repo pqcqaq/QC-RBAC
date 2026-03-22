@@ -3,6 +3,7 @@
     <template #actions>
       <el-space>
         <el-button @click="loadData">刷新</el-button>
+        <ListExportButton :request="buildExportRequest" error-message="导出权限失败" />
         <el-button v-permission="'permission.create'" type="primary" @click="openCreate">新增权限</el-button>
       </el-space>
     </template>
@@ -54,6 +55,7 @@ import { permissionCatalog } from '@rbac/api-common';
 import type { PermissionFormPayload, PermissionRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
@@ -127,15 +129,21 @@ const stats = computed(() => [
 
 const isSeedPermission = (code: string) => permissionCatalog.some((item) => item.code === code);
 
+const buildFilterParams = () => ({
+  q: pageState.filters.q || undefined,
+  module: pageState.filters.module || undefined,
+  sourceType: pageState.filters.sourceType || undefined,
+});
+
+const buildExportRequest = () => api.permissions.export(buildFilterParams());
+
 const loadData = async () => {
   try {
     loading.value = true;
     const response = await api.permissions.list({
       page: pageState.page,
       pageSize,
-      q: pageState.filters.q || undefined,
-      module: pageState.filters.module || undefined,
-      sourceType: pageState.filters.sourceType || undefined,
+      ...buildFilterParams(),
     });
     const totalPages = Math.max(Math.ceil(response.meta.total / pageSize), 1);
     if (pageState.page > totalPages) {

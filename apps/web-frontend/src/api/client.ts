@@ -2,6 +2,7 @@ import type { ApiEnvelope, AuthSession } from '@rbac/api-common';
 import {
   AuthClientType,
   buildAuthClientHeaders,
+  buildRequestUrl,
   createApiFactory,
 } from '@rbac/api-common';
 import { createProgressFetchAdaptor, trackedFetch } from './progress-fetch-adaptor';
@@ -49,9 +50,33 @@ export const getClientCredentialHeaders = () => buildAuthClientHeaders({
   config: resolveWebClientConfig(),
 });
 
+const isFormDataLike = (value: unknown) =>
+  typeof FormData !== 'undefined' && value instanceof FormData;
+
+const buildAuthorizedHeaders = (headers?: HeadersInit, data?: unknown) => {
+  const requestHeaders = new Headers(headers);
+
+  if (data !== undefined && !isFormDataLike(data) && !requestHeaders.has('Content-Type')) {
+    requestHeaders.set('Content-Type', 'application/json');
+  }
+
+  const accessToken = getStoredAccessToken();
+  if (accessToken && !requestHeaders.has('Authorization')) {
+    requestHeaders.set('Authorization', `Bearer ${accessToken}`);
+  }
+
+  Object.entries(getClientCredentialHeaders()).forEach(([key, value]) => {
+    if (!requestHeaders.has(key)) {
+      requestHeaders.set(key, value);
+    }
+  });
+
+  return requestHeaders;
+};
+
 let refreshPromise: Promise<boolean> | null = null;
 
-const refreshSession = async () => {
+export const refreshSession = async () => {
   const refreshToken = getStoredRefreshToken();
   if (!refreshToken) {
     clearStoredTokens();
@@ -85,6 +110,27 @@ const refreshSession = async () => {
   }
 
   return refreshPromise;
+};
+
+export const createApiUrl = (url: string, params?: Record<string, string | number | boolean | undefined | null>) =>
+  buildRequestUrl(apiBaseUrl, url, params);
+
+export const requestWithAuthRetry = async (url: string, init: RequestInit = {}, data?: unknown) => {
+  const execute = () => fetch(url, { ...init, headers: buildAuthorizedHeaders(init.headers, data) });
+
+  let response = await execute();
+  if (response.status === 401) {
+    const refreshed = await refreshSession();
+    if (refreshed) {
+      response = await execute();
+    }
+  }
+
+  if (response.status === 401 && window.location.pathname !== '/login') {
+    window.location.href = '/login';
+  }
+
+  return response;
 };
 
 export const api = createApiFactory({

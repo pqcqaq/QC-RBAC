@@ -1,7 +1,10 @@
 <template>
   <PageScaffold :stats="stats">
     <template #actions>
-      <el-button @click="loadLogs">刷新日志</el-button>
+      <el-space>
+        <el-button @click="loadLogs">刷新日志</el-button>
+        <ListExportButton :request="buildExportRequest" error-message="导出审计日志失败" />
+      </el-space>
     </template>
 
     <template #toolbar>
@@ -36,6 +39,7 @@ import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { ActivityLogRecord } from '@rbac/api-common';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api } from '@/api/client';
 import { getErrorMessage } from '@/utils/errors';
@@ -82,6 +86,13 @@ const stats = computed(() => [
   { label: '当前过滤', value: activeKeyword.value },
 ]);
 
+const buildFilterParams = () => ({
+  q: pageState.filters.q || undefined,
+  action: pageState.filters.action || undefined,
+});
+
+const buildExportRequest = () => api.audit.export(buildFilterParams());
+
 const summarizeDetail = (detail: unknown) => {
   if (!detail || typeof detail !== 'object') {
     return '无';
@@ -97,8 +108,7 @@ const loadLogs = async () => {
     const response = await api.audit.list({
       page: pageState.page,
       pageSize,
-      q: pageState.filters.q || undefined,
-      action: pageState.filters.action || undefined,
+      ...buildFilterParams(),
     });
 
     logs.value = response.items;

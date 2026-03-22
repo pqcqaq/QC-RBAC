@@ -1,7 +1,10 @@
 <template>
   <PageScaffold :stats="stats">
     <template #actions>
-      <el-button v-permission="'realtime.send'" type="primary" @click="sendMessage">发送消息</el-button>
+      <el-space>
+        <ListExportButton :request="buildExportRequest" error-message="导出消息记录失败" />
+        <el-button v-permission="'realtime.send'" type="primary" @click="sendMessage">发送消息</el-button>
+      </el-space>
     </template>
 
     <template #toolbar>
@@ -78,6 +81,7 @@ import { ElMessage } from 'element-plus';
 import { io, type Socket } from 'socket.io-client';
 import type { LiveMessage } from '@rbac/api-common';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { api, getStoredAccessToken, wsBaseUrl } from '@/api/client';
@@ -119,6 +123,7 @@ const stats = computed(() => [
   { label: '实时事件', value: eventFeed.value.length },
   { label: '连接状态', value: socketConnected.value ? '在线' : '待连接' },
 ]);
+const buildExportRequest = () => api.live.exportHistory();
 let socket: Socket | null = null;
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString();

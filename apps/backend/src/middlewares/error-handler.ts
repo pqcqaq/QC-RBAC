@@ -9,6 +9,11 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction,
 ) => {
+  if (res.headersSent) {
+    console.error(error);
+    return;
+  }
+
   if (error instanceof ZodError) {
     res.status(400).json({
       success: false,

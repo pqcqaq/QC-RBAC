@@ -50,6 +50,7 @@ declare module 'vue' {
     ElTableColumn: typeof import('element-plus/es')['ElTableColumn']
     ElTag: typeof import('element-plus/es')['ElTag']
     ElTree: typeof import('element-plus/es')['ElTree']
+    ListExportButton: typeof import('./components/download/ListExportButton.vue')['default']
     MenuTreeNav: typeof import('./components/workbench/MenuTreeNav.vue')['default']
     MetricCard: typeof import('./components/MetricCard.vue')['default']
     PageScaffold: typeof import('./components/workbench/PageScaffold.vue')['default']

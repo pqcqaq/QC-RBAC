@@ -1,4 +1,4 @@
-import type { ClientOptions } from '../client/core.js';
+import type { ClientOptions, DownloadRequestConfig } from '../client/core.js';
 import { createRequestClient } from '../client/core.js';
 import type {
   AuthStrategyCollection,
@@ -45,7 +45,20 @@ import type { PaginatedResult, QueryParams } from '../types/common.js';
 
 type CrudResourceOptions = {
   resource: string;
+  exportResource?: string;
+  exportFileName?: string;
 };
+
+const createDownloadEndpoint = <TParams extends QueryParams | undefined = QueryParams | undefined>(
+  resource: string,
+  fileName?: string,
+) =>
+  (params?: TParams): DownloadRequestConfig => ({
+    url: resource,
+    method: 'GET',
+    params,
+    ...(fileName ? { fileName } : {}),
+  });
 
 const createCrudEndpoints = <
   TRecord,
@@ -54,13 +67,14 @@ const createCrudEndpoints = <
   TListParams extends QueryParams | undefined = QueryParams | undefined,
 >(
   client: ReturnType<typeof createRequestClient>,
-  { resource }: CrudResourceOptions,
+  { resource, exportResource, exportFileName }: CrudResourceOptions,
 ) => ({
   list: (params?: TListParams) => client.request<TListResult>({ url: resource, params }),
   detail: (id: string) => client.request<TRecord>({ url: `${resource}/${id}` }),
   create: (payload: TForm) => client.request<TRecord>({ url: resource, method: 'POST', data: payload }),
   update: (id: string, payload: TForm) => client.request<TRecord>({ url: `${resource}/${id}`, method: 'PUT', data: payload }),
   remove: (id: string) => client.request<{ ok: true }>({ url: `${resource}/${id}`, method: 'DELETE' }),
+  export: createDownloadEndpoint<TListParams>(exportResource ?? `${resource}/export`, exportFileName),
 });
 
 export const createApiFactory = (options: ClientOptions) => {
@@ -69,13 +83,18 @@ export const createApiFactory = (options: ClientOptions) => {
     UserRecord,
     UserFormPayload,
     PaginatedResult<UserRecord>
-  >(client, { resource: '/users' });
-  const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload, PaginatedRoles>(client, { resource: '/roles' });
+  >(client, { resource: '/users', exportFileName: 'users.xlsx' });
+  const roleCrud = createCrudEndpoints<RoleRecord, RoleFormPayload, PaginatedRoles>(client, {
+    resource: '/roles',
+    exportFileName: 'roles.xlsx',
+  });
   const permissionCrud = createCrudEndpoints<PermissionRecord, PermissionFormPayload, PaginatedPermissions>(client, {
     resource: '/permissions',
+    exportFileName: 'permissions.xlsx',
   });
   const clientCrud = createCrudEndpoints<AuthClientRecord, AuthClientFormPayload, PaginatedAuthClients>(client, {
     resource: '/clients',
+    exportFileName: 'clients.xlsx',
   });
   const menuCrud = createCrudEndpoints<MenuNodeRecord, MenuNodeFormPayload>(client, { resource: '/menus' });
 
@@ -100,6 +119,7 @@ export const createApiFactory = (options: ClientOptions) => {
     audit: {
       list: (params?: Record<string, string | number | boolean | undefined>) =>
         client.request<PaginatedAuditLogs>({ url: '/audit-logs', params }),
+      export: createDownloadEndpoint('/audit-logs/export', 'audit-logs.xlsx'),
     },
     users: {
       ...userCrud,
@@ -132,6 +152,7 @@ export const createApiFactory = (options: ClientOptions) => {
     live: {
       history: (params?: Record<string, string | number | boolean | undefined>) =>
         client.request<PaginatedLiveMessages>({ url: '/realtime/messages', params }),
+      exportHistory: createDownloadEndpoint('/realtime/messages/export', 'live-messages.xlsx'),
       post: (content: string) => client.request<LiveMessage>({ url: '/realtime/messages', method: 'POST', data: { content } }),
     },
   };

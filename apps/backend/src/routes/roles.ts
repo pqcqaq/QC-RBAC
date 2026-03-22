@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import type { Prisma } from '@prisma/client';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma.js';
@@ -11,6 +11,7 @@ import { publishRbacMutation } from '../utils/rbac-mutation.js';
 import { roleWithPermissionSummaryInclude, toPermissionSummary, toRoleRecord } from '../utils/rbac-records.js';
 import { withSnowflakeId } from '../utils/persistence.js';
 import { softDeleteRole, syncRolePermissions } from '../services/rbac-write.js';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
 
 const rolePayloadSchema = z.object({
   code: z.string().min(2).max(32),
@@ -47,6 +48,44 @@ const sameStringSet = (left: string[], right: string[]) => {
 
 const rolesRouter = Router();
 
+type RoleListQuery = {
+  q: string;
+  permissionId: string;
+  roleType: '' | 'system' | 'custom';
+};
+
+const parseRoleListQuery = (query: Request['query']): RoleListQuery => {
+  const roleType = String(query.roleType ?? '').trim();
+
+  return {
+    q: String(query.q ?? '').trim(),
+    permissionId: String(query.permissionId ?? '').trim(),
+    roleType: roleType === 'system' || roleType === 'custom' ? roleType : '',
+  };
+};
+
+const buildRoleWhere = ({ q, permissionId, roleType }: RoleListQuery): Prisma.RoleWhereInput => {
+  const where: Prisma.RoleWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { code: { contains: q, mode: 'insensitive' } },
+      { name: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+  if (permissionId) {
+    where.permissions = { some: { permissionId, deleteAt: null } };
+  }
+  if (roleType === 'system') {
+    where.isSystem = true;
+  }
+  if (roleType === 'custom') {
+    where.isSystem = false;
+  }
+
+  return where;
+};
+
 rolesRouter.use(authMiddleware);
 
 rolesRouter.get(
@@ -63,26 +102,7 @@ rolesRouter.get(
   requirePermission('role.read'),
   asyncHandler(async (req, res) => {
     const { page, pageSize, skip } = parsePagination(req.query);
-    const q = String(req.query.q ?? '').trim();
-    const permissionId = String(req.query.permissionId ?? '').trim();
-    const roleType = String(req.query.roleType ?? '').trim();
-
-    const where: Prisma.RoleWhereInput = {};
-    if (q) {
-      where.OR = [
-        { code: { contains: q, mode: 'insensitive' } },
-        { name: { contains: q, mode: 'insensitive' } },
-      ];
-    }
-    if (permissionId) {
-      where.permissions = { some: { permissionId, deleteAt: null } };
-    }
-    if (roleType === 'system') {
-      where.isSystem = true;
-    }
-    if (roleType === 'custom') {
-      where.isSystem = false;
-    }
+    const where = buildRoleWhere(parseRoleListQuery(req.query));
 
     const [total, roles] = await prisma.$transaction([
       prisma.role.count({ where }),
@@ -103,6 +123,33 @@ rolesRouter.get(
       },
       'Role list',
     );
+  }),
+);
+
+rolesRouter.get(
+  '/export',
+  requirePermission('role.read'),
+  createExcelExportHandler({
+    fileName: () => createTimestampedExcelFileName('roles'),
+    sheetName: 'Roles',
+    parseQuery: parseRoleListQuery,
+    queryRows: async (query) =>
+      prisma.role.findMany({
+        where: buildRoleWhere(query),
+        orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+        include: roleWithRelationsInclude,
+      }),
+    columns: [
+      { header: '角色编码', width: 22, value: (row) => row.code },
+      { header: '角色名称', width: 20, value: (row) => row.name },
+      { header: '角色描述', width: 34, value: (row) => row.description },
+      { header: '角色类型', width: 12, value: (row) => row.isSystem ? '系统角色' : '自定义角色' },
+      { header: '成员数', width: 12, value: (row) => row.users.length },
+      { header: '权限数', width: 12, value: (row) => row.permissions.length },
+      { header: '权限清单', width: 40, value: (row) => row.permissions.map(({ permission }) => permission.code).join(' / ') },
+      { header: '创建时间', width: 22, value: (row) => row.createdAt },
+      { header: '更新时间', width: 22, value: (row) => row.updatedAt },
+    ],
   }),
 );
 

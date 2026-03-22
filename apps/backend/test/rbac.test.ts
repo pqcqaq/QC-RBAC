@@ -8,6 +8,7 @@ import {
   AuthClientType,
   buildAuthClientHeaders,
 } from '@rbac/api-common';
+import ExcelJS from 'exceljs';
 import type { PrismaClient } from '@prisma/client';
 import type { Express } from 'express';
 import request from 'supertest';
@@ -108,6 +109,27 @@ const execPrisma = (...args: string[]) => {
   if (result.status !== 0) {
     throw new Error([result.stdout, result.stderr].filter(Boolean).join('\n'));
   }
+};
+
+const binaryParser = (
+  res: NodeJS.ReadableStream,
+  callback: (error: Error | null, body?: Buffer) => void,
+) => {
+  const chunks: Buffer[] = [];
+  res.on('data', (chunk) => {
+    chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
+  });
+  res.on('end', () => callback(null, Buffer.concat(chunks)));
+  res.on('error', (error) => callback(error as Error));
+};
+
+const loadWorksheet = async (buffer: Buffer) => {
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const worksheet = workbook.worksheets[0];
+  assert.ok(worksheet);
+  return worksheet;
 };
 
 const loginAs = async (account: string, password: string, client = webClient) => {
@@ -841,6 +863,81 @@ describe('RBAC backend', () => {
       .delete(`/api/clients/${clientId}`)
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
+  });
+
+  it('exports filtered user lists and realtime history as xlsx workbooks', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+
+    const userExport = await request(app)
+      .get('/api/users/export')
+      .query({ q: 'admin@example.com', status: 'ACTIVE' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+
+    assert.match(String(userExport.headers['content-type']), /application\/vnd\.openxmlformats-officedocument\.spreadsheetml\.sheet/i);
+    assert.match(String(userExport.headers['content-disposition']), /attachment/i);
+
+    const userSheet = await loadWorksheet(userExport.body as Buffer);
+    assert.equal(userSheet.name, 'Users');
+    assert.equal(userSheet.getRow(1).getCell(1).value, '用户名');
+    assert.equal(userSheet.rowCount, 2);
+    assert.equal(userSheet.getRow(2).getCell(1).value, 'admin');
+    assert.equal(userSheet.getRow(2).getCell(4).value, '启用');
+
+    const messageExport = await request(app)
+      .get('/api/realtime/messages/export')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+
+    const messageSheet = await loadWorksheet(messageExport.body as Buffer);
+    assert.equal(messageSheet.name, 'Live Messages');
+    assert.equal(messageSheet.getRow(1).getCell(1).value, '发送人');
+    assert.equal(messageSheet.rowCount, 4);
+  });
+
+  it('protects audit export and returns filtered client exports', async () => {
+    const memberSession = await loginAs('user@example.com', 'User123!');
+    await request(app)
+      .get('/api/audit-logs/export')
+      .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`)
+      .expect(403);
+
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+    await request(app)
+      .post('/api/clients')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'export-miniapp',
+        name: '导出测试小程序',
+        type: 'UNI_WECHAT_MINIAPP',
+        description: '用于测试导出过滤',
+        enabled: true,
+        clientSecret: 'export-miniapp-secret',
+        config: {
+          appId: 'wx-export-appid',
+          appSecret: 'wx-export-secret',
+        },
+      })
+      .expect(200);
+
+    const clientExport = await request(app)
+      .get('/api/clients/export')
+      .query({ type: 'UNI_WECHAT_MINIAPP', enabled: 'enabled', q: '导出测试' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+
+    const clientSheet = await loadWorksheet(clientExport.body as Buffer);
+    assert.equal(clientSheet.name, 'Clients');
+    assert.equal(clientSheet.getRow(1).getCell(1).value, '客户端编码');
+    assert.equal(clientSheet.rowCount, 2);
+    assert.equal(clientSheet.getRow(2).getCell(1).value, 'export-miniapp');
+    assert.equal(clientSheet.getRow(2).getCell(3).value, 'UNI_WECHAT_MINIAPP');
   });
 
   it('protects audit logs and immutable seed identifiers', async () => {

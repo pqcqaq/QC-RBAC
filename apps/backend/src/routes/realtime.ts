@@ -7,6 +7,7 @@ import { requirePermission } from '../middlewares/require-permission.js';
 import { ok, asyncHandler, parsePagination } from '../utils/http.js';
 import { logActivity } from '../utils/audit.js';
 import { withSnowflakeId } from '../utils/persistence.js';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
 
 const messageSchema = z.object({
   content: z.string().min(1).max(240),
@@ -34,6 +35,21 @@ const toLiveMessageDto = (message: {
 
 realtimeRouter.use(authMiddleware);
 
+const liveMessageInclude = {
+  sender: {
+    include: {
+      roles: {
+        where: {
+          deleteAt: null,
+        },
+        include: {
+          role: true,
+        },
+      },
+    },
+  },
+} as const;
+
 realtimeRouter.get(
   '/messages',
   requirePermission('realtime.read'),
@@ -45,20 +61,7 @@ realtimeRouter.get(
         skip,
         take: pageSize,
         orderBy: { createdAt: 'desc' },
-        include: {
-          sender: {
-            include: {
-              roles: {
-                where: {
-                  deleteAt: null,
-                },
-                include: {
-                  role: true,
-                },
-              },
-            },
-          },
-        },
+        include: liveMessageInclude,
       }),
     ]);
 
@@ -73,6 +76,27 @@ realtimeRouter.get(
   }),
 );
 
+realtimeRouter.get(
+  '/messages/export',
+  requirePermission('realtime.read'),
+  createExcelExportHandler({
+    fileName: () => createTimestampedExcelFileName('live-messages'),
+    sheetName: 'Live Messages',
+    parseQuery: () => ({}),
+    queryRows: async () =>
+      prisma.chatMessage.findMany({
+        orderBy: { createdAt: 'asc' },
+        include: liveMessageInclude,
+      }),
+    columns: [
+      { header: '发送人', width: 18, value: (row) => row.sender.nickname },
+      { header: '角色', width: 26, value: (row) => row.sender.roles.map(({ role }) => role.name).join(' / ') },
+      { header: '消息内容', width: 48, value: (row) => row.content },
+      { header: '发送时间', width: 22, value: (row) => row.createdAt },
+    ],
+  }),
+);
+
 realtimeRouter.post(
   '/messages',
   requirePermission('realtime.send'),
@@ -84,20 +108,7 @@ realtimeRouter.post(
         senderId: actor.id,
         content: payload.content,
       }),
-      include: {
-        sender: {
-          include: {
-            roles: {
-              where: {
-                deleteAt: null,
-              },
-              include: {
-                role: true,
-              },
-            },
-          },
-        },
-      },
+      include: liveMessageInclude,
     });
 
     await logActivity({

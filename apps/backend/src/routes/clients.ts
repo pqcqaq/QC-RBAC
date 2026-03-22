@@ -1,6 +1,6 @@
 import { AuthClientType } from '@rbac/api-common';
 import type { Prisma } from '@prisma/client';
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { prisma } from '../lib/prisma.js';
 import { authMiddleware } from '../middlewares/auth.js';
 import { requirePermission } from '../middlewares/require-permission.js';
@@ -15,6 +15,7 @@ import { toAuthClientRecord } from '../utils/rbac-records.js';
 import { hashSecret } from '../utils/password.js';
 import { softDeleteAuthClient } from '../services/rbac-write.js';
 import { withSnowflakeId } from '../utils/persistence.js';
+import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export.js';
 
 const clientsRouter = Router();
 
@@ -22,32 +23,52 @@ clientsRouter.use(authMiddleware);
 
 const resolveClientTarget = (client: { code: string; name: string }) => `${client.name} (${client.code})`;
 
+type ClientListQuery = {
+  q: string;
+  type: '' | AuthClientType;
+  enabled: '' | 'enabled' | 'disabled';
+};
+
+const parseClientListQuery = (query: Request['query']): ClientListQuery => {
+  const type = String(query.type ?? '').trim();
+  const enabled = String(query.enabled ?? '').trim();
+
+  return {
+    q: String(query.q ?? '').trim(),
+    type: Object.values(AuthClientType).includes(type as AuthClientType) ? (type as AuthClientType) : '',
+    enabled: enabled === 'enabled' || enabled === 'disabled' ? enabled : '',
+  };
+};
+
+const buildClientWhere = ({ q, type, enabled }: ClientListQuery): Prisma.AuthClientWhereInput => {
+  const where: Prisma.AuthClientWhereInput = {};
+
+  if (q) {
+    where.OR = [
+      { code: { contains: q, mode: 'insensitive' } },
+      { name: { contains: q, mode: 'insensitive' } },
+      { description: { contains: q, mode: 'insensitive' } },
+    ];
+  }
+  if (type) {
+    where.type = type;
+  }
+  if (enabled === 'enabled') {
+    where.enabled = true;
+  }
+  if (enabled === 'disabled') {
+    where.enabled = false;
+  }
+
+  return where;
+};
+
 clientsRouter.get(
   '/',
   requirePermission('client.read'),
   asyncHandler(async (req, res) => {
     const { page, pageSize, skip } = parsePagination(req.query);
-    const q = String(req.query.q ?? '').trim();
-    const type = String(req.query.type ?? '').trim();
-    const enabled = String(req.query.enabled ?? '').trim();
-
-    const where: Prisma.AuthClientWhereInput = {};
-    if (q) {
-      where.OR = [
-        { code: { contains: q, mode: 'insensitive' } },
-        { name: { contains: q, mode: 'insensitive' } },
-        { description: { contains: q, mode: 'insensitive' } },
-      ];
-    }
-    if (type && Object.values(AuthClientType).includes(type as AuthClientType)) {
-      where.type = type as never;
-    }
-    if (enabled === 'enabled') {
-      where.enabled = true;
-    }
-    if (enabled === 'disabled') {
-      where.enabled = false;
-    }
+    const where = buildClientWhere(parseClientListQuery(req.query));
 
     const [total, clients] = await prisma.$transaction([
       prisma.authClient.count({ where }),
@@ -67,6 +88,31 @@ clientsRouter.get(
       },
       'Client list',
     );
+  }),
+);
+
+clientsRouter.get(
+  '/export',
+  requirePermission('client.read'),
+  createExcelExportHandler({
+    fileName: () => createTimestampedExcelFileName('clients'),
+    sheetName: 'Clients',
+    parseQuery: parseClientListQuery,
+    queryRows: async (query) =>
+      prisma.authClient.findMany({
+        where: buildClientWhere(query),
+        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+      }),
+    columns: [
+      { header: '客户端编码', width: 24, value: (row) => row.code },
+      { header: '客户端名称', width: 24, value: (row) => row.name },
+      { header: '客户端类型', width: 18, value: (row) => row.type },
+      { header: '启用状态', width: 12, value: (row) => row.enabled ? '启用' : '禁用' },
+      { header: '描述', width: 34, value: (row) => row.description ?? '' },
+      { header: '配置', width: 40, value: (row) => parseAuthClientConfig(row.type as AuthClientType, row.config) },
+      { header: '创建时间', width: 22, value: (row) => row.createdAt },
+      { header: '更新时间', width: 22, value: (row) => row.updatedAt },
+    ],
   }),
 );
 

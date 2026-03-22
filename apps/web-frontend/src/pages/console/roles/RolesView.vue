@@ -3,6 +3,7 @@
     <template #actions>
       <el-space>
         <el-button @click="loadRoles">刷新</el-button>
+        <ListExportButton :request="buildExportRequest" error-message="导出角色失败" />
         <el-button
           v-permission:and="['role.create', 'role.assign-permission']"
           type="primary"
@@ -57,6 +58,7 @@ import { ElMessage } from 'element-plus';
 import type { PermissionSummary, RoleFormPayload, RoleRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
+import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
 import { useResourceDetail, useResourceEditor, useResourceRemoval } from '@/composables/use-resource-crud';
 import { api } from '@/api/client';
@@ -130,15 +132,21 @@ const stats = computed(() => {
   ];
 });
 
+const buildFilterParams = () => ({
+  q: pageState.filters.q || undefined,
+  permissionId: pageState.filters.permissionId || undefined,
+  roleType: pageState.filters.roleType || undefined,
+});
+
+const buildExportRequest = () => api.roles.export(buildFilterParams());
+
 const loadRoles = async () => {
   try {
     loading.value = true;
     const response = await api.roles.list({
       page: pageState.page,
       pageSize,
-      q: pageState.filters.q || undefined,
-      permissionId: pageState.filters.permissionId || undefined,
-      roleType: pageState.filters.roleType || undefined,
+      ...buildFilterParams(),
     });
     const totalPages = Math.max(Math.ceil(response.meta.total / pageSize), 1);
     if (pageState.page > totalPages) {

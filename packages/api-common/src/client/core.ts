@@ -8,6 +8,10 @@ export interface RequestConfig {
   params?: QueryParams;
 }
 
+export interface DownloadRequestConfig extends RequestConfig {
+  fileName?: string;
+}
+
 export interface RequestAdaptor {
   request<T>(config: RequestConfig): Promise<T>;
 }
@@ -28,7 +32,7 @@ const hasStatusCode = (error: unknown): error is { status: number } =>
   && error !== null
   && typeof Reflect.get(error, 'status') === 'number';
 
-const buildUrl = (baseUrl: string, url: string, params?: RequestConfig['params']) => {
+export const buildRequestUrl = (baseUrl: string, url: string, params?: RequestConfig['params']) => {
   const normalized = `${baseUrl.replace(/\/$/, '')}${url.startsWith('/') ? url : `/${url}`}`;
   if (!params) {
     return normalized;
@@ -57,7 +61,7 @@ export const createRequestClient = ({
       const isFormData = isFormDataLike(config.data);
       return await adaptor.request<ApiEnvelope<T>>({
         ...config,
-        url: buildUrl(baseUrl, config.url, config.params),
+        url: buildRequestUrl(baseUrl, config.url, config.params),
         headers: {
           ...(!isFormData
             ? {
