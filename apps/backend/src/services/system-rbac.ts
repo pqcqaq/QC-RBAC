@@ -103,7 +103,7 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
           { code: 'users-update', type: 'ACTION', title: '编辑用户', icon: 'i-carbon-edit', sortOrder: 20, permissionCode: 'user.update' },
           { code: 'users-delete', type: 'ACTION', title: '删除用户', icon: 'i-carbon-trash-can', sortOrder: 30, permissionCode: 'user.delete' },
           { code: 'users-assign-role', type: 'ACTION', title: '分配角色', icon: 'i-carbon-user-role', sortOrder: 40, permissionCode: 'user.assign-role' },
-          { code: 'users-upload-avatar', type: 'ACTION', title: '上传头像', icon: 'i-carbon-cloud-upload', sortOrder: 50, permissionCode: 'file.upload' },
+          { code: 'users-upload-avatar', type: 'ACTION', title: '上传头像', icon: 'i-carbon-cloud-upload', sortOrder: 50 },
         ],
       },
       {
@@ -189,6 +189,23 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
         permissionCode: 'realtime.read',
         children: [
           { code: 'live-send', type: 'ACTION', title: '发送实时消息', icon: 'i-carbon-chevron-right', sortOrder: 10, permissionCode: 'realtime.send' },
+        ],
+      },
+      {
+        code: 'attachments',
+        type: 'PAGE',
+        title: '附件管理',
+        caption: 'Files',
+        description: '管理头像与业务附件，支持标签筛选、上传、导出与元数据维护。',
+        icon: 'i-carbon-document',
+        path: '/attachments',
+        viewKey: 'attachments',
+        sortOrder: 30,
+        permissionCode: 'file.read',
+        children: [
+          { code: 'attachments-upload', type: 'ACTION', title: '上传附件', icon: 'i-carbon-cloud-upload', sortOrder: 10, permissionCode: 'file.upload' },
+          { code: 'attachments-update', type: 'ACTION', title: '编辑附件', icon: 'i-carbon-edit', sortOrder: 20, permissionCode: 'file.update' },
+          { code: 'attachments-delete', type: 'ACTION', title: '删除附件', icon: 'i-carbon-trash-can', sortOrder: 30, permissionCode: 'file.delete' },
         ],
       },
     ],
@@ -320,27 +337,36 @@ const ensureMenuTree = async (
   parentId: string | null = null,
 ) => {
   for (const node of nodes) {
-    const existed = await prisma.menuNode.findUnique({
+    const permissionId = node.permissionCode ? permissionByCode.get(node.permissionCode)?.id ?? null : null;
+    const created = await prisma.menuNode.upsert({
       where: { code: node.code },
+      update: {
+        type: node.type,
+        title: node.title,
+        caption: node.caption,
+        description: node.description,
+        icon: node.icon,
+        path: node.type === 'PAGE' ? node.path : null,
+        viewKey: node.type === 'PAGE' ? node.viewKey : null,
+        sortOrder: node.sortOrder,
+        parentId,
+        permissionId,
+      },
+      create: withSnowflakeId({
+        code: node.code,
+        type: node.type,
+        title: node.title,
+        caption: node.caption,
+        description: node.description,
+        icon: node.icon,
+        path: node.type === 'PAGE' ? node.path : null,
+        viewKey: node.type === 'PAGE' ? node.viewKey : null,
+        sortOrder: node.sortOrder,
+        parentId,
+        permissionId,
+      }),
       select: { id: true },
     });
-    const created = existed
-      ? { id: existed.id }
-      : await prisma.menuNode.create({
-          data: withSnowflakeId({
-            code: node.code,
-            type: node.type,
-            title: node.title,
-            caption: node.caption,
-            description: node.description,
-            icon: node.icon,
-            path: node.type === 'PAGE' ? node.path : null,
-            viewKey: node.type === 'PAGE' ? node.viewKey : null,
-            sortOrder: node.sortOrder,
-            parentId,
-            permissionId: node.permissionCode ? permissionByCode.get(node.permissionCode)?.id : null,
-          }),
-        });
 
     if (node.children?.length) {
       await ensureMenuTree(prisma, node.children, permissionByCode, created.id);

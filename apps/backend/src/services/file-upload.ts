@@ -135,6 +135,21 @@ const sanitizeFileName = (fileName: string) => {
   return baseName.replace(/[^a-zA-Z0-9._-]+/g, '-');
 };
 
+const normalizeOriginalName = (fileName: string) => path.basename(fileName).trim().slice(0, 255);
+
+export const normalizeMediaAssetTag = (value?: string | null) => {
+  const nextValue = value?.trim();
+  if (!nextValue) {
+    return null;
+  }
+
+  if (nextValue.length > 64) {
+    throw badRequest('Tag is too long, max length is 64');
+  }
+
+  return nextValue;
+};
+
 const getChunkCount = (size: number) => Math.max(1, Math.ceil(size / MULTIPART_CHUNK_SIZE));
 const getUploadStrategy = (size: number): UploadStrategy => (size > MULTIPART_THRESHOLD ? 'chunked' : 'single');
 const getChunkObjectKey = (fileId: string, partNumber: number) =>
@@ -177,16 +192,21 @@ export const validateUploadRequest = (input: {
   fileName: string;
   contentType: string;
   size: number;
+  tag1?: string | null;
+  tag2?: string | null;
 }) => {
-  const fileName = sanitizeFileName(input.fileName);
+  const fileName = normalizeOriginalName(input.fileName);
+  const storageFileName = sanitizeFileName(fileName);
   const contentType = input.contentType.trim().toLowerCase();
   const size = Number(input.size);
+  const tag1 = normalizeMediaAssetTag(input.tag1);
+  const tag2 = normalizeMediaAssetTag(input.tag2);
 
   if (!input.kind) {
     throw badRequest('Missing upload kind');
   }
 
-  if (input.kind !== 'avatar') {
+  if (input.kind !== 'avatar' && input.kind !== 'attachment') {
     throw badRequest(`Unsupported upload kind: ${input.kind}`);
   }
 
@@ -206,15 +226,22 @@ export const validateUploadRequest = (input: {
     throw badRequest(`File is too large, max allowed is ${MAX_FILE_SIZE} bytes`);
   }
 
-  ensureAvatarUpload(contentType);
-
   const strategy = getUploadStrategy(size);
   const chunkCount = strategy === 'chunked' ? getChunkCount(size) : 1;
   const storageProvider = hasS3Storage() ? 's3' : 'local';
+  const objectKey = input.kind === 'avatar'
+    ? `avatars/${Date.now()}-${randomUUID()}${guessExtension(storageFileName, contentType)}`
+    : `attachments/${new Date().getFullYear()}/${String(new Date().getMonth() + 1).padStart(2, '0')}/${Date.now()}-${randomUUID()}${guessExtension(storageFileName, contentType)}`;
+
+  if (input.kind === 'avatar') {
+    ensureAvatarUpload(contentType);
+  }
 
   return {
     kind: input.kind,
     fileName,
+    tag1,
+    tag2,
     contentType,
     size,
     strategy,
@@ -222,7 +249,7 @@ export const validateUploadRequest = (input: {
     chunkSize: strategy === 'chunked' ? MULTIPART_CHUNK_SIZE : size,
     storageProvider,
     storageBucket: storageProvider === 's3' ? resolveS3Config().bucket : 'local',
-    objectKey: `avatars/${Date.now()}-${randomUUID()}${guessExtension(fileName, contentType)}`,
+    objectKey,
     uploadToken: randomUUID(),
   };
 };
@@ -518,6 +545,47 @@ export const getUploadPublicUrl = (
   objectKey: string,
   storageBucket?: string,
 ) => buildPublicUrl(provider === 'S3' ? 's3' : 'local', objectKey, storageBucket);
+
+export const deleteStoredUpload = async (input: {
+  fileId: string;
+  objectKey: string;
+  storageProvider: MediaAssetStorageProvider;
+  storageBucket: string;
+  uploadStrategy: MediaAssetUploadStrategy;
+  chunkCount: number | null;
+}) => {
+  if (input.storageProvider === 'S3') {
+    const client = createS3Client();
+    const keys = [
+      { Key: input.objectKey },
+      ...(input.uploadStrategy === 'CHUNKED'
+        ? Array.from({ length: input.chunkCount ?? 0 }, (_, index) => ({
+            Key: getChunkObjectKey(input.fileId, index + 1),
+          }))
+        : []),
+    ];
+
+    if (!keys.length) {
+      return;
+    }
+
+    await client.send(
+      new DeleteObjectsCommand({
+        Bucket: input.storageBucket,
+        Delete: {
+          Objects: keys,
+          Quiet: true,
+        },
+      }),
+    ).catch(() => undefined);
+    return;
+  }
+
+  await fs.rm(getLocalFinalPath(input.objectKey), { force: true }).catch(() => undefined);
+  if (input.uploadStrategy === 'CHUNKED') {
+    await fs.rm(getLocalMultipartDir(input.fileId), { recursive: true, force: true }).catch(() => undefined);
+  }
+};
 
 
 

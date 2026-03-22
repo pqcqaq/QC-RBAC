@@ -132,6 +132,47 @@ const loadWorksheet = async (buffer: Buffer) => {
   return worksheet;
 };
 
+const uploadManagedFileForTest = async (input: {
+  accessToken: string;
+  fileName: string;
+  contentType: string;
+  content: string;
+  kind?: 'avatar' | 'attachment';
+  tag1?: string;
+  tag2?: string;
+}) => {
+  const prepareResponse = await request(app)
+    .post('/api/files/presign')
+    .set('Authorization', `Bearer ${input.accessToken}`)
+    .send({
+      kind: input.kind ?? 'attachment',
+      fileName: input.fileName,
+      contentType: input.contentType,
+      size: Buffer.byteLength(input.content),
+      tag1: input.tag1,
+      tag2: input.tag2,
+    })
+    .expect(200);
+
+  const localUploadTarget = new URL(prepareResponse.body.data.parts[0].url);
+  await request(app)
+    .post(localUploadTarget.pathname)
+    .field('token', prepareResponse.body.data.parts[0].fields.token)
+    .attach('file', Buffer.from(input.content), input.fileName)
+    .expect(204);
+
+  const uploadResponse = await request(app)
+    .post('/api/files/callback')
+    .set('Authorization', `Bearer ${input.accessToken}`)
+    .send({ fileId: prepareResponse.body.data.fileId })
+    .expect(200);
+
+  return {
+    fileId: prepareResponse.body.data.fileId as string,
+    url: uploadResponse.body.data.url as string,
+  };
+};
+
 const loginAs = async (account: string, password: string, client = webClient) => {
   const response = await withClientAuth(request(app).post('/api/auth/login'), client)
     .send({ account, password })
@@ -670,6 +711,63 @@ describe('RBAC backend', () => {
     assert.ok(afterUpdate.body.data.permissions.includes('custom.read-b'));
   });
 
+  it('blocks deleting referenced records until business code clears the relation', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+
+    const permissionResponse = await request(app)
+      .post('/api/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'guarded.read',
+        name: '引用校验权限',
+        module: 'guarded',
+        action: 'read',
+        description: '用于验证统一删除检查器',
+      })
+      .expect(200);
+
+    const roleResponse = await request(app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'guarded-role',
+        name: '引用校验角色',
+        description: '用于验证统一删除检查器',
+        permissionIds: [permissionResponse.body.data.id],
+      })
+      .expect(200);
+
+    const userResponse = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        username: 'guardeduser',
+        email: 'guardeduser@example.com',
+        nickname: '引用校验用户',
+        password: 'Guarded123!',
+        status: 'ACTIVE',
+        roleIds: [roleResponse.body.data.id],
+      })
+      .expect(200);
+
+    const blockedRoleDelete = await request(app)
+      .delete(`/api/roles/${roleResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(400);
+
+    assert.match(blockedRoleDelete.body.message, /UserRole\.role/);
+
+    await request(app)
+      .delete(`/api/users/${userResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/roles/${roleResponse.body.data.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+  });
+
   it('returns 400 instead of 500 for duplicate unique values', async () => {
     const adminSession = await loginAs('admin@example.com', 'Admin123!');
 
@@ -944,6 +1042,110 @@ describe('RBAC backend', () => {
     assert.equal(clientSheet.rowCount, 2);
     assert.equal(clientSheet.getRow(2).getCell(1).value, 'export-miniapp');
     assert.equal(clientSheet.getRow(2).getCell(3).value, 'UNI_WECHAT_MINIAPP');
+  });
+
+  it('supports attachment management CRUD, tag filters and xlsx export', async () => {
+    const adminSession = await loginAs('admin@example.com', 'Admin123!');
+
+    const primaryUpload = await uploadManagedFileForTest({
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'invoice-q1.pdf',
+      contentType: 'application/pdf',
+      content: 'invoice-q1-content',
+      kind: 'attachment',
+      tag1: 'finance',
+      tag2: 'invoice',
+    });
+
+    const secondaryUpload = await uploadManagedFileForTest({
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'contract.docx',
+      contentType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      content: 'contract-content',
+      kind: 'attachment',
+      tag1: 'hr',
+      tag2: 'contract',
+    });
+
+    assert.match(primaryUpload.url, /attachments\//);
+    assert.match(secondaryUpload.url, /attachments\//);
+
+    const filteredList = await request(app)
+      .get('/api/attachments')
+      .query({
+        page: 1,
+        pageSize: 10,
+        kind: 'attachment',
+        uploadStatus: 'COMPLETED',
+        tag1: 'finance',
+        tag2: 'invoice',
+      })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(filteredList.body.data.meta.total, 1);
+    assert.equal(filteredList.body.data.items[0].id, primaryUpload.fileId);
+    assert.equal(filteredList.body.data.items[0].tag1, 'finance');
+    assert.equal(filteredList.body.data.items[0].tag2, 'invoice');
+    assert.equal(filteredList.body.data.items[0].owner.username, 'admin');
+
+    const detailResponse = await request(app)
+      .get(`/api/attachments/${primaryUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(detailResponse.body.data.originalName, 'invoice-q1.pdf');
+    assert.equal(detailResponse.body.data.kind, 'attachment');
+
+    const updatedAttachment = await request(app)
+      .put(`/api/attachments/${primaryUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        originalName: 'invoice-q1-reviewed.pdf',
+        tag1: 'finance-review',
+        tag2: 'archived',
+      })
+      .expect(200);
+
+    assert.equal(updatedAttachment.body.data.originalName, 'invoice-q1-reviewed.pdf');
+    assert.equal(updatedAttachment.body.data.tag1, 'finance-review');
+    assert.equal(updatedAttachment.body.data.tag2, 'archived');
+
+    const exportResponse = await request(app)
+      .get('/api/attachments/export')
+      .query({ tag1: 'finance-review', tag2: 'archived' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+
+    const attachmentSheet = await loadWorksheet(exportResponse.body as Buffer);
+    assert.equal(attachmentSheet.name, 'Attachments');
+    assert.equal(attachmentSheet.getRow(1).getCell(1).value, '文件名');
+    assert.equal(attachmentSheet.rowCount, 2);
+    assert.equal(attachmentSheet.getRow(2).getCell(1).value, 'invoice-q1-reviewed.pdf');
+    assert.equal(attachmentSheet.getRow(2).getCell(2).value, 'attachment');
+    assert.equal(attachmentSheet.getRow(2).getCell(3).value, 'finance-review');
+    assert.equal(attachmentSheet.getRow(2).getCell(4).value, 'archived');
+
+    await request(app)
+      .delete(`/api/attachments/${primaryUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    await request(app)
+      .get(`/api/attachments/${primaryUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(404);
+
+    const remainingAttachment = await request(app)
+      .get('/api/attachments')
+      .query({ page: 1, pageSize: 10, tag1: 'hr', tag2: 'contract' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(remainingAttachment.body.data.meta.total, 1);
+    assert.equal(remainingAttachment.body.data.items[0].id, secondaryUpload.fileId);
   });
 
   it('protects audit logs and immutable seed identifiers', async () => {

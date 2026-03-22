@@ -23,21 +23,6 @@ const rolePayloadSchema = z.object({
 
 const roleWithRelationsInclude = roleWithPermissionSummaryInclude;
 
-const roleWithUserCountInclude = {
-  users: {
-    where: {
-      deleteAt: null,
-    },
-    select: {
-      id: true,
-    },
-  },
-} satisfies Prisma.RoleInclude;
-
-type RoleWithUserCount = Prisma.RoleGetPayload<{
-  include: typeof roleWithUserCountInclude;
-}>;
-
 const sameStringSet = (left: string[], right: string[]) => {
   if (left.length !== right.length) {
     return false;
@@ -271,19 +256,13 @@ rolesRouter.delete(
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const roleId = String(req.params.id);
-    const role: RoleWithUserCount | null = await prisma.role.findUnique({
-      where: { id: roleId },
-      include: roleWithUserCountInclude,
-    });
+    const role = await prisma.role.findUnique({ where: { id: roleId } });
 
     if (!role) {
       throw notFound('Role not found');
     }
     if (role.isSystem) {
       throw badRequest('System role cannot be deleted');
-    }
-    if (role.users.length > 0) {
-      throw badRequest('Role is assigned to users and cannot be deleted');
     }
 
     await softDeleteRole(roleId);

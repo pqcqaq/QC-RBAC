@@ -22,6 +22,10 @@ import type {
   OAuthProviderRecord,
 } from '../types/oauth';
 import type {
+  MediaAssetListQuery,
+  MediaAssetRecord,
+  MediaAssetUpdatePayload,
+  PaginatedMediaAssets,
   UploadCallbackPayload,
   UploadCallbackResult,
   UploadPreparePayload,
@@ -110,6 +114,13 @@ export const createApiFactory = (options: ClientOptions) => {
   const oauthApplicationCrud = createCrudEndpoints<OAuthApplicationRecord, OAuthApplicationFormPayload>(client, {
     resource: '/oauth/applications',
   });
+  const attachmentCrud = createCrudEndpoints<MediaAssetRecord, MediaAssetUpdatePayload, PaginatedMediaAssets, MediaAssetListQuery>(
+    client,
+    {
+      resource: '/attachments',
+      exportFileName: 'attachments.xlsx',
+    },
+  );
 
   return {
     auth: {
@@ -172,6 +183,9 @@ export const createApiFactory = (options: ClientOptions) => {
         client.request<UploadPrepareResult>({ url: '/files/presign', method: 'POST', data: payload }),
       completeUpload: (payload: UploadCallbackPayload) =>
         client.request<UploadCallbackResult>({ url: '/files/callback', method: 'POST', data: payload }),
+    },
+    attachments: {
+      ...attachmentCrud,
     },
     live: {
       history: (params?: Record<string, string | number | boolean | undefined>) =>

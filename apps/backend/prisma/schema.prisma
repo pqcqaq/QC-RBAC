@@ -350,6 +350,8 @@ model MediaAsset {
   originalName    String
   mimeType        String
   size            BigInt
+  tag1            String?
+  tag2            String?
   storageProvider MediaAssetStorageProvider @default(LOCAL)
   storageBucket   String
   objectKey       String                    @unique
@@ -367,6 +369,8 @@ model MediaAsset {
   user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, kind])
+  @@index([tag1])
+  @@index([tag2])
   @@index([uploadStatus])
   @@index([deleteAt])
 }

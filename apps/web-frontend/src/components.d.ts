@@ -39,6 +39,7 @@ declare module 'vue' {
     ElOption: typeof import('element-plus/es')['ElOption']
     ElOptionGroup: typeof import('element-plus/es')['ElOptionGroup']
     ElPagination: typeof import('element-plus/es')['ElPagination']
+    ElProgress: typeof import('element-plus/es')['ElProgress']
     ElScrollbar: typeof import('element-plus/es')['ElScrollbar']
     ElSegmented: typeof import('element-plus/es')['ElSegmented']
     ElSelect: typeof import('element-plus/es')['ElSelect']

@@ -9,6 +9,7 @@ import { menusRouter } from './menus';
 import { filesRouter } from './files';
 import { realtimeRouter } from './realtime';
 import { clientsRouter } from './clients';
+import { attachmentsRouter } from './attachments';
 import { oauthManagementRouter } from './oauth';
 import { ok } from '../utils/http';
 
@@ -25,6 +26,7 @@ apiRouter.use('/clients', clientsRouter);
 apiRouter.use('/oauth', oauthManagementRouter);
 apiRouter.use('/menus', menusRouter);
 apiRouter.use('/files', filesRouter);
+apiRouter.use('/attachments', attachmentsRouter);
 apiRouter.use('/realtime', realtimeRouter);
 
 export { apiRouter };

@@ -1,4 +1,4 @@
-import type { UploadPartTarget, UploadPrepareResult } from '@rbac/api-common';
+import type { UploadKind, UploadPartTarget, UploadPrepareResult } from '@rbac/api-common';
 import { api } from '@/api/client';
 
 const MAX_PARALLEL_UPLOADS = 3;
@@ -88,15 +88,24 @@ const uploadChunkedParts = async (
   );
 };
 
-export const uploadAvatarFile = async (
-  file: File,
+type ManagedUploadOptions = {
+  kind: UploadKind;
+  file: File;
+  tag1?: string | null;
+  tag2?: string | null;
+};
+
+export const uploadManagedFile = async (
+  { kind, file, tag1, tag2 }: ManagedUploadOptions,
   reportProgress?: (percent: number) => void,
 ) => {
   const prepared = await api.files.prepareUpload({
-    kind: 'avatar',
+    kind,
     fileName: file.name,
     contentType: file.type || 'application/octet-stream',
     size: file.size,
+    tag1,
+    tag2,
   });
 
   if (prepared.strategy === 'chunked') {
@@ -109,3 +118,22 @@ export const uploadAvatarFile = async (
   reportProgress?.(100);
   return completed;
 };
+
+export const uploadAvatarFile = async (
+  file: File,
+  reportProgress?: (percent: number) => void,
+) => uploadManagedFile({ kind: 'avatar', file }, reportProgress);
+
+export const uploadAttachmentFile = async (
+  file: File,
+  metadata?: {
+    tag1?: string | null;
+    tag2?: string | null;
+  },
+  reportProgress?: (percent: number) => void,
+) => uploadManagedFile({
+  kind: 'attachment',
+  file,
+  tag1: metadata?.tag1,
+  tag2: metadata?.tag2,
+}, reportProgress);

@@ -84,6 +84,8 @@ filesRouter.post(
       fileName: String(req.body.fileName ?? ''),
       contentType: String(req.body.contentType ?? ''),
       size: Number(req.body.size ?? 0),
+      tag1: req.body.tag1 == null ? null : String(req.body.tag1),
+      tag2: req.body.tag2 == null ? null : String(req.body.tag2),
     });
 
     const asset = await prisma.mediaAsset.create({
@@ -93,6 +95,8 @@ filesRouter.post(
         originalName: normalized.fileName,
         mimeType: normalized.contentType,
         size: BigInt(normalized.size),
+        tag1: normalized.tag1,
+        tag2: normalized.tag2,
         storageProvider: normalized.storageProvider === 's3' ? 'S3' : 'LOCAL',
         storageBucket: normalized.storageBucket,
         objectKey: normalized.objectKey,

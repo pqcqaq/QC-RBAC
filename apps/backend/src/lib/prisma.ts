@@ -1,4 +1,8 @@
 import { PrismaClient } from '@prisma/client';
+import {
+  assertNoDeleteReferenceBlocks,
+  isDeleteGuardedOperation,
+} from './delete-reference-checker';
 import { getRequestActorId } from '../utils/request-context';
 import { generateSnowflakeId } from '../utils/snowflake';
 
@@ -129,9 +133,22 @@ const prismaRaw = new PrismaClient();
 export const prisma: PrismaClient = prismaRaw.$extends({
   query: {
     $allModels: {
-      async $allOperations({ model, operation, args, query }) {
+      async $allOperations(params) {
+        const { model, operation, args, query } = params;
         if (!model || !auditedModelNames.has(model)) {
           return query(args);
+        }
+
+        const internalParams = (params as typeof params & { __internalParams?: unknown }).__internalParams;
+        if (isDeleteGuardedOperation(model, operation, args, softDeleteModelNames)) {
+          await assertNoDeleteReferenceBlocks({
+            client: prismaRaw,
+            model,
+            operation,
+            args,
+            softDeleteModelNames,
+            internalParams,
+          });
         }
 
         const actorId = getRequestActorId();

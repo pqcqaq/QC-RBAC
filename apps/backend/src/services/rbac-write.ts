@@ -1,4 +1,4 @@
-import { prismaRaw } from '../lib/prisma';
+import { prisma, prismaRaw } from '../lib/prisma';
 import { withSnowflakeIds } from '../utils/persistence';
 import { getRequestActorId } from '../utils/request-context';
 
@@ -107,77 +107,55 @@ export const syncRolePermissions = async (roleId: string, permissionIds: string[
 };
 
 export const softDeleteUser = async (userId: string) => {
-  const actorId = getRequestActorId();
-  const deleteAt = new Date();
-
-  await prismaRaw.$transaction(async (tx) => {
-    await tx.user.updateMany({
-      where: { id: userId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+  await prisma.$transaction(async (tx) => {
+    await tx.userRole.deleteMany({
+      where: { userId },
     });
-    await tx.userRole.updateMany({
-      where: { userId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.userAuthentication.deleteMany({
+      where: { userId },
     });
-    await tx.userAuthentication.updateMany({
-      where: { userId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.refreshToken.deleteMany({
+      where: { userId },
     });
-    await tx.refreshToken.updateMany({
-      where: { userId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.user.delete({
+      where: { id: userId },
     });
   });
 };
 
 export const softDeleteRole = async (roleId: string) => {
-  const actorId = getRequestActorId();
-  const deleteAt = new Date();
-
-  await prismaRaw.$transaction(async (tx) => {
-    await tx.role.updateMany({
-      where: { id: roleId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+  await prisma.$transaction(async (tx) => {
+    await tx.rolePermission.deleteMany({
+      where: { roleId },
     });
-    await tx.rolePermission.updateMany({
-      where: { roleId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.role.delete({
+      where: { id: roleId },
     });
   });
 };
 
 export const softDeletePermission = async (permissionId: string) => {
-  const actorId = getRequestActorId();
-  const deleteAt = new Date();
-
-  await prismaRaw.$transaction(async (tx) => {
+  await prisma.$transaction(async (tx) => {
     await tx.menuNode.updateMany({
-      where: { permissionId, deleteAt: null },
-      data: { permissionId: null, updateId: actorId },
+      where: { permissionId },
+      data: { permissionId: null },
     });
-    await tx.rolePermission.updateMany({
-      where: { permissionId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.rolePermission.deleteMany({
+      where: { permissionId },
     });
-    await tx.permission.updateMany({
-      where: { id: permissionId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.permission.delete({
+      where: { id: permissionId },
     });
   });
 };
 
 export const softDeleteAuthClient = async (clientId: string) => {
-  const actorId = getRequestActorId();
-  const deleteAt = new Date();
-
-  await prismaRaw.$transaction(async (tx) => {
-    await tx.authClient.updateMany({
-      where: { id: clientId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+  await prisma.$transaction(async (tx) => {
+    await tx.refreshToken.deleteMany({
+      where: { clientId },
     });
-    await tx.refreshToken.updateMany({
-      where: { clientId, deleteAt: null },
-      data: { deleteAt, updateId: actorId },
+    await tx.authClient.delete({
+      where: { id: clientId },
     });
   });
 };
