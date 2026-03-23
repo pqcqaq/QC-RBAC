@@ -45,33 +45,64 @@
               <template #default="{ data }">
                 <div
                   class="menu-tree-node"
-                  :class="{ 'is-expandable': data.children.length > 0 }"
+                  :class="{
+                    'is-expandable': data.children.length > 0,
+                    'menu-tree-node--action': data.type === 'ACTION',
+                  }"
                   @click.stop="handleCardClick(data)"
                   @dblclick.stop="handleCardDoubleClick(data)"
                   @contextmenu.stop.prevent="handleCardContextMenu($event, data, open)"
                 >
-                  <span class="menu-tree-node__icon" :title="data.icon || resolveMenuNodeIcon(data)">
+                  <span
+                    v-if="data.type !== 'ACTION'"
+                    class="menu-tree-node__icon"
+                    :title="data.icon || resolveMenuNodeIcon(data)"
+                  >
                     <UnoIcon :name="resolveMenuNodeIcon(data)" :title="data.title" :size="18" />
                   </span>
 
                   <div class="menu-tree-node__body">
                     <div class="menu-tree-node__headline">
                       <strong>{{ data.title }}</strong>
-                      <span class="menu-tree-node__type" :class="`is-${data.type.toLowerCase()}`">
+                      <span
+                        v-if="data.type !== 'ACTION'"
+                        class="menu-tree-node__type"
+                        :class="`is-${data.type.toLowerCase()}`"
+                      >
                         {{ resolveTypeLabel(data.type) }}
                       </span>
                     </div>
 
-                    <p class="menu-tree-node__subtitle">
+                    <p v-if="data.type !== 'ACTION'" class="menu-tree-node__subtitle">
                       {{ resolveNodeSubtitle(data) }}
                     </p>
 
                     <div class="menu-tree-node__meta">
-                      <span class="menu-chip">{{ data.code }}</span>
-                      <span v-if="data.path" class="menu-chip menu-chip--ghost">{{ data.path }}</span>
-                      <span v-if="data.viewKey" class="menu-chip menu-chip--ghost">{{ data.viewKey }}</span>
-                      <span v-if="data.type === 'DIRECTORY'" class="menu-chip menu-chip--muted">不绑定权限</span>
-                      <span v-else-if="data.permission?.code" class="menu-chip menu-chip--accent">{{ data.permission.code }}</span>
+                      <span v-if="data.type !== 'ACTION'" class="menu-chip">{{ data.code }}</span>
+                      <span
+                        v-if="data.type !== 'ACTION' && data.path"
+                        class="menu-chip menu-chip--ghost"
+                      >
+                        {{ data.path }}
+                      </span>
+                      <span
+                        v-if="data.type !== 'ACTION' && data.viewKey"
+                        class="menu-chip menu-chip--ghost"
+                      >
+                        {{ data.viewKey }}
+                      </span>
+                      <span
+                        v-if="data.type === 'DIRECTORY'"
+                        class="menu-chip menu-chip--muted"
+                      >
+                        不绑定权限
+                      </span>
+                      <span
+                        v-else-if="data.permission?.code"
+                        class="menu-chip menu-chip--accent"
+                      >
+                        {{ data.permission.code }}
+                      </span>
                       <span v-else class="menu-chip menu-chip--muted">未绑定权限</span>
                     </div>
                   </div>
@@ -422,6 +453,10 @@ watch(
   background: color-mix(in srgb, white 92%, var(--surface-2));
 }
 
+.menu-tree-node--action {
+  padding-block: 7px;
+}
+
 .menu-tree-node__icon {
   display: inline-flex;
   align-items: center;
@@ -453,6 +488,11 @@ watch(
   color: var(--ink-1);
   font-size: 13px;
   line-height: 1.3;
+}
+
+.menu-tree-node--action .menu-tree-node__headline strong {
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .menu-tree-node__type {
@@ -497,6 +537,10 @@ watch(
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+}
+
+.menu-tree-node--action .menu-tree-node__meta {
+  gap: 8px;
 }
 
 .menu-chip {

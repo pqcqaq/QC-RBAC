@@ -28,6 +28,8 @@ description: Web 表单里的关联选择组件，适合外键和多对多关系
 - 右侧清空操作内嵌在同一个控件里
 - 不再渲染分裂的独立清空链接按钮
 
+如果默认触发区不够用，可以通过 `#trigger` 插槽把它改成业务自己的布局。当前菜单结构管理里的“行为权限”就是这样实现的：左侧仍然负责选择和清空，右侧额外挂了“新增权限”按钮。
+
 ## 对应源码
 
 - `apps/web-frontend/src/components/form/RelationSelectFormItem.vue`
@@ -173,6 +175,11 @@ type RelationSelectRequest = {
 | `selectedRows` | `RelationSelectRow[]` | 已缓存的已选行 |
 | `selectionText` | `string` | 当前触发文本 |
 | `disabled` | `boolean` | 当前是否禁用 |
+
+典型扩展：
+
+- 菜单行为编辑：在 `#trigger` 里把权限选择器和“新增权限”按钮放到同一行
+- 自定义只读态：在有选中值时展示业务摘要卡片，而不是默认文案
 
 ### `search`
 

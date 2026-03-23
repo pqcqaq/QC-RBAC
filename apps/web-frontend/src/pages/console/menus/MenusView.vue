@@ -65,12 +65,22 @@
       :parent-options="parentOptions"
       :page-view-options="pageViewOptions"
       :can-assign-permission="canAssignPermission"
+      :can-create-permission="canCreatePermission"
       :preview-icon="previewIcon"
       :structure-hint="structureHint"
       :saving="saving"
       :can-submit="canSubmit"
       @reset="resetEditor"
+      @open-create-permission="openPermissionCreateDialog"
       @save="saveNode"
+    />
+
+    <PermissionEditorDialog
+      v-model:visible="permissionDialogVisible"
+      title="新增权限"
+      :seed-permission-locked="false"
+      :form="permissionForm"
+      @save="savePermissionFromMenu"
     />
 
     <MenuDeleteDialog
@@ -85,11 +95,16 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref } from 'vue';
-import type { MenuNodeFormPayload, MenuNodeRecord } from '@rbac/api-common';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
+import type {
+  MenuNodeFormPayload,
+  MenuNodeRecord,
+  PermissionFormPayload,
+} from '@rbac/api-common';
 import { ElMessage } from 'element-plus';
 import { useRouter } from 'vue-router';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
+import PermissionEditorDialog from '@/components/permissions/PermissionEditorDialog.vue';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import { api } from '@/api/client';
 import { pageRegistry } from '@/meta/pages';
@@ -105,10 +120,12 @@ import {
   collectDescendantIds,
   collectExpandableIds,
   countDescendants,
+  deriveActionCodeFromPermissionCode,
   filterTree,
   findNodeById,
   findNodePath,
   flattenNodes,
+  resolveEntityLabel,
   resolveStructureHint,
 } from './menu-management';
 import type { EditorMode, MenuNodeType, RootCreatableNodeType } from './menu-management';
@@ -142,6 +159,8 @@ const formMode = ref<EditorMode>('create');
 const editorVisible = ref(false);
 const deleteVisible = ref(false);
 const pendingDeleteNodeId = ref<string | null>(null);
+const permissionDialogVisible = ref(false);
+const permissionSaving = ref(false);
 
 const createEmptyForm = (): MenuNodeFormPayload => ({
   code: '',
@@ -159,11 +178,22 @@ const createEmptyForm = (): MenuNodeFormPayload => ({
 
 const form = reactive<MenuNodeFormPayload>(createEmptyForm());
 const editorSeed = ref<MenuNodeFormPayload>(createEmptyForm());
+const createEmptyPermissionForm = () => ({
+  code: '',
+  name: '',
+  module: '',
+  action: '',
+  description: '',
+});
+const permissionForm = reactive(createEmptyPermissionForm());
 
 const canCreate = computed(() => auth.hasPermission('menu.create'));
 const canUpdate = computed(() => auth.hasPermission('menu.update'));
 const canDelete = computed(() => auth.hasPermission('menu.delete'));
 const canAssignPermission = computed(() => auth.hasPermission('menu.assign-permission'));
+const canCreatePermission = computed(
+  () => canAssignPermission.value && auth.hasPermission('permission.create'),
+);
 const canSubmit = computed(() => (formMode.value === 'create' ? canCreate.value : canUpdate.value));
 
 const allNodes = computed(() => flattenNodes(tree.value));
@@ -174,6 +204,7 @@ const selectedParentNode = computed(() =>
   findNodeById(tree.value, selectedNode.value?.parentId ?? null),
 );
 const pendingDeleteNode = computed(() => findNodeById(tree.value, pendingDeleteNodeId.value));
+const formParentNode = computed(() => findNodeById(tree.value, form.parentId ?? null));
 const pendingDeleteDescendantCount = computed(() =>
   pendingDeleteNode.value ? countDescendants(pendingDeleteNode.value) : 0,
 );
@@ -190,18 +221,18 @@ const stats = computed(() => [
   { label: '行为节点', value: allNodes.value.filter((node) => node.type === 'ACTION').length },
 ]);
 
-const editorTitle = computed(() => (formMode.value === 'edit' ? '编辑菜单节点' : '新建菜单节点'));
+const editorTitle = computed(() => `${formMode.value === 'edit' ? '编辑' : '新增'}${resolveEntityLabel(form.type)}`);
 const editorDescription = computed(() => {
   if (formMode.value === 'edit' && selectedNode.value) {
-    return `正在编辑 ${selectedNode.value.title}，修改会立即影响导航树与权限映射。`;
+    return `正在编辑 ${selectedNode.value.title}，保存后会立即同步到导航树和权限映射。`;
   }
 
-  const parent = findNodeById(tree.value, form.parentId ?? null);
+  const parent = formParentNode.value;
   if (parent) {
-    return `新节点将挂载到 ${parent.title} 下。`;
+    return `${resolveEntityLabel(form.type)}会挂载到 ${parent.title} 下。`;
   }
 
-  return '新节点会作为根节点插入当前菜单树。';
+  return `${resolveEntityLabel(form.type)}会作为根级项插入当前菜单树。`;
 });
 
 const inspectorDescription = computed(() => {
@@ -283,6 +314,85 @@ const resolveDefaultCreateType = (parent: MenuNodeRecord): MenuNodeType =>
 const resetEditor = () => {
   patchForm(editorSeed.value);
 };
+
+const resetPermissionForm = () => {
+  Object.assign(permissionForm, createEmptyPermissionForm());
+};
+
+const resolveSuggestedPermissionModule = () => {
+  if (formParentNode.value?.permission?.module) {
+    return formParentNode.value.permission.module;
+  }
+
+  return formParentNode.value?.code ?? '';
+};
+
+const openPermissionCreateDialog = () => {
+  if (!canCreatePermission.value) {
+    return;
+  }
+
+  resetPermissionForm();
+  permissionForm.name = form.title.trim();
+  permissionForm.module = resolveSuggestedPermissionModule();
+  permissionDialogVisible.value = true;
+};
+
+const validatePermissionForm = () => {
+  if (
+    !permissionForm.code.trim() ||
+    !permissionForm.name.trim() ||
+    !permissionForm.module.trim() ||
+    !permissionForm.action.trim()
+  ) {
+    return '请完整填写权限码、名称、模块和动作';
+  }
+
+  return null;
+};
+
+const savePermissionFromMenu = async () => {
+  const validationError = validatePermissionForm();
+  if (validationError) {
+    ElMessage.warning(validationError);
+    return;
+  }
+
+  try {
+    permissionSaving.value = true;
+    const payload: PermissionFormPayload = {
+      code: permissionForm.code.trim(),
+      name: permissionForm.name.trim(),
+      module: permissionForm.module.trim(),
+      action: permissionForm.action.trim(),
+      description: permissionForm.description.trim(),
+    };
+    const created = await api.permissions.create(payload);
+
+    form.permissionId = created.id;
+    if (form.type === 'ACTION') {
+      if (!form.title.trim()) {
+        form.title = created.name;
+      }
+      if (!form.code.trim()) {
+        form.code = deriveActionCodeFromPermissionCode(created.code);
+      }
+    }
+
+    permissionDialogVisible.value = false;
+    ElMessage.success('权限已新增并关联到当前行为');
+  } catch (error: unknown) {
+    ElMessage.error(getErrorMessage(error, '新增权限失败'));
+  } finally {
+    permissionSaving.value = false;
+  }
+};
+
+watch(editorVisible, (value) => {
+  if (!value) {
+    permissionDialogVisible.value = false;
+  }
+});
 
 const handleSelectNode = (node: MenuNodeRecord) => {
   selectedNodeId.value = node.id;
@@ -530,12 +640,16 @@ const pageViewOptions = computed<PageViewOption[]>(() => {
 });
 
 const validatePayload = (payload: MenuNodeFormPayload): string | null => {
-  if (!payload.code) {
-    return '请填写节点编码';
+  if (payload.type !== 'ACTION' && !payload.code) {
+    return payload.type === 'PAGE' ? '请填写页面标识' : '请填写目录标识';
   }
 
   if (!payload.title) {
-    return '请填写节点标题';
+    if (payload.type === 'ACTION') {
+      return '请填写行为名称';
+    }
+
+    return payload.type === 'PAGE' ? '请填写页面标题' : '请填写目录名称';
   }
 
   if (!Number.isFinite(payload.sortOrder)) {
@@ -560,12 +674,27 @@ const validatePayload = (payload: MenuNodeFormPayload): string | null => {
     return '行为节点必须挂载到页面节点下';
   }
 
+  if (payload.type === 'ACTION' && formMode.value === 'create' && !payload.permissionId) {
+    return '新增行为前请先关联权限，或先新建权限再回填';
+  }
+
   return null;
+};
+
+const resolveActionPermission = async (permissionId: string) => {
+  const resolved = await api.menus.permissions.resolve([permissionId]);
+  return resolved[0] ?? null;
 };
 
 const saveNode = async () => {
   try {
     const payload = toPayload();
+    if (payload.type === 'ACTION' && !payload.code && payload.permissionId) {
+      const permission = await resolveActionPermission(payload.permissionId);
+      if (permission) {
+        payload.code = deriveActionCodeFromPermissionCode(permission.code);
+      }
+    }
     const validationError = validatePayload(payload);
     if (validationError) {
       ElMessage.warning(validationError);
@@ -579,12 +708,12 @@ const saveNode = async () => {
       ? await api.menus.update(editingNodeId, payload)
       : await api.menus.create(payload);
 
-    ElMessage.success(formMode.value === 'edit' ? '菜单节点已更新' : '菜单节点已创建');
+    ElMessage.success(formMode.value === 'edit' ? '菜单项已更新' : '菜单项已创建');
     editorVisible.value = false;
     selectedNodeId.value = response.id;
     await reloadAll();
   } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '保存菜单节点失败'));
+    ElMessage.error(getErrorMessage(error, '保存菜单项失败'));
   } finally {
     saving.value = false;
   }
@@ -600,12 +729,12 @@ const confirmDelete = async () => {
   try {
     deleting.value = true;
     await api.menus.remove(pendingDeleteNode.value.id);
-    ElMessage.success('菜单节点已删除');
+    ElMessage.success('菜单项已删除');
     closeDeleteDialog();
     selectedNodeId.value = fallbackSelectionId;
     await reloadAll();
   } catch (error: unknown) {
-    ElMessage.error(getErrorMessage(error, '删除菜单节点失败'));
+    ElMessage.error(getErrorMessage(error, '删除菜单项失败'));
   } finally {
     deleting.value = false;
   }

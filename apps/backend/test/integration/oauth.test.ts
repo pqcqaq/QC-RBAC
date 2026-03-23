@@ -101,6 +101,110 @@ describe('OAuth integration', () => {
       .expect(403);
   });
 
+  it('updates oauth application permissions without creating duplicate relation rows', async () => {
+    const { app, prisma, prismaRaw } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const [application, dashboardPermission] = await Promise.all([
+      prisma.oAuthApplication.findUnique({
+        where: { code: 'demo-oauth-app' },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          description: true,
+          logoUrl: true,
+          homepageUrl: true,
+          clientId: true,
+          clientType: true,
+          redirectUris: true,
+          postLogoutRedirectUris: true,
+          defaultScopes: true,
+          enabled: true,
+          skipConsent: true,
+          requirePkce: true,
+          allowAuthorizationCode: true,
+          allowRefreshToken: true,
+        },
+      }),
+      prisma.permission.findUnique({
+        where: { code: 'dashboard.view' },
+        select: { id: true },
+      }),
+    ]);
+
+    assert.ok(application);
+    assert.ok(dashboardPermission);
+
+    const buildPayload = (permissionIds: string[]) => ({
+      code: application.code,
+      name: application.name,
+      description: application.description,
+      logoUrl: application.logoUrl,
+      homepageUrl: application.homepageUrl,
+      clientId: application.clientId,
+      clientType: application.clientType,
+      redirectUris: application.redirectUris,
+      postLogoutRedirectUris: application.postLogoutRedirectUris,
+      defaultScopes: application.defaultScopes,
+      enabled: application.enabled,
+      skipConsent: application.skipConsent,
+      requirePkce: application.requirePkce,
+      allowAuthorizationCode: application.allowAuthorizationCode,
+      allowRefreshToken: application.allowRefreshToken,
+      permissionIds,
+    });
+
+    await request(app)
+      .put(`/api/oauth/applications/${application.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send(buildPayload([]))
+      .expect(200);
+
+    const removedRows = await prismaRaw.oAuthApplicationPermission.findMany({
+      where: {
+        applicationId: application.id,
+        permissionId: dashboardPermission.id,
+      },
+      select: {
+        id: true,
+        deleteAt: true,
+      },
+    });
+
+    assert.equal(removedRows.length, 1);
+    assert.ok(removedRows[0].deleteAt);
+
+    await request(app)
+      .put(`/api/oauth/applications/${application.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send(buildPayload([dashboardPermission.id]))
+      .expect(200);
+
+    const repeatedUpdateResponse = await request(app)
+      .put(`/api/oauth/applications/${application.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send(buildPayload([dashboardPermission.id]))
+      .expect(200);
+
+    assert.equal(repeatedUpdateResponse.body.data.permissions.length, 1);
+    assert.equal(repeatedUpdateResponse.body.data.permissions[0].id, dashboardPermission.id);
+
+    const restoredRows = await prismaRaw.oAuthApplicationPermission.findMany({
+      where: {
+        applicationId: application.id,
+        permissionId: dashboardPermission.id,
+      },
+      select: {
+        id: true,
+        deleteAt: true,
+      },
+    });
+
+    assert.equal(restoredRows.length, 1);
+    assert.equal(restoredRows[0].deleteAt, null);
+  });
+
   it('supports authorization code + PKCE + userinfo + protected api', async () => {
     const { app } = context;
     const agent = request.agent(app);

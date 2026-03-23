@@ -18,6 +18,46 @@ export const typeOptions = [
 
 export const resolveTypeLabel = (type: MenuNodeType) => typeLabels[type];
 
+export const resolveEntityLabel = (type: MenuNodeType) => {
+  if (type === 'ACTION') {
+    return '行为';
+  }
+
+  if (type === 'PAGE') {
+    return '页面';
+  }
+
+  return '目录';
+};
+
+export const resolveNameFieldLabel = (type: MenuNodeType) => {
+  if (type === 'ACTION') {
+    return '行为名称';
+  }
+
+  if (type === 'PAGE') {
+    return '页面标题';
+  }
+
+  return '目录名称';
+};
+
+export const resolveCodeFieldLabel = (type: Exclude<MenuNodeType, 'ACTION'>) =>
+  type === 'PAGE' ? '页面标识' : '目录标识';
+
+export const resolveCodePlaceholder = (type: Exclude<MenuNodeType, 'ACTION'>) =>
+  type === 'PAGE' ? '如 users / menus' : '如 system / operations';
+
+export const deriveActionCodeFromPermissionCode = (permissionCode: string) => {
+  const normalized = permissionCode
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+
+  return normalized || 'action';
+};
+
 export const flattenNodes = (nodes: MenuNodeRecord[]): MenuNodeRecord[] => nodes.flatMap((node) => [node, ...flattenNodes(node.children)]);
 
 export const findNodeById = (nodes: MenuNodeRecord[], id: string | null): MenuNodeRecord | null => {
@@ -96,7 +136,7 @@ export const resolveStructureHint = (type: MenuNodeType) => {
     return '页面节点必须配置 path 与 viewKey，且页面下只能挂行为节点。';
   }
 
-  return '行为节点只能挂在页面下，用于承接页面内的按钮或动作权限。';
+  return '行为节点只能挂在页面下，建议直接关联一个权限；缺少权限时先新建权限再回填。';
 };
 
 export const resolvePermissionSummary = (node: Pick<MenuNodeRecord, 'type' | 'permission'>) => {

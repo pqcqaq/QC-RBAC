@@ -1,8 +1,8 @@
 <template>
   <SurfacePanel
     caption="详情"
-    :title="selectedNode ? selectedNode.title : '选择一个节点'"
-    :description="selectedNode ? description : '从左侧选择节点后查看详情。'"
+    :title="selectedNode ? selectedNode.title : '选择一个菜单项'"
+    :description="selectedNode ? description : '从左侧选择菜单项后查看详情。'"
   >
     <template v-if="selectedNode" #actions>
       <el-space wrap>
@@ -23,13 +23,13 @@
 
     <div v-if="selectedNode" class="menu-inspector">
       <section class="menu-inspector__hero">
-        <span class="menu-inspector__icon">
+        <span v-if="selectedNode.type !== 'ACTION'" class="menu-inspector__icon">
           <UnoIcon :name="resolveMenuNodeIcon(selectedNode)" :title="selectedNode.title" :size="28" />
         </span>
 
         <div class="menu-inspector__hero-copy">
           <div class="menu-inspector__eyebrow">
-            <p class="panel-caption">节点类型</p>
+            <p class="panel-caption">类型</p>
             <span class="menu-tree-node__type" :class="`is-${selectedNode.type.toLowerCase()}`">
               {{ resolveTypeLabel(selectedNode.type) }}
             </span>
@@ -57,12 +57,12 @@
 
       <div class="menu-inspector__grid">
         <article class="menu-inspector__kv">
-          <span>节点编码</span>
+          <span>标识</span>
           <strong>{{ selectedNode.code }}</strong>
         </article>
         <article class="menu-inspector__kv">
-          <span>父节点</span>
-          <strong>{{ selectedParentNode?.title ?? '根节点' }}</strong>
+          <span>父级</span>
+          <strong>{{ selectedParentNode?.title ?? '根级' }}</strong>
         </article>
         <article class="menu-inspector__kv">
           <span>页面路径</span>
@@ -73,10 +73,10 @@
           <strong>{{ selectedNode.viewKey || '不适用' }}</strong>
         </article>
         <article class="menu-inspector__kv">
-          <span>权限绑定</span>
+          <span>关联权限</span>
           <strong>{{ resolvePermissionSummary(selectedNode) }}</strong>
         </article>
-        <article class="menu-inspector__kv">
+        <article v-if="selectedNode.type !== 'ACTION'" class="menu-inspector__kv">
           <span>图标</span>
           <strong>{{ selectedNode.icon || resolveMenuNodeIcon(selectedNode) }}</strong>
         </article>
@@ -92,7 +92,7 @@
       </div>
     </div>
 
-    <el-empty v-else description="先从左侧选择一个节点，再进行结构维护。" />
+    <el-empty v-else description="先从左侧选择一个菜单项，再进行结构维护。" />
   </SurfacePanel>
 </template>
 

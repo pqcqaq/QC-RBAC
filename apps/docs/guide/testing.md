@@ -174,6 +174,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 ### `integration/oauth.test.ts`
 
 - `exposes oauth application permission options without depending on role management permissions`
+- `updates oauth application permissions without creating duplicate relation rows`
 - `supports authorization code + PKCE + userinfo + protected api`
 - `supports upstream oauth login, ticket exchange and refresh task`
 - `revokes external refresh tokens when the upstream provider returns invalid_grant`
@@ -182,6 +183,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 覆盖点：
 
 - OAuth 应用 scope 选择接口权限
+- OAuth 应用权限关系在软删除模型下的更新、恢复与幂等性
 - 系统作为 Provider 的完整协议链路
 - 系统作为 OAuth Client 的第三方登录链路
 - 上游 refresh token 失效处理

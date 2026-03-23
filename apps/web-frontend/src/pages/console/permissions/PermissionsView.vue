@@ -54,6 +54,7 @@ import { ElMessage } from 'element-plus';
 import { permissionCatalog } from '@rbac/api-common';
 import type { PermissionFormPayload, PermissionRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
+import PermissionEditorDialog from '@/components/permissions/PermissionEditorDialog.vue';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
@@ -62,7 +63,6 @@ import { api } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
 import PermissionDetailDrawer from './components/PermissionDetailDrawer.vue';
-import PermissionEditorDialog from './components/PermissionEditorDialog.vue';
 import PermissionsTable from './components/PermissionsTable.vue';
 import PermissionsToolbar from './components/PermissionsToolbar.vue';
 

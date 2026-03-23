@@ -367,6 +367,7 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `oauth-upstream-refresh` 定时任务在过期前刷新上游 token
 - 如果上游返回 `invalid_grant`，会撤销本地 `EXTERNAL_REFRESH_TOKEN`，避免之后持续无效重试
 - 如果第三方 subject 变化但仍映射到同一个本地用户，会复用已有 `(userId, providerId)` 关联而不是重复插入
+- `src/services/oauth-admin.ts` 对 `OAuthApplicationPermission` 采用“软删、恢复、仅新增缺失关系”的同步策略，避免更新 OAuth 应用时因为软删除记录仍占用唯一键而触发 `(applicationId, permissionId)` 冲突
 
 ## 文件上传与附件
 

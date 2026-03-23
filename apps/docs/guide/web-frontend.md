@@ -208,6 +208,7 @@ pages/console/<module>
 - `useResourceDetail`：统一处理详情抽屉
 - `useResourceRemoval`：统一处理删除确认和错误反馈
 - `RelationSelectFormItem`：统一处理表单里的外键 / 关联选择
+- `PermissionEditorDialog`：统一处理权限新增 / 编辑弹窗
 - `ListExportButton`：统一处理导出按钮
 - `useDownload`：处理流式下载、文件名解析和错误处理
 
@@ -228,6 +229,22 @@ pages/console/<module>
 - 角色编辑里的权限分配
 - OAuth 应用里的权限 scope 分配
 - 菜单编辑里的权限绑定
+
+### 菜单结构管理的行为编辑
+
+菜单结构管理不是把目录、页面、行为三种类型强行渲染成同一张表单。
+
+当前实现对行为节点单独做了裁剪：
+
+- 不再暴露图标和副标题字段
+- 标题字段改成“行为名称”
+- 不再让用户直接填写“节点”类文案，目录 / 页面用“标识”，行为节点的标识默认按关联权限码推导
+- 行为节点的权限选择直接复用 `RelationSelectFormItem`
+- `RelationSelectFormItem` 的 `#trigger` 插槽里可以额外挂“新增权限”按钮
+- 快捷新增权限复用共享的 `src/components/permissions/PermissionEditorDialog.vue`
+- 左侧树里的行为节点不再显示图标和第二行说明，只保留名称和权限信息
+
+这样做的目标是把“行为 = 一个带权限约束的操作”直接表达出来，而不是让用户再理解一层“节点字段”。
 
 ## 下载与导出
 

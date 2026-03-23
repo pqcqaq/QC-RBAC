@@ -54,6 +54,7 @@ declare module 'vue' {
     MenuTreeNav: typeof import('./components/workbench/MenuTreeNav.vue')['default']
     MetricCard: typeof import('./components/MetricCard.vue')['default']
     PageScaffold: typeof import('./components/workbench/PageScaffold.vue')['default']
+    PermissionEditorDialog: typeof import('./components/permissions/PermissionEditorDialog.vue')['default']
     RelationSelectFormItem: typeof import('./components/form/RelationSelectFormItem.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']

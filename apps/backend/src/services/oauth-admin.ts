@@ -5,7 +5,7 @@ import type {
 } from '@rbac/api-common';
 import type { Prisma } from '../lib/prisma-generated';
 import { AuthClientType, type OAuthApplicationClientType } from '@rbac/api-common';
-import { prisma } from '../lib/prisma';
+import { prisma, prismaRaw } from '../lib/prisma';
 import { badRequest, notFound, unauthorized } from '../utils/errors';
 import { encryptOAuthSecret } from '../utils/oauth-security';
 import {
@@ -15,7 +15,8 @@ import {
   toOAuthProviderRecord,
 } from '../utils/oauth-records';
 import { hashSecret, compareSecret } from '../utils/password';
-import { withSnowflakeId } from '../utils/persistence';
+import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
+import { getRequestActorId } from '../utils/request-context';
 
 const oauthProviderInclude = {
   id: true,
@@ -56,6 +57,63 @@ const oauthApplicationInclude = {
 
 const normalizeStringArray = (values: string[]) =>
   [...new Set(values.map(item => item.trim()).filter(Boolean))];
+
+const syncOAuthApplicationPermissions = async (
+  tx: Prisma.TransactionClient,
+  applicationId: string,
+  permissionIds: string[],
+) => {
+  const actorId = getRequestActorId();
+  const nextPermissionIds = normalizeStringArray(permissionIds);
+  const existing = await tx.oAuthApplicationPermission.findMany({
+    where: { applicationId },
+    select: { id: true, permissionId: true, deleteAt: true },
+  });
+
+  const existingByPermissionId = new Map(existing.map((item) => [item.permissionId, item]));
+  const removableIds = existing
+    .filter((item) => item.deleteAt === null && !nextPermissionIds.includes(item.permissionId))
+    .map((item) => item.id);
+  const restorableIds = existing
+    .filter((item) => item.deleteAt !== null && nextPermissionIds.includes(item.permissionId))
+    .map((item) => item.id);
+  const creatablePermissionIds = nextPermissionIds.filter(
+    (permissionId) => !existingByPermissionId.has(permissionId),
+  );
+
+  if (removableIds.length) {
+    await tx.oAuthApplicationPermission.updateMany({
+      where: { id: { in: removableIds }, deleteAt: null },
+      data: {
+        deleteAt: new Date(),
+        updateId: actorId,
+      },
+    });
+  }
+
+  if (restorableIds.length) {
+    await tx.oAuthApplicationPermission.updateMany({
+      where: { id: { in: restorableIds } },
+      data: {
+        deleteAt: null,
+        updateId: actorId,
+      },
+    });
+  }
+
+  if (creatablePermissionIds.length) {
+    await tx.oAuthApplicationPermission.createMany({
+      data: withSnowflakeIds(
+        creatablePermissionIds.map((permissionId) => ({
+          applicationId,
+          permissionId,
+          createId: actorId,
+          updateId: actorId,
+        })),
+      ),
+    });
+  }
+};
 
 const loadProviderDiscovery = async (payload: OAuthProviderFormPayload) => {
   if (!payload.discoveryUrl || payload.protocol !== 'OIDC') {
@@ -131,9 +189,6 @@ const buildOAuthApplicationInput = async (
   if (!redirectUris.length) {
     throw badRequest('至少需要一个 redirect uri');
   }
-
-  const permissionIds = normalizeStringArray(payload.permissionIds);
-
   const nextInput: Prisma.OAuthApplicationCreateInput | Prisma.OAuthApplicationUpdateInput = {
     code: payload.code,
     name: payload.name,
@@ -150,14 +205,6 @@ const buildOAuthApplicationInput = async (
     requirePkce: payload.requirePkce,
     allowAuthorizationCode: payload.allowAuthorizationCode,
     allowRefreshToken: payload.allowRefreshToken,
-    permissions: {
-      create: permissionIds.map(permissionId =>
-        withSnowflakeId({
-          permission: {
-            connect: { id: permissionId },
-          },
-        })),
-    },
   };
 
   if (payload.clientType === 'CONFIDENTIAL') {
@@ -336,12 +383,24 @@ export const getOAuthApplicationById = async (id: string) => {
 };
 
 export const createOAuthApplication = async (payload: OAuthApplicationFormPayload) => {
-  const application = await prisma.oAuthApplication.create({
-    data: withSnowflakeId(
-      await buildOAuthApplicationInput(payload) as Prisma.OAuthApplicationCreateInput,
-    ),
-    include: oauthApplicationInclude,
+  const application = await prismaRaw.$transaction(async (tx) => {
+    const created = await tx.oAuthApplication.create({
+      data: withSnowflakeId(
+        await buildOAuthApplicationInput(payload) as Prisma.OAuthApplicationCreateInput,
+      ),
+      select: { id: true },
+    });
+    await syncOAuthApplicationPermissions(tx, created.id, payload.permissionIds);
+
+    return tx.oAuthApplication.findUnique({
+      where: { id: created.id },
+      include: oauthApplicationInclude,
+    });
   });
+
+  if (!application) {
+    throw notFound('OAuth application not found');
+  }
 
   return toOAuthApplicationRecord(application);
 };
@@ -356,15 +415,22 @@ export const updateOAuthApplication = async (id: string, payload: OAuthApplicati
     throw notFound('OAuth application not found');
   }
 
-  await prisma.oAuthApplicationPermission.deleteMany({
-    where: { applicationId: id },
+  const application = await prismaRaw.$transaction(async (tx) => {
+    await tx.oAuthApplication.update({
+      where: { id },
+      data: await buildOAuthApplicationInput(payload, current),
+    });
+    await syncOAuthApplicationPermissions(tx, id, payload.permissionIds);
+
+    return tx.oAuthApplication.findUnique({
+      where: { id },
+      include: oauthApplicationInclude,
+    });
   });
 
-  const application = await prisma.oAuthApplication.update({
-    where: { id },
-    data: await buildOAuthApplicationInput(payload, current),
-    include: oauthApplicationInclude,
-  });
+  if (!application) {
+    throw notFound('OAuth application not found');
+  }
 
   return toOAuthApplicationRecord(application);
 };
