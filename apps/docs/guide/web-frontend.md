@@ -1,7 +1,17 @@
 ---
 title: Web 前端
-description: Web 控制台的认证、动态路由、工作台状态、列表页和页面组织方式。
+description: Web 控制台的认证、动态路由、工作台状态、列表页抽象和页面组织方式。
 ---
+
+## 先从哪些文件读起
+
+1. `apps/web-frontend/src/api/client.ts`
+2. `apps/web-frontend/src/stores/auth.ts`
+3. `apps/web-frontend/src/stores/menus.ts`
+4. `apps/web-frontend/src/stores/workbench.ts`
+5. `apps/web-frontend/src/meta/pages.ts`
+
+这五个文件能解释 Web 端最核心的问题：请求怎么发、登录态怎么存、路由怎么生成、工作台配置怎么同步。
 
 ## 目录结构
 
@@ -19,65 +29,125 @@ apps/web-frontend/src
 └─ utils
 ```
 
+## 分层关系
+
+<MermaidDiagram
+  label="Web frontend layers"
+  :code="[
+    'flowchart TB',
+    '  Views[pages/console/*/View.vue]',
+    '  PageComps[page components]',
+    '  Reuse[composables + shared ui]',
+    '  Stores[Pinia stores]',
+    '  Client[api/client.ts]',
+    '  Factory[packages/api-common createApiFactory]',
+    '  Backend[(Backend API)]',
+    '',
+    '  Views --> PageComps',
+    '  Views --> Reuse',
+    '  Views --> Stores',
+    '  Reuse --> Stores',
+    '  Stores --> Client',
+    '  Client --> Factory',
+    '  Factory --> Backend',
+  ].join('\n')"
+/>
+
 ## API 客户端与登录态
 
-`src/api/client.ts` 负责 Web 端的请求入口。
+`src/api/client.ts` 做了四件关键事：
 
-它做了几件事：
+- 读取本地 access token / refresh token
+- 根据环境变量拼 Web 客户端请求头
+- 401 时自动调用 `/api/auth/refresh`
+- 刷新失败后跳回 `/login`
 
-- 读取本地 access token / refresh token。
-- 根据环境变量构造 Web 客户端请求头。
-- 401 时自动尝试 `/api/auth/refresh`。
-- 刷新失败后跳回 `/login`。
-- 基于 `createApiFactory(...)` 生成统一的 `api.*` 方法。
+`api` 不是手写对象，而是基于 `createApiFactory(...)` 生成，所以 Web 和 Uni 能共享一套 API 面。
 
-登录态管理在 `src/stores/auth.ts`：
+### 登录态时序
 
-- `bootstrap()`：初始化时请求 `/api/auth/me`，必要时自动 refresh。
-- `login()` / `register()`：拿到会话后写入 token，并同步工作台配置。
-- `logout()`：清理 token、用户信息和工作台上下文。
+<MermaidDiagram
+  label="Web bootstrap and login state"
+  :code="[
+    'sequenceDiagram',
+    '  participant Page as Browser',
+    '  participant Auth as auth store',
+    '  participant API as api/client.ts',
+    '  participant Backend as /api/auth/*',
+    '  participant WB as workbench store',
+    '',
+    '  Page->>Auth: bootstrap()',
+    '  alt has access token',
+    '    Auth->>API: api.auth.me()',
+    '    alt me success',
+    '      API-->>Auth: current user',
+    '      Auth->>WB: hydrateUserPreferences(user.preferences)',
+    '    else 401',
+    '      Auth->>API: api.auth.refresh(refreshToken)',
+    '      API-->>Auth: new session',
+    '      Auth->>WB: hydrateUserPreferences(...)',
+    '    end',
+    '  else no access token',
+    '    Auth-->>Page: guest state',
+    '  end',
+  ].join('\n')"
+/>
+
+`src/stores/auth.ts` 负责：
+
+- `bootstrap()`
+- `login()`
+- `register()`
+- `logout()`
+- 权限 / 角色判断
 
 ## 登录页
 
 登录页在 `src/pages/console/auth/LoginView.vue`。
 
-当前实现不是固定表单，而是服务端驱动：
+当前实现不是写死一套固定表单，而是服务端驱动：
 
 - 先请求 `/api/auth/strategies`
-- 取回登录策略、注册策略和第三方 OAuth Provider
-- 按策略动态渲染登录 / 注册表单
-- 支持第三方登录回调 ticket 交换本地会话
+- 获取登录策略、注册策略和 OAuth Provider
+- 根据策略渲染本地登录 / 注册表单
+- 点击第三方登录图标后跳转授权
+- 回调后用 ticket 换本地会话
 
-登录页内部已经拆成多个组件：
-
-- `AuthAccessPanel`
-- `AuthStrategySelector`
-- `AuthLoginStrategyForm`
-- `AuthRegisterStrategyForm`
-- `AuthOAuthProviders`
-
-第三方登录入口的数据来自 `/api/auth/strategies` 返回的 `oauthProviders`，不是前端写死。
+这让登录页文案、启用方式、策略开关、第三方入口都能由后端控制。
 
 ## 动态路由与菜单
 
-动态路由核心在三个文件：
+核心文件：
 
 - `src/router/index.ts`
 - `src/stores/menus.ts`
 - `src/meta/pages.ts`
 
-工作方式：
+### 菜单生成路由的过程
 
-1. 登录成功后进入 `/console`。
-2. `router.beforeEach` 触发 `menus.bootstrap(router)`。
-3. `menus.current()` 拉取当前用户菜单树。
-4. `viewKey` 对应到页面注册表。
-5. 运行时把页面注入到 `console-root` 下。
+<MermaidDiagram
+  label="Menu-driven routing"
+  :code="[
+    'sequenceDiagram',
+    '  participant Router',
+    '  participant Menus as menu store',
+    '  participant API as api.menus.current()',
+    '  participant Registry as pageRegistryMap',
+    '',
+    '  Router->>Menus: bootstrap(router)',
+    '  Menus->>API: fetch current menu tree',
+    '  API-->>Menus: MenuNodeRecord[]',
+    '  Menus->>Menus: flatten PAGE nodes',
+    '  Menus->>Registry: resolve by viewKey',
+    '  Menus->>Router: addRoute(console-root, routeRecord)',
+  ].join('\n')"
+/>
 
 这意味着：
 
-- 后端菜单树决定用户能看到哪些页面。
-- 前端页面组件只需要注册 `viewKey`，不需要再手写一套固定控制台路由。
+- 后端菜单树决定用户看到什么页面
+- 前端只维护 `viewKey -> component` 的注册表
+- 页面新增时，不需要再维护一份和后端菜单重复的静态路由表
 
 ## 工作台状态与用户偏好
 
@@ -86,22 +156,28 @@ apps/web-frontend/src
 它维护：
 
 - 主题 preset
-- 侧边栏风格与收起状态
+- 侧边栏样式与收起状态
 - 布局模式
 - 页面切换动画
 - 已访问标签页
 - 页面级筛选状态
 
-同步方式：
+### 偏好同步规则
 
 - 本地：`localStorage`
 - 远端：`/api/auth/preferences`
 
-`hydrateUserPreferences(...)` 会在用户登录后把服务端配置应用到当前工作台，解决重新登录后配置丢失的问题。
+同步过程：
+
+- 登录或刷新成功后，`auth store` 调 `hydrateUserPreferences(...)`
+- 用户修改工作台配置时，本地立即更新
+- 远端更新通过 debounce 同步，避免频繁请求
+
+这样做的结果是：重新登录后，控制台配置不会丢失。
 
 ## 页面组织方式
 
-控制台页面现在统一采用这个结构：
+控制台页面统一采用这个结构：
 
 ```text
 pages/console/<module>
@@ -112,74 +188,59 @@ pages/console/<module>
 
 职责划分：
 
-- `View.vue`：页面编排、数据加载、事件联动。
-- `components/`：工具栏、表格、详情抽屉、编辑弹窗。
-- `*-management.ts`：表单初始值、校验、格式化、payload 构造。
+- `View.vue`：页面编排、数据加载、事件联动
+- `components/`：工具栏、表格、详情抽屉、编辑弹窗
+- `*-management.ts`：表单初始值、校验、格式化、payload 构造
 
-示例：
+典型目录：
 
 - `pages/console/clients`
 - `pages/console/attachments`
 - `pages/console/oauth-providers`
 - `pages/console/oauth-applications`
 
-这和项目的前端约定一致：搜索、列表、编辑、详情尽量拆开，不把所有逻辑堆在一个文件里。
-
-## 当前已落地的控制台页面
-
-- 仪表盘：`dashboard`
-- 身份与授权：`users`、`roles`、`permissions`、`explorer`
-- 运行态：`audit`、`live`、`attachments`
-- 系统配置：`menus`、`clients`、`oauthProviders`、`oauthApplications`
-
-这些页面的入口不是写死在前端，而是由后端菜单树里的 `viewKey` 决定。
-
 ## 列表页的通用抽象
 
 当前列表页复用最多的是这几组抽象：
 
-- `usePageState`：把分页和筛选条件放进工作台状态，刷新页面也能恢复。
-- `useResourceEditor`：统一处理新增 / 编辑弹窗。
-- `useResourceDetail`：统一处理详情抽屉。
-- `useResourceRemoval`：统一处理删除确认和错误反馈。
-- `RelationSelectFormItem`：统一处理表单里的外键 / 关联选择，内置弹窗、分页、单选 / 多选和 `update:modelValue` 回填。
-- `ListExportButton`：直接对接导出接口。
-- `useDownload`：处理流式下载、文件名解析和进度显示。
+- `usePageState`：把分页和筛选条件放进工作台状态
+- `useResourceEditor`：统一处理新增 / 编辑弹窗
+- `useResourceDetail`：统一处理详情抽屉
+- `useResourceRemoval`：统一处理删除确认和错误反馈
+- `RelationSelectFormItem`：统一处理表单里的外键 / 关联选择
+- `ListExportButton`：统一处理导出按钮
+- `useDownload`：处理流式下载、文件名解析和错误处理
 
-典型例子：
+### `RelationSelectFormItem` 的约定
 
-- `pages/console/clients/ClientsView.vue`
-- `pages/console/attachments/AttachmentsView.vue`
-- `pages/console/oauth-providers/OAuthProvidersView.vue`
-- `pages/console/oauth-applications/OAuthApplicationsView.vue`
+- 传入分页接口，例如 `api.users.roles`、`api.roles.permissions`
+- 搜索区不在组件内部写死，而是通过 `#search` 插槽自定义
+- `params.xxx` 直接映射后端 body 字段
+- 行渲染通过 `#row` 插槽自定义
+- 组件支持单选和多选，并通过 `update:modelValue` 回填 id 或 ids
 
-`RelationSelectFormItem` 的使用方式：
+当前已经替换：
 
-- 页面或弹窗只传分页接口，例如 `api.users.roles`、`api.roles.permissions`、`api.menus.permissions`。
-- 组件内部统一处理弹窗开关、分页状态和已选值回填。
-- 搜索区不在组件里写死，通过 `#search` 插槽拿到 `params`、`search`、`reset`，由页面自己决定放输入框、选择器还是组合筛选表单。
-- `params` 是一个扁平对象，直接对应后端选项接口 body；例如 `params.q`、`params.code`、`params.module`。
-- 行内容通过 `#row` 插槽自定义，所以同一组件既能渲染角色卡片，也能渲染权限列表。
-- 详细参数、插槽和示例见 [RelationSelectFormItem](/components/web/relation-select-form-item)。
-- 当前已经替换：
-  - 用户编辑里的角色分配
-  - 角色编辑里的权限分配
-  - OAuth 应用里的权限 scope 分配
-  - 菜单编辑里的权限绑定
+- 用户编辑里的角色分配
+- 角色编辑里的权限分配
+- OAuth 应用里的权限 scope 分配
+- 菜单编辑里的权限绑定
 
-补充约定：
+## 下载与导出
 
-- 如果后端列表接口本身支持分页，前端直接请求 `page` / `pageSize`。
-- 如果后端暂时返回完整数组，前端页面会在筛选结果上做本地分页，但仍保持同一套表格、筛选和详情结构。
-- 关联选择组件优先接分页接口，不要在弹窗里一次性拉全量选项。
-- 关联选择的分页接口统一使用 `POST`，把 `page`、`pageSize` 和搜索字段放进 body，不再依赖 URL query。
-- OAuth 应用页的权限选择继续走 `api.oauth.applications.permissions()`，避免权限边界串到 `role.*`。
+`src/composables/use-download.ts` 负责：
+
+- 构造下载请求
+- 透传客户端请求头和 token
+- 处理流式下载进度
+- 从 `Content-Disposition` 解析文件名
+- 如果接口错误返回 JSON，则转成可读错误消息
+
+后端的导出接口只需要返回 `DownloadRequestConfig`，前端不用每个页面再重复实现 `fetch -> blob -> a.click()`。
 
 ## 控制台布局
 
-控制台外壳在 `src/layouts/ConsoleLayout.vue`。
-
-它负责：
+控制台外壳在 `src/layouts/ConsoleLayout.vue`，统一提供：
 
 - 侧边栏导航
 - 顶部面包屑和用户菜单
@@ -187,13 +248,14 @@ pages/console/<module>
 - 工作台标签栏
 - 主题和布局切换入口
 
-页面本身不用重复实现这些公共结构。
+页面本身不需要重复实现这些公共结构。
 
 ## 新增一个控制台页面
 
-1. 在 `pages/console/<module>` 创建 `View.vue`、`components/`、`*-management.ts`。
-2. 为页面定义 `viewKey`，并确保页面注册表能识别它。
-3. 在后端补权限码和菜单节点。
-4. 页面列表查询走分页接口，导出按钮直接接 `api.<module>.export(...)`。
-5. 如果页面需要保存筛选状态，使用 `usePageState(...)`。
-6. 如果页面用到了新的共享 API、菜单入口或权限边界，同步更新 docs。
+1. 在 `pages/console/<module>` 创建 `View.vue`、`components/`、`*-management.ts`
+2. 为页面定义 `viewKey`，并在页面注册表里注册
+3. 在后端补权限码和菜单节点
+4. 列表查询走分页接口，导出按钮直接接 `api.<module>.export(...)`
+5. 如果页面有筛选状态，使用 `usePageState(...)`
+6. 如果页面有外键 / 多对多选择，优先复用 `RelationSelectFormItem`
+7. 页面能力变化后同步更新 docs

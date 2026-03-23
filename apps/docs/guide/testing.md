@@ -24,9 +24,28 @@ apps/backend/test
 
 拆分原则：
 
-- `framework`：验证可复用的底层抽象。
-- `integration`：验证真实 API、权限、数据库、上传、OAuth、导出等业务链路。
-- `support/backend-testkit.ts`：统一测试数据库、seed、登录、客户端请求头、二进制导出解析、上传辅助，以及独立随机端口的 mock OAuth Provider。
+- `framework`：验证可复用的底层抽象
+- `integration`：验证真实 API、权限、数据库、上传、OAuth、导出等业务链路
+- `support/backend-testkit.ts`：统一测试数据库、seed、登录、客户端请求头、二进制导出解析、上传辅助，以及 mock OAuth Provider
+
+## 执行链路
+
+<MermaidDiagram
+  label="Backend test flow"
+  :code="[
+    'flowchart LR',
+    '  Test[Test file]',
+    '  Kit[backend-testkit]',
+    '  Prisma[prisma generate + test db]',
+    '  Seed[seed database]',
+    '  App[Express app]',
+    '  Mock[Mock OAuth Provider]',
+    '  Assert[assertions]',
+    '',
+    '  Test --> Kit --> Prisma --> Seed --> App --> Assert',
+    '  Test --> Mock --> App',
+  ].join('\n')"
+/>
 
 ## 运行方式
 
@@ -38,78 +57,163 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 默认会先：
 
-- `prisma db push --force-reset --accept-data-loss`
+- `prisma generate`
 - `tsc -p tsconfig.test.json --noEmit`
 - 再执行 `node --import tsx --test`
 
 测试数据库会基于 `DATABASE_URL` 或 `TEST_DATABASE_URL` 自动推导 `_test` 后缀数据库。
 
+## `backend-testkit.ts` 具体提供什么
+
+`apps/backend/test/support/backend-testkit.ts` 现在负责：
+
+- 推导测试数据库 URL
+- 初始化和清空测试库
+- 启动 Express app
+- 复用种子数据
+- 生成不同客户端的测试请求头
+- 登录并拿到 session
+- 解析 Excel 导出响应
+- 启动独立随机端口的 mock OAuth Provider
+
+新增集成测试时，优先复用它，不要每个文件重新搭一遍数据库和 mock 服务。
+
 ## Framework
 
 ### `framework/delete-reference-checker.test.ts`
 
-- `detects guarded delete and soft-delete operations`：验证删除检查器能正确识别 `delete`、`deleteMany` 和软删除式 `updateMany`，不会把普通更新误判成删除。
-- `blocks deleting records that still have incoming references`：验证存在入向引用时，直接删除会被拦截，并返回具体关系信息。
-- `blocks updateMany soft deletes when referenced records still exist`：验证批量软删除同样会经过引用检查，不会绕开保护。
-- `blocks deleting menu parents while active children still reference them`：验证自引用模型也受保护，父菜单被子菜单引用时不能删除。
-- `allows batch soft deletion when the self-referencing graph is deleted together`：验证同一批次把整棵自引用关系一起删除时可以通过。
+- `detects guarded delete and soft-delete operations`
+  验证删除检查器能正确识别 `delete`、`deleteMany` 和软删除式 `updateMany`
+- `blocks deleting records that still have incoming references`
+  验证存在入向引用时，直接删除会被拦截，并返回具体关系信息
+- `blocks updateMany soft deletes when referenced records still exist`
+  验证批量软删除同样会经过引用检查
+- `blocks deleting menu parents while active children still reference them`
+  验证自引用模型也受保护
+- `allows batch soft deletion when the self-referencing graph is deleted together`
+  验证同一批次删除完整自引用图时可以通过
 
 ### `framework/excel-export.test.ts`
 
-- `streams xlsx responses from async row sources and normalizes exported values`：验证导出抽象支持异步行源，并会统一格式化布尔值、数组、对象、时间、sheet 名称和文件名。
-- `creates timestamped file names with zero-padded local datetime parts`：验证时间戳文件名格式稳定，年月日时分秒都会补零。
-- `supports resolving columns from exported rows for dynamic headers`：验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐。
+- `streams xlsx responses from async row sources and normalizes exported values`
+  验证导出抽象支持异步行源，并统一格式化布尔值、数组、对象、时间、sheet 名称和文件名
+- `creates timestamped file names with zero-padded local datetime parts`
+  验证时间戳文件名格式稳定
+- `supports resolving columns from exported rows for dynamic headers`
+  验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐
 
 ## Integration
 
 ### `integration/admin-resources.test.ts`
 
-- `returns 400 instead of 500 for duplicate unique values`：验证后台资源写入唯一键冲突时返回 400，而不是 500。
-- `paginates roles, permissions, selector options and realtime message history`：验证角色、权限、实时消息列表，以及用户角色 / 角色权限 / 菜单权限这些选择器选项接口都支持 `POST + body` 分页和按字段搜索。
-- `protects audit logs and immutable seed identifiers`：验证审计日志权限受保护，系统种子权限和系统角色的关键标识不可随意改。
-- `supports full admin CRUD lifecycle and avatar upload`：验证后台用户、角色、权限的完整 CRUD 主链路，以及头像上传和回收流程。
+- `returns 400 instead of 500 for duplicate unique values`
+- `paginates roles, permissions, selector options and realtime message history`
+- `protects audit logs and immutable seed identifiers`
+- `supports full admin CRUD lifecycle and avatar upload`
+
+覆盖点：
+
+- 后台基础 CRUD
+- 唯一键冲突处理
+- 选择器分页接口
+- 实时消息分页
+- 种子权限 / 角色保护
+- 头像上传链路
 
 ### `integration/attachments.test.ts`
 
-- `supports attachment management CRUD, tag filters and xlsx export`：验证附件上传、查询、详情、标签编辑、标签筛选、导出和删除都可用。
+- `supports attachment management CRUD, tag filters and xlsx export`
+
+覆盖点：
+
+- 上传计划
+- 文件回调
+- 附件列表 / 详情 / 编辑 / 删除
+- `tag1`、`tag2` 筛选
+- 导出结果正确性
 
 ### `integration/auth.test.ts`
 
-- `requires valid client credentials for auth routes and stamps tokens with client identity`：验证认证接口必须带合法客户端凭证，且签发的 token 会记录客户端身份，跨客户端不能混用。
-- `supports register, me, refresh and logout`：验证注册、获取当前用户、刷新 token、登出这条标准会话链路。
-- `seeds a dedicated localhost:9000 web client for uni h5 development`：验证种子会初始化 `web-uni-h5` Web 客户端，并可在 `http://localhost:9000` 上正常完成认证流程。
-- `persists workbench preferences on the current user session`：验证用户工作台配置会持久化到后端，并在 `me`、`refresh` 时返回。
-- `supports strategy discovery, verification and code-based auth flows`：验证认证策略发现、验证码发送与校验、邮箱/手机号验证码登录与注册流程。
-- `links email-code auth to password accounts and respects login toggles`：验证邮箱验证码策略可桥接已有密码账号，并且登录开关关闭后会严格拒绝登录相关操作。
+- `requires valid client credentials for auth routes and stamps tokens with client identity`
+- `supports register, me, refresh and logout`
+- `seeds a dedicated localhost:9000 web client for uni h5 development`
+- `persists workbench preferences on the current user session`
+- `supports strategy discovery, verification and code-based auth flows`
+- `links email-code auth to password accounts and respects login toggles`
+
+覆盖点：
+
+- 客户端凭证和客户端上下文校验
+- 会话主链路
+- Uni H5 的 `web-uni-h5` 客户端
+- 用户偏好持久化
+- 验证码链路
+- 策略开关
 
 ### `integration/clients.test.ts`
 
-- `supports client management with typed config and protects the current request client`：验证客户端管理支持按类型维护差异化 config，并阻止禁用或删除当前正在使用的客户端。
-- `protects audit export and returns filtered client exports`：验证审计导出权限控制，以及客户端导出会正确应用筛选条件。
+- `supports client management with typed config and protects the current request client`
+- `protects audit export and returns filtered client exports`
+
+覆盖点：
+
+- 客户端按类型配置
+- 当前请求客户端保护
+- 客户端列表导出
+- 审计导出权限边界
 
 ### `integration/exports.test.ts`
 
-- `exports filtered user lists and realtime history as xlsx workbooks`：验证用户导出和实时消息导出都是合法 xlsx，并且保留筛选结果。
+- `exports filtered user lists and realtime history as xlsx workbooks`
+
+覆盖点：
+
+- 导出接口返回合法 xlsx
+- 导出结果应用筛选条件
 
 ### `integration/oauth.test.ts`
 
-- `exposes oauth application permission options without depending on role management permissions`：验证 OAuth 应用的权限 scope 选项接口独立受 `oauth-application.*` 权限控制，同时支持 `POST + body` 分页和按字段搜索，不依赖角色管理权限。
-- `supports authorization code + PKCE + userinfo + protected api`：验证系统作为 OAuth/OIDC Provider 时，浏览器可从 consent 页真实点击“同意并继续”，并完成授权码、PKCE、userinfo、受保护 API、introspect、revoke 的完整协议链路。
-- `supports upstream oauth login, ticket exchange and refresh task`：验证系统作为 OAuth Client 时，第三方登录回调、本地 ticket 交换和外部 access token 刷新任务的完整链路。
-- `revokes external refresh tokens when the upstream provider returns invalid_grant`：验证上游 refresh token 已失效时，后台任务会撤销本地 `EXTERNAL_REFRESH_TOKEN`，并保留当前仍有效的外部 access token，避免定时任务持续报错。
-- `reuses an existing provider link for the same user when the upstream subject changes`：验证第三方账号 subject 变化但仍映射到同一本地用户时，会更新已有 provider 关联，而不是重复插入触发唯一约束错误。
+- `exposes oauth application permission options without depending on role management permissions`
+- `supports authorization code + PKCE + userinfo + protected api`
+- `supports upstream oauth login, ticket exchange and refresh task`
+- `revokes external refresh tokens when the upstream provider returns invalid_grant`
+- `reuses an existing provider link for the same user when the upstream subject changes`
+
+覆盖点：
+
+- OAuth 应用 scope 选择接口权限
+- 系统作为 Provider 的完整协议链路
+- 系统作为 OAuth Client 的第三方登录链路
+- 上游 refresh token 失效处理
+- OAuth 用户映射复用逻辑
 
 ### `integration/rbac.test.ts`
 
-- `prevents ordinary members from reading admin resources`：验证普通成员无法访问后台管理资源。
-- `lets admins create permission-role-user chains and inspect permission sources`：验证管理员可以创建权限、角色、用户链路，并查看权限来源分析结果。
-- `invalidates cached permissions after role updates`：验证角色权限变更后，用户侧缓存权限会被刷新。
-- `blocks deleting referenced records until business code clears the relation`：验证业务实体仍被引用时不能删除，必须先由业务层清理关系。
-- `enforces assignment permissions for scoped operators`：验证受限操作员即便拥有基础读写权限，也不能越权分配角色或权限。
+- `prevents ordinary members from reading admin resources`
+- `lets admins create permission-role-user chains and inspect permission sources`
+- `invalidates cached permissions after role updates`
+- `blocks deleting referenced records until business code clears the relation`
+- `enforces assignment permissions for scoped operators`
 
-## 写新测试时的约定
+覆盖点：
 
-- 新增通用框架能力，优先补到 `framework`。
-- 新增业务模块或接口，补到 `integration`。
-- 测试里统一复用 `backend-testkit.ts`，不要每个文件自己重复搭数据库、登录、上传和导出解析逻辑。
-- 改动影响测试结构或覆盖范围时，同步更新这页文档。
+- 后台权限边界
+- 权限来源分析
+- 权限缓存刷新
+- 删除保护
+- 受限操作员分配边界
+
+## 新增测试时怎么判断放哪里
+
+| 场景 | 放置位置 |
+| --- | --- |
+| 新增通用抽象，例如导出工厂、删除检查器、解析器 | `framework` |
+| 新增业务接口、管理页面、权限链路、OAuth 链路 | `integration` |
+| 需要复用登录、种子、上传、导出解析、mock Provider | `support/backend-testkit.ts` |
+
+## 写测试时的项目约定
+
+- 任何行为变化都要补测试
+- 先复用 `backend-testkit.ts`
+- 测试不要再堆到一个总文件里
+- 改动影响测试结构或覆盖范围时，同步更新这页文档

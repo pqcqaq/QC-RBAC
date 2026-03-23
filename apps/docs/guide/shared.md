@@ -1,23 +1,46 @@
 ---
 title: 共享抽象
-description: packages/api-common 里统一维护的权限、客户端、请求客户端和 API 工厂。
+description: packages/api-common 里统一维护的权限、客户端、请求核心、适配器和 API 工厂。
 ---
 
-## 包的职责
+## 这个包的定位
 
-`packages/api-common` 不是纯类型包，它是多端共享协议层。
+`packages/api-common` 不是纯类型包，而是多端共享协议层。
 
-当前主要包含：
+它负责把这些最容易分叉的东西收敛到一个地方：
 
 - 权限常量
 - 认证和 RBAC 类型
-- 选项分页查询 payload
 - 客户端类型与配置结构
-- OAuth / 附件 / 导出相关类型
 - 请求客户端核心
 - Fetch / Uni 适配器
 - API 工厂
-- 下载请求配置
+- 导出下载请求配置
+
+## 分层结构
+
+<MermaidDiagram
+  label="api-common layers"
+  :code="[
+    'flowchart TB',
+    '  Const[constants / types]',
+    '  Core[client/core.ts]',
+    '  Fetch[client/adapters/fetch.ts]',
+    '  Uni[client/adapters/uni.ts]',
+    '  Factory[api/factory.ts]',
+    '  Web[web-frontend]',
+    '  App[app-frontend]',
+    '  Backend[backend route contracts]',
+    '',
+    '  Const --> Core',
+    '  Core --> Fetch',
+    '  Core --> Uni',
+    '  Core --> Factory',
+    '  Factory --> Web',
+    '  Factory --> App',
+    '  Const --> Backend',
+  ].join('\n')"
+/>
 
 ## 权限常量
 
@@ -29,9 +52,9 @@ packages/api-common/src/constants/permissions.ts
 
 作用：
 
-- 后端 seed 直接用它初始化权限目录。
-- 前端权限判断也用同一套 code。
-- 新增权限时只改一处，前后端同时生效。
+- 后端 seed 直接用它初始化权限目录
+- 前端权限判断用同一套 code
+- 新增权限时只改一处
 
 ## 客户端类型与配置
 
@@ -55,7 +78,17 @@ packages/api-common/src/types/auth-client.ts
 
 `buildAuthClientHeaders(...)` 会根据类型拼出对应的请求头。
 
-## 请求客户端核心
+### 共享客户端请求头规则
+
+| 类型 | 必带请求头 |
+| --- | --- |
+| `WEB` | `X-RBAC-Client-Code`、`X-RBAC-Client-Secret` |
+| `UNI_WECHAT_MINIAPP` | 上面两项 + `X-RBAC-Client-App-Id` |
+| `APP` | 上面两项 + `X-RBAC-Client-Package-Name`，可选 `X-RBAC-Client-Platform` |
+
+Web 不需要把 host / protocol / port 放进请求头里，因为后端直接从 `Origin / Referer / Host` 推断并校验。
+
+## 请求核心
 
 请求核心在：
 
@@ -63,14 +96,14 @@ packages/api-common/src/types/auth-client.ts
 packages/api-common/src/client/core.ts
 ```
 
-它只解决一件事：把“请求 URL、headers、token、401 重试”这些公共逻辑做成跨端通用能力。
-
-关键类型：
+它解决的不是“具体怎么发请求”，而是统一这些抽象：
 
 - `RequestConfig`
 - `DownloadRequestConfig`
 - `RequestAdaptor`
 - `ClientOptions`
+
+这样 Web 和 Uni 的差别只剩“底层适配器”不同，而不是每个接口都分开写一遍。
 
 ## 平台适配器
 
@@ -84,7 +117,7 @@ packages/api-common/src/client/core.ts
 - Web 用 `fetch`
 - Uni / App / 小程序用 `uni.request`
 
-两者都遵守同一套 `RequestAdaptor` 接口，所以 `createApiFactory(...)` 不需要关心具体运行平台。
+但两者都遵守同一套 `RequestAdaptor` 接口，所以 `createApiFactory(...)` 本身不关心平台。
 
 ## API 工厂
 
@@ -109,7 +142,37 @@ packages/api-common/src/api/factory.ts
 - `audit`
 - `live`
 
-当前和最近改动强相关的接口包括：
+### API 工厂的组织方式
+
+- CRUD 资源走 `createCrudEndpoints(...)`
+- 导出接口统一返回 `DownloadRequestConfig`
+- 关系选择这类分页选项接口统一走 `POST + body`
+- 非 CRUD 能力，例如 `oauthAuthorizeUrl`、`exchangeOauthTicket`、`permissionSources`，继续作为明确方法挂在对应分组下
+
+## 一次请求是怎么贯通的
+
+<MermaidDiagram
+  label="Shared request flow"
+  :code="[
+    'sequenceDiagram',
+    '  participant View as Frontend View',
+    '  participant Api as api.* method',
+    '  participant Client as request client',
+    '  participant Adaptor as fetch / uni adaptor',
+    '  participant Backend',
+    '',
+    '  View->>Api: api.users.list(params)',
+    '  Api->>Client: request config',
+    '  Client->>Adaptor: normalized request',
+    '  Adaptor->>Backend: HTTP request',
+    '  Backend-->>Adaptor: ApiEnvelope',
+    '  Adaptor-->>Client: parsed data',
+    '  Client-->>Api: typed result',
+    '  Api-->>View: typed payload',
+  ].join('\n')"
+/>
+
+## 最近和当前实现强相关的共享接口
 
 - `api.clients.*`
 - `api.attachments.*`
@@ -120,24 +183,23 @@ packages/api-common/src/api/factory.ts
 - `api.roles.permissions()`
 - `api.menus.permissions()`
 
-特点：
+这些接口已经覆盖：
 
-- CRUD 资源通过 `createCrudEndpoints(...)` 统一构造。
-- 列表导出统一返回 `DownloadRequestConfig`，前端直接拿去下载。
-- Web 和 Uni 端都复用同一个 API 面。
-- OAuth 应用权限选项这种非 CRUD 能力，也通过同一个 factory 继续暴露，不会散落到端内自己拼 URL。
-- 这些选项接口现在统一接受 `OptionSearchPayload`，并通过 `POST` body 传 `page`、`pageSize` 和业务过滤字段，返回分页 summary，便于前端关系选择组件直接复用。
+- 客户端按类型配置
+- 附件标签筛选与导出
+- OAuth Provider / Application 管理
+- 关系选择组件的分页选项协议
 
-## 为什么这个包重要
+## 为什么这层重要
 
-如果没有这一层：
+如果没有 `api-common`：
 
-- Web 和 Uni 会各自复制一遍请求封装。
-- 客户端类型和请求头规则会在多个项目里分叉。
-- 权限码会出现前后端不一致。
-- 导出接口和普通接口的定义会重复。
+- Web 和 Uni 会各自复制一套请求封装
+- 客户端类型和请求头规则会在多个项目里分叉
+- 权限码容易前后端不一致
+- 下载接口和普通接口的声明会重复
 
-现在这层已经把这些分歧点收敛到了一个包里。
+现在这些边界都被收敛到一个共享包里。
 
 ## 扩展方式
 
@@ -157,6 +219,6 @@ packages/api-common/src/api/factory.ts
 
 1. 在 `types/auth-client.ts` 增加枚举和 config 类型
 2. 扩展 `buildAuthClientHeaders(...)`
-3. 后端补 schema 和校验
-4. Web / Uni / App 的客户端构造逻辑同步跟进
-5. 更新 docs，说明新类型对应的 config 字段和运行时校验规则
+3. 后端补 schema 和运行时校验
+4. Web / Uni 的客户端构造逻辑同步跟进
+5. 更新 docs

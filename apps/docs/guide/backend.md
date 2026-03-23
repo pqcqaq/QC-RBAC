@@ -1,7 +1,20 @@
 ---
 title: 后端实现
-description: 后端服务的目录、请求链路、核心模块和扩展方式。
+description: 后端服务的目录、请求链路、核心数据模型、统一治理能力和扩展方式。
 ---
+
+## 先从哪些文件读起
+
+如果你第一次排查后端问题，建议按这个顺序看：
+
+1. `apps/backend/src/app.ts`
+2. `apps/backend/src/routes/index.ts`
+3. `apps/backend/src/routes/auth.ts` 或目标模块路由
+4. `apps/backend/src/services/*`
+5. `apps/backend/src/lib/prisma.ts`
+6. `apps/backend/src/lib/delete-reference-checker.ts`
+
+这样看能先建立“HTTP 请求从哪进、业务逻辑在哪、数据库治理在哪”的基本坐标。
 
 ## 目录结构
 
@@ -30,69 +43,226 @@ apps/backend
 - `timers/`：正式注册的后台任务。
 - `utils/`：token、审计、持久化、文件、RBAC 映射等通用工具。
 
-## 应用入口
+## 应用入口与请求链路
 
-- `src/app.ts` 负责中间件注册、静态上传目录、OAuth/OIDC 协议路由和 `/api` 路由挂载。
-- `src/routes/index.ts` 统一挂载业务模块：
-  - `/api/auth`
-  - `/api/users`
-  - `/api/roles`
-  - `/api/permissions`
-  - `/api/menus`
-  - `/api/clients`
-  - `/api/oauth`
-  - `/api/files`
-  - `/api/attachments`
-  - `/api/realtime`
-  - `/api/audit-logs`
-- `src/routes/oauth2.ts` 单独暴露 OAuth/OIDC 协议端点，不挂在 `/api` 下。
+`src/app.ts` 负责把所有基础设施接起来：
+
+- `cors + helmet + cookieParser + morgan`
+- `requestContextMiddleware`
+- `/uploads` 静态目录
+- `oauth2Router`
+- `/api` 业务路由
+- `errorHandler`
+
+<MermaidDiagram
+  label="Express request pipeline"
+  :code="[
+    'flowchart LR',
+    '  REQ[HTTP Request]',
+    '  CORS[cors / helmet / body parser]',
+    '  CTX[requestContextMiddleware]',
+    '  ROUTE[route module]',
+    '  MW[middlewares]',
+    '  SERVICE[service]',
+    '  PRISMA[prisma extension]',
+    '  DB[(PostgreSQL / Redis)]',
+    '  ERR[errorHandler]',
+    '',
+    '  REQ --> CORS --> CTX --> ROUTE --> MW --> SERVICE --> PRISMA --> DB',
+    '  ROUTE -.throw.-> ERR',
+    '  MW -.throw.-> ERR',
+    '  SERVICE -.throw.-> ERR',
+  ].join('\n')"
+/>
+
+## 核心数据模型
+
+### 认证 / RBAC
+
+<MermaidDiagram
+  label="Auth and RBAC entities"
+  :code="[
+    'erDiagram',
+    '  USER {',
+    '    string id PK',
+    '    string username',
+    '    string status',
+    '    json preferences',
+    '  }',
+    '  AUTH_CLIENT {',
+    '    string id PK',
+    '    string code UK',
+    '    string type',
+    '    json config',
+    '  }',
+    '  REFRESH_TOKEN {',
+    '    string id PK',
+    '    string token',
+    '    datetime expiresAt',
+    '  }',
+    '  USER_AUTHENTICATION {',
+    '    string id PK',
+    '    string identifier',
+    '    string authType',
+    '  }',
+    '  ROLE {',
+    '    string id PK',
+    '    string code UK',
+    '    string roleType',
+    '  }',
+    '  PERMISSION {',
+    '    string id PK',
+    '    string code UK',
+    '    string module',
+    '  }',
+    '  USER_ROLE {',
+    '    string id PK',
+    '  }',
+    '  ROLE_PERMISSION {',
+    '    string id PK',
+    '  }',
+    '  MENU_NODE {',
+    '    string id PK',
+    '    string type',
+    '    string viewKey',
+    '  }',
+    '  USER ||--o{ USER_AUTHENTICATION : binds',
+    '  USER ||--o{ REFRESH_TOKEN : owns',
+    '  AUTH_CLIENT ||--o{ REFRESH_TOKEN : issues',
+    '  USER ||--o{ USER_ROLE : assigns',
+    '  ROLE ||--o{ USER_ROLE : contains',
+    '  ROLE ||--o{ ROLE_PERMISSION : grants',
+    '  PERMISSION ||--o{ ROLE_PERMISSION : links',
+    '  MENU_NODE }o--|| PERMISSION : binds',
+  ].join('\n')"
+/>
+
+### OAuth / 附件
+
+<MermaidDiagram
+  label="OAuth and file entities"
+  :code="[
+    'erDiagram',
+    '  OAUTH_PROVIDER {',
+    '    string id PK',
+    '    string code UK',
+    '    string issuer',
+    '  }',
+    '  OAUTH_APPLICATION {',
+    '    string id PK',
+    '    string clientId UK',
+    '    string responseTypes',
+    '  }',
+    '  OAUTH_STATE {',
+    '    string id PK',
+    '    string state UK',
+    '    string kind',
+    '  }',
+    '  OAUTH_USER {',
+    '    string id PK',
+    '    string providerSubject',
+    '  }',
+    '  OAUTH_TOKEN {',
+    '    string id PK',
+    '    string kind',
+    '    datetime expiresAt',
+    '    datetime revokedAt',
+    '  }',
+    '  OAUTH_APPLICATION_PERMISSION {',
+    '    string id PK',
+    '  }',
+    '  MEDIA_ASSET {',
+    '    string id PK',
+    '    string kind',
+    '    string uploadStatus',
+    '    string tag1',
+    '    string tag2',
+    '  }',
+    '  USER ||--o{ OAUTH_USER : links',
+    '  OAUTH_PROVIDER ||--o{ OAUTH_USER : maps',
+    '  OAUTH_USER ||--o{ OAUTH_TOKEN : stores',
+    '  OAUTH_APPLICATION ||--o{ OAUTH_STATE : starts',
+    '  USER ||--o{ OAUTH_STATE : authorizes',
+    '  OAUTH_APPLICATION ||--o{ OAUTH_APPLICATION_PERMISSION : exposes',
+    '  PERMISSION ||--o{ OAUTH_APPLICATION_PERMISSION : scopes',
+  ].join('\n')"
+/>
+
+这些图不是完整 schema 抄录，而是帮助第一次接触项目的人快速建立主关系。真实字段以 `prisma/schema.prisma` 为准。
 
 ## 认证与会话
 
 认证主线在 `src/routes/auth.ts`。
 
-### 1. 先校验客户端，再校验用户
+### 登录链路时序
 
-- `authClientMiddleware` 读取 `X-RBAC-Client-*` 请求头。
-- `src/services/auth-clients.ts` 会按客户端类型做额外校验：
-  - `WEB`：校验协议、域名、端口和允许来源。
+<MermaidDiagram
+  label="Login request sequence"
+  :code="[
+    'sequenceDiagram',
+    '  participant Client',
+    '  participant ACM as authClientMiddleware',
+    '  participant ACS as auth-clients.ts',
+    '  participant Route as auth.ts',
+    '  participant Service as auth-service.ts',
+    '  participant Session as session-service.ts',
+    '  participant Redis',
+    '  participant DB as PostgreSQL',
+    '',
+    '  Client->>ACM: POST /api/auth/login + X-RBAC-Client-*',
+    '  ACM->>ACS: authenticateAuthClient(...)',
+    '  ACS->>DB: load AuthClient by code',
+    '  ACS->>ACS: validate secret + request context',
+    '  ACM-->>Route: req.authClient',
+    '  Route->>Service: authService.login(payload)',
+    '  Service->>DB: verify account / auth strategy',
+    '  Route->>Session: issueUserSession(userId, client)',
+    '  Session->>DB: create RefreshToken',
+    '  Session->>Redis: cache refresh jti',
+    '  Session-->>Route: accessToken + refreshToken + currentUser',
+    '  Route-->>Client: session payload (+ cookie for WEB)',
+  ].join('\n')"
+/>
+
+### 关键实现点
+
+- `authClientMiddleware` 先识别客户端，再允许进入认证接口。
+- `src/services/auth-clients.ts` 不只校验 `client secret`，还会按类型校验上下文：
+  - `WEB`：校验协议、域名、端口和来源。
   - `UNI_WECHAT_MINIAPP`：校验 `appId`。
-  - `APP`：校验包名和平台。
-- 客户端类型和配置结构由 `packages/api-common/src/types/auth-client.ts` 统一定义。
+  - `APP`：校验 `packageName` 和 `platform`。
+- `src/services/auth-service.ts` 负责解析策略、验证密码或验证码、创建账号绑定。
+- `src/services/session-service.ts` 统一签发 access token / refresh token，并把 refresh token 写进数据库和 Redis。
+- Web 登录成功后会额外设置浏览器 cookie，供 `/oauth2/authorize` 这样的浏览器协议链路复用。
 
-### 2. 再按策略处理登录和注册
+### 当前认证策略
 
-- `src/services/auth-service.ts` 负责解析认证策略、验证密码或验证码、创建账号绑定。
-- 当前种子策略：
-  - `username-password`
-  - `email-code`
-  - `phone-code`
-- `/api/auth/strategies` 返回启用中的登录、注册、验证码策略列表，前端按这个结果决定表单。
+- `username-password`
+- `email-code`
+- `phone-code`
 
-### 3. 会话生成与偏好同步
+`/api/auth/strategies` 返回启用中的登录、注册、验证码策略，以及第三方 OAuth Provider 列表。Web 和 Uni 登录页都按这份服务端返回结果渲染，不在前端写死。
 
-- `issueUserSession` 在 `src/services/session-service.ts` 中生成 access token 和 refresh token。
-- Refresh token 同时写入数据库 `RefreshToken` 和 Redis。
-- Web 客户端额外通过 `setBrowserSessionCookie` 同步浏览器 cookie。
-- 用户配置通过 `/api/auth/preferences` 持久化到 `User.preferences`，`/api/auth/me` 会把它带回前端。
+### 用户偏好持久化
+
+- `/api/auth/preferences` 持久化到 `User.preferences`
+- `/api/auth/me` 返回 `preferences`
+- Web 工作台在登录、刷新、重新进入时都会从这里恢复配置
 
 ## RBAC 与菜单
 
 RBAC 初始化在 `src/services/system-rbac.ts`。
 
-- 权限目录来自 `packages/api-common/src/constants/permissions.ts`。
-- `bootstrapSystemRbac` 会写入：
-  - 权限
-  - 系统角色
-  - 默认菜单树
-- 默认菜单树包含目录、页面、行为三类节点，对应 `MenuNodeType`。
+- 权限目录来自 `packages/api-common/src/constants/permissions.ts`
+- `bootstrapSystemRbac` 会写入权限、系统角色、默认菜单树
+- 菜单树分为目录、页面、行为三类节点，对应 `MenuNodeType`
 
-运行时约束：
+### 运行时约束
 
-- API 权限检查走 `requirePermission(...)` 中间件。
-- 前端菜单来源于 `/api/menus/current`，并不是写死在前端路由里。
-- 页面权限和按钮权限都来自同一套菜单树与权限码。
-- 角色和权限选择用到的选项接口已经统一成“`POST + body` 查询对象”，避免前端弹窗一次性拉全量数据。
+- API 权限检查走 `requirePermission(...)`
+- `/api/menus/current` 根据当前用户权限返回菜单树
+- 前端页面和按钮权限都依赖同一套菜单树与权限码
+- 角色和权限选择的选项接口已经统一为 `POST + body` 分页协议
 
 当前分页选项接口：
 
@@ -103,9 +273,9 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 
 请求体约定：
 
-- `page`、`pageSize` 是统一分页字段。
-- 业务过滤字段直接平铺在 body 上，例如 `q`、`code`、`name`、`module`、`action`。
-- 前端 `RelationSelectFormItem` 的 `params.xxx` 直接映射到这些字段，不需要再把搜索 UI 或 URL query 约束写死在组件里。
+- `page`、`pageSize` 是统一分页字段
+- 业务过滤字段直接平铺在 body 上，例如 `q`、`code`、`name`、`module`、`action`
+- 前端 `RelationSelectFormItem` 的 `params.xxx` 会直接映射到这些字段
 
 ## OAuth / OIDC
 
@@ -124,6 +294,38 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `/oauth2/revoke`
 - `/oauth2/logout`
 
+### 授权码 + PKCE 链路
+
+<MermaidDiagram
+  label="OAuth authorization code + PKCE"
+  :code="[
+    'sequenceDiagram',
+    '  participant App as OAuth Client App',
+    '  participant Browser',
+    '  participant Server as QC-RBAC /oauth2',
+    '  participant DB as PostgreSQL',
+    '',
+    '  App->>Browser: redirect to /oauth2/authorize',
+    '  Browser->>Server: GET /oauth2/authorize',
+    '  Server->>Server: resolve browser session',
+    '  alt not logged in',
+    '    Server-->>Browser: redirect /login',
+    '  else logged in',
+    '    Server->>DB: create OAuthState',
+    '    Server-->>Browser: render consent page',
+    '    Browser->>Server: GET /oauth2/authorize/decision?approve',
+    '    Server->>DB: persist authorization code',
+    '    Server-->>Browser: redirect to application callback',
+    '    Browser-->>App: code + state',
+    '    App->>Server: POST /oauth2/token + code_verifier',
+    '    Server->>DB: verify code and issue OAuthToken',
+    '    Server-->>App: access_token + refresh_token + id_token',
+    '    App->>Server: GET /oauth2/userinfo',
+    '    Server-->>App: user claims',
+    '  end',
+  ].join('\n')"
+/>
+
 核心逻辑在 `src/services/oauth-auth-server.ts`，支持：
 
 - authorization code
@@ -133,33 +335,32 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - consent page
 - token introspection / revoke
 
-实现细节：
+补充实现点：
 
-- Consent 页的“同意 / 拒绝”走同源链接跳转到 `/oauth2/authorize/decision`，避免浏览器在严格 CSP 下拦截表单提交。
+- Consent 页的“同意 / 拒绝”走 `/oauth2/authorize/decision`，避免浏览器直接提交跨源表单造成状态混乱。
+- Web 登录成功后写入的浏览器 session cookie 会被 `/oauth2/authorize` 读取，所以 Provider 链路不需要在授权页再做一次单独登录。
 
 ### 2. 我们作为 OAuth Client
 
-- 外部 Provider 的管理接口在 `src/routes/oauth.ts`。
-- 管理接口当前分成两组：
+- 外部 Provider 管理在 `src/routes/oauth.ts`
+- 管理接口分为：
   - `/api/oauth/providers`
   - `/api/oauth/applications`
-- OAuth 应用还额外提供 `POST /api/oauth/applications/options/permissions`，用于给应用分配可暴露的 permission scope。
-- 登录页拉取启用中的 `OAuthProvider`。
-- `buildExternalProviderAuthorizeUrl` 生成跳转地址。
-- `handleExternalProviderCallback` 处理第三方回调。
-- `exchangeOAuthLoginTicket` 把一次性 ticket 换成本地会话。
-- 外部 access token / refresh token 会落在 `OAuthToken` 表。
-- `oauth-upstream-refresh` 定时任务会在 access token 过期前刷新上游 token；如果上游返回 `invalid_grant`，会撤销本地 `EXTERNAL_REFRESH_TOKEN`，避免后续无意义重试。
-- OAuth 用户关联优先按 `(providerId, providerSubject)` 匹配；如果 subject 变化但还是同一个本地用户，会复用已有 `(userId, providerId)` 关联并更新 subject，避免重复建链。
+- OAuth 应用权限 scope 选择单独走 `POST /api/oauth/applications/options/permissions`
 
-Web 控制台对应的管理页面已经落地：
+关键实现：
 
-- `/console/oauth/providers`
-- `/console/oauth/applications`
+- `buildExternalProviderAuthorizeUrl` 生成跳转地址
+- `handleExternalProviderCallback` 处理第三方回调
+- `exchangeOAuthLoginTicket` 把一次性 ticket 换成本地会话
+- 外部 access token / refresh token 落在 `OAuthToken`
+- `oauth-upstream-refresh` 定时任务在过期前刷新上游 token
+- 如果上游返回 `invalid_grant`，会撤销本地 `EXTERNAL_REFRESH_TOKEN`，避免之后持续无效重试
+- 如果第三方 subject 变化但仍映射到同一个本地用户，会复用已有 `(userId, providerId)` 关联而不是重复插入
 
 ## 文件上传与附件
 
-上传主链路分成两层：
+上传链路分成两层。
 
 ### 1. 上传计划
 
@@ -169,20 +370,21 @@ Web 控制台对应的管理页面已经落地：
 
 ### 2. 附件管理
 
-- `src/routes/attachments.ts` 提供附件列表、详情、编辑、删除、导出
-- `MediaAsset` 现在包含 `tag1`、`tag2`，可作为业务筛选字段
-- 删除附件前会先删存储对象，再软删除数据库记录
+- `src/routes/attachments.ts` 提供列表、详情、编辑、删除、导出
+- `MediaAsset` 支持 `tag1`、`tag2` 作为业务筛选字段
+- 删除附件前先删存储对象，再软删除数据库记录
 
-上传补偿：
+补偿任务：
 
-- `src/timers/upload-reconcile.timer.ts` 定时检查 `PENDING` 记录
+- `src/timers/upload-reconcile.timer.ts`
+- 定时检查 `PENDING` 记录
 - 如果对象已存在但前端没回调，会补写为 `COMPLETED`
 
 ## Excel 导出
 
 后端导出统一走 `src/utils/excel-export.ts`。
 
-`createExcelExportHandler` 只要求每个模块提供：
+`createExcelExportHandler` 只要求模块提供：
 
 - `parseQuery`
 - `queryRows`
@@ -190,10 +392,10 @@ Web 控制台对应的管理页面已经落地：
 - `fileName`
 - `sheetName`
 
-`columns` 现在支持两种形式：
+`columns` 支持两种形式：
 
-- 直接传静态列数组，保持流式写入。
-- 传函数 `({ query, rows }) => columns`，先基于导出记录生成列头，再写入工作表，适合动态指标列这类场景。
+- 直接传静态列数组，保持流式写入
+- 传函数 `({ query, rows }) => columns`，先基于导出记录生成列头，再写入工作表，适合动态指标列
 
 当前已接入：
 
@@ -204,8 +406,6 @@ Web 控制台对应的管理页面已经落地：
 - audit logs
 - realtime messages
 - attachments
-
-这让每个模块只维护自己的查询逻辑，不重复处理 Excel stream、响应头和文件名。
 
 ## 数据层统一治理
 
@@ -226,11 +426,11 @@ Web 控制台对应的管理页面已经落地：
 
 关键点：
 
-- 引用关系不是手写的。
-- 它直接从 `Prisma.dmmf.datamodel.models` 生成入向引用映射。
-- 只要模型之间在 Prisma schema 中有关系，删除保护就能识别。
+- 引用关系不是手写的
+- 它会从 Prisma 的模型关系信息生成入向引用映射
+- 只要 schema 里关系正确，删除保护就能识别
 
-这意味着新增实体关系后，不需要在每个业务删除接口里重复写“先查是否被引用”。
+这意味着新增实体关系后，不需要在每个删除接口里重复写“先查是否被引用”。
 
 ## 定时任务
 
@@ -241,7 +441,7 @@ Web 控制台对应的管理页面已经落地：
 - `oauth-upstream-refresh`
 - `upload-reconcile`
 
-新增后台任务时，沿着 `defineIntervalTimer -> createBackendTimerRegistry` 的路径扩展，不要写成独立脚本。
+新增后台任务时，沿着 `defineIntervalTimer -> createBackendTimerRegistry` 扩展，不要写成独立脚本。
 
 ## 测试
 
@@ -251,27 +451,15 @@ Web 控制台对应的管理页面已经落地：
 - `apps/backend/test/integration`
 - `apps/backend/test/support/backend-testkit.ts`
 
-当前已经覆盖的主链路包括：
+优先读这些测试文件：
 
-- 客户端校验
-- 登录、注册、刷新、登出
-- 策略化认证
-- 偏好持久化
-- RBAC 与菜单
-- OAuth / OIDC
-- 上传与附件
-- 列表导出
-- 客户端管理
-- 删除保护
-- OAuth 管理权限边界
+- `framework/delete-reference-checker.test.ts`
+- `framework/excel-export.test.ts`
+- `integration/auth.test.ts`
+- `integration/oauth.test.ts`
+- `integration/rbac.test.ts`
 
-按文件查看时：
-
-- `framework/delete-reference-checker.test.ts` 验证删除引用检查器。
-- `framework/excel-export.test.ts` 验证导出抽象。
-- `integration/*.test.ts` 验证真实业务链路。
-
-完整测试清单见 [测试用例](/guide/testing)。
+它们基本覆盖了认证、授权、OAuth、删除保护、导出和权限链路的主行为。
 
 ## 新增后端模块的最短路径
 
@@ -281,4 +469,4 @@ Web 控制台对应的管理页面已经落地：
 4. 在 `src/routes` 新增路由，在 `src/services` 放核心逻辑。
 5. 如果是后台可见模块，补权限码并更新 `system-rbac.ts` 菜单种子。
 6. 如果是列表页，直接接 `createExcelExportHandler`。
-7. 在对应的 `framework` 或 `integration` 测试文件补测试，并同步更新 docs。
+7. 在对应的 `framework` 或 `integration` 测试补用例，并同步更新 docs。
