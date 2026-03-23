@@ -43,6 +43,35 @@ apps/backend
 - `timers/`：正式注册的后台任务。
 - `utils/`：token、审计、持久化、文件、RBAC 映射等通用工具。
 
+## 实时网关
+
+后端实时入口现在在：
+
+```text
+apps/backend/src/lib/socket.ts
+```
+
+这里不再使用 `socket.io`，而是标准 `ws` + 自定义协议层。
+
+当前 hub 负责：
+
+- HTTP `upgrade` 握手与 access token 鉴权
+- 同一用户、多连接、多客户端的连接索引
+- topic 订阅索引
+- `sub:ack / unsub:ack` 同步前后端 topic 状态
+- topic 分发工具 `publishRealtimeMessage(...)`
+- 心跳 `ping / pong`
+- 心跳超时断开和客户端重连协作
+
+现有事件已经映射成 topic：
+
+- `/chat/global/message`
+- `/system/presence/changed`
+- `/system/audit/event`
+- `/system/users/<userId>/rbac-updated`
+
+具体协议、后端导出方法和前端接入方式，统一看 [实时通信](/guide/realtime)。
+
 ## 应用入口与请求链路
 
 `src/app.ts` 负责把所有基础设施接起来：

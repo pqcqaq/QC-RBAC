@@ -74,7 +74,33 @@ Uni 端请求入口在 `src/api/client.ts`。
 - 小程序请求头自动带 `appId`
 - App 请求头自动带 `packageName` / `platform`
 - 通过 `createUniAdaptor()` 生成统一请求客户端
+- 通过 `createUniWsAdaptor()` 生成统一 realtime 客户端
 - 401 时自动 refresh，失败后清理本地状态
+
+### 实时客户端
+
+Uni 端 realtime 预配置同样在 `src/api/client.ts`：
+
+- `wsClient`
+- `realtimeWsUrl`
+
+页面级消费入口在：
+
+```text
+apps/app-frontend/src/hooks/useWsTopic.ts
+```
+
+这层已经封装：
+
+- H5 下基于 query token 的握手
+- App / 小程序下基于 header 的握手
+- 自动订阅与自动解绑
+- 无 topic 时自动断开
+- 有 topic 时自动连接
+- 指数退避重连
+- 心跳应答
+
+完整说明和 API 清单见 [实时通信](/guide/realtime)。
 
 ### 客户端类型选择规则
 

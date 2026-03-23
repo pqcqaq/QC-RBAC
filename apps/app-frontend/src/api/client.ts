@@ -4,6 +4,9 @@ import {
   buildAuthClientHeaders,
   createApiFactory,
   createUniAdaptor,
+  createUniWsAdaptor,
+  createWsClient,
+  resolveRealtimeWsUrl,
 } from '@rbac/api-common'
 import {
   clearAuthStorage,
@@ -13,6 +16,7 @@ import {
 } from '@/utils/auth-storage'
 
 const baseUrl = import.meta.env.VITE_SERVER_BASEURL || 'http://localhost:3300/api'
+export const realtimeWsUrl = import.meta.env.VITE_WS_URL || resolveRealtimeWsUrl(baseUrl)
 
 const inferDefaultClientType = () => {
   // #ifdef MP-WEIXIN
@@ -171,4 +175,17 @@ export const appApi = createApiFactory({
     }
     return refreshed
   },
+})
+
+const getRealtimeConnectHeaders = () =>
+  authClientType === AuthClientType.WEB
+    ? undefined
+    : getClientCredentialHeaders()
+
+export const wsClient = createWsClient({
+  accessTokenTransport: authClientType === AuthClientType.WEB ? 'query' : 'header',
+  adaptor: createUniWsAdaptor(),
+  getAccessToken: getStoredAccessToken,
+  getConnectHeaders: getRealtimeConnectHeaders,
+  url: realtimeWsUrl,
 })

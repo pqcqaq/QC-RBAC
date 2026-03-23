@@ -9,6 +9,8 @@ description: 后端 framework / integration 测试结构、运行方式，以及
 apps/backend/test
 ├─ framework
 │  ├─ delete-reference-checker.test.ts
+│  ├─ realtime-client.test.ts
+│  ├─ realtime-topic.test.ts
 │  └─ excel-export.test.ts
 ├─ integration
 │  ├─ admin-resources.test.ts
@@ -17,6 +19,7 @@ apps/backend/test
 │  ├─ clients.test.ts
 │  ├─ exports.test.ts
 │  ├─ oauth.test.ts
+│  ├─ realtime.test.ts
 │  └─ rbac.test.ts
 └─ support
    └─ backend-testkit.ts
@@ -101,6 +104,20 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
   验证时间戳文件名格式稳定
 - `supports resolving columns from exported rows for dynamic headers`
   验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐
+
+### `framework/realtime-topic.test.ts`
+
+- `matches exact, single-level, and multi-level subscriptions`
+  验证 realtime topic matcher 支持精确匹配、`+` 单层通配和 `#` 多层通配
+- `normalizes legal topics and rejects invalid wildcard placement`
+  验证发布 topic / 订阅 topic 会被标准化，并拒绝非法通配符位置
+
+### `framework/realtime-client.test.ts`
+
+- `syncs subscribed topics, dispatches wildcard handlers, and closes after the last unsubscribe`
+  验证 shared websocket client 会基于 `sub:ack` / `unsub:ack` 同步本地与服务端 topics，正确分发匹配 topic 的消息，并在最后一个订阅移除后主动断开
+- `answers heartbeat pings and reconnects after a non-fatal close while topics remain`
+  验证客户端会自动回复 `ping -> pong` 心跳，并在仍有订阅 topic 时按退避策略重连
 
 ## Integration
 
@@ -209,6 +226,20 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 权限缓存刷新
 - 删除保护
 - 受限操作员分配边界
+
+### `integration/realtime.test.ts`
+
+- `tracks the same user across multiple realtime client groups`
+- `acknowledges subscriptions and unsubscriptions and dispatches wildcard topic messages`
+
+覆盖点：
+
+- 标准 websocket upgrade 和 access token 鉴权
+- `ready` 首帧和心跳参数下发
+- 同一用户下不同客户端连接分组索引
+- `sub` / `sub:ack` / `unsub` / `unsub:ack` 协议同步
+- wildcard topic 推送分发
+- 无订阅 topic 时服务端主动关闭连接
 
 ## 新增测试时怎么判断放哪里
 

@@ -3,7 +3,10 @@ import {
   AuthClientType,
   buildAuthClientHeaders,
   buildRequestUrl,
+  createWebWsAdaptor,
   createApiFactory,
+  createWsClient,
+  resolveRealtimeWsUrl,
 } from '@rbac/api-common';
 import { createProgressFetchAdaptor, trackedFetch } from './progress-fetch-adaptor';
 
@@ -24,7 +27,7 @@ export const clearStoredTokens = () => {
 };
 
 export const apiBaseUrl = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:3300/api';
-export const wsBaseUrl = import.meta.env.VITE_WS_URL ?? 'http://localhost:3300';
+export const realtimeWsUrl = import.meta.env.VITE_WS_URL ?? resolveRealtimeWsUrl(apiBaseUrl);
 export const authClientCode = import.meta.env.VITE_AUTH_CLIENT_CODE ?? 'web-console';
 export const authClientSecret = import.meta.env.VITE_AUTH_CLIENT_SECRET ?? 'rbac-web-client-secret';
 export const authClientType = AuthClientType.WEB;
@@ -150,4 +153,11 @@ export const api = createApiFactory({
     }
     return refreshed;
   },
+});
+
+export const wsClient = createWsClient({
+  accessTokenTransport: 'query',
+  adaptor: createWebWsAdaptor(),
+  getAccessToken: getStoredAccessToken,
+  url: realtimeWsUrl,
 });

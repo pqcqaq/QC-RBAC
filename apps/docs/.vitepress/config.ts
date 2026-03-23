@@ -24,6 +24,7 @@ export default defineConfig({
       { text: '介绍', link: '/guide/introduction' },
       { text: '快速开始', link: '/guide/quick-start' },
       { text: '开发指南', link: '/guide/development' },
+      { text: '实时通信', link: '/guide/realtime' },
       { text: '内置组件', link: '/components/' },
       { text: '测试', link: '/guide/testing' },
       { text: '技术选型', link: '/architecture/tech-stack' },
@@ -40,6 +41,7 @@ export default defineConfig({
             { text: '介绍', link: '/guide/introduction' },
             { text: '快速开始', link: '/guide/quick-start' },
             { text: '开发指南', link: '/guide/development' },
+            { text: '实时通信', link: '/guide/realtime' },
             { text: '测试用例', link: '/guide/testing' },
           ],
         },
@@ -47,6 +49,7 @@ export default defineConfig({
           text: '实现',
           items: [
             { text: '后端实现', link: '/guide/backend' },
+            { text: '实时通信', link: '/guide/realtime' },
             { text: 'Web 前端', link: '/guide/web-frontend' },
             { text: 'Uni 前端', link: '/guide/uni-frontend' },
             { text: '共享抽象', link: '/guide/shared' },

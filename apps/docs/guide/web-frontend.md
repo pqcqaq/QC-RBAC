@@ -64,6 +64,28 @@ apps/web-frontend/src
 
 `api` 不是手写对象，而是基于 `createApiFactory(...)` 生成，所以 Web 和 Uni 能共享一套 API 面。
 
+### 实时客户端
+
+Web 端 realtime 预配置也在 `src/api/client.ts`：
+
+- `wsClient`
+- `realtimeWsUrl`
+
+页面层不要再直接 `new WebSocket(...)`，而是优先用：
+
+- `src/composables/use-ws-topic.ts`
+
+这样组件只关心 topic 和 handler，本身不关心：
+
+- 何时建立连接
+- 何时断开连接
+- `sub / unsub`
+- 断线重连
+- 心跳
+- 服务端 topic 同步
+
+完整说明和 API 清单见 [实时通信](/guide/realtime)。
+
 ### 登录态时序
 
 <MermaidDiagram
@@ -231,6 +253,8 @@ pages/console/<module>
 - `pages/console/attachments`
 - `pages/console/oauth-providers`
 - `pages/console/oauth-applications`
+
+实时页面也遵守同样规则：页面只消费 topic，不承担底层 websocket 管理职责。
 
 ## 列表页的通用抽象
 

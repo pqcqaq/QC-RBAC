@@ -14,6 +14,9 @@ hero:
       text: 开发指南
       link: /guide/development
     - theme: alt
+      text: 实时通信
+      link: /guide/realtime
+    - theme: alt
       text: 后端实现
       link: /guide/backend
 features:
@@ -25,6 +28,8 @@ features:
     details: uni-app + 自定义组件。Header、Tabbar、安全区和登录态都由项目自己控制。
   - title: Shared Contract
     details: packages/api-common 统一权限常量、客户端枚举、请求客户端、适配器和 API 工厂。
+  - title: Realtime
+    details: 标准 WebSocket + topic 订阅协议。支持连接关联、心跳、自动重连和前后端 topic 同步。
   - title: Built-in Components
     details: Web 已沉淀出可复用的关联选择组件，文档会同步记录参数、插槽和后端约定。
   - title: OAuth
@@ -41,7 +46,8 @@ features:
 4. 需要改控制台页面时，先看 [Web 前端](/guide/web-frontend) 和 [内置组件](/components/)。
 5. 需要改移动端页面时，先看 [Uni 前端](/guide/uni-frontend)。
 6. 需要新增协议、请求头、客户端类型或共享 API 时，先看 [共享抽象](/guide/shared)。
-7. 动代码前先看 [测试用例](/guide/testing) 和 [扩展指南](/guide/extension)。
+7. 需要理解 websocket、topic、心跳和组件级订阅方式时，直接看 [实时通信](/guide/realtime)。
+8. 动代码前先看 [测试用例](/guide/testing) 和 [扩展指南](/guide/extension)。
 
 ## 主链路总览
 
@@ -78,6 +84,7 @@ features:
 这张图可以这样理解：
 
 - `packages/api-common` 是多端共用协议层，负责权限常量、客户端头、请求客户端和 API 工厂。
+- 实时链路也已经收敛到共享层和后端 hub，详见 [实时通信](/guide/realtime)。
 - `apps/backend /api` 提供后台管理、认证、文件、附件、客户端管理、OAuth 管理等业务接口。
 - `apps/backend /oauth2` 提供标准 OAuth2 / OIDC Provider 端点。
 - Web 和 Uni 都不自己拼请求协议，优先复用 `api-common` 生成的客户端和 API 面。
@@ -113,6 +120,7 @@ simple-project-demo
 | 修登录、刷新、登出问题 | `/guide/backend` 的认证与会话 + `/guide/web-frontend` 或 `/guide/uni-frontend` 的登录态部分 |
 | 新增后台资源页面 | `/guide/backend`、`/guide/web-frontend`、`/guide/extension` |
 | 新增客户端类型 | `/guide/shared`、`/guide/backend`、`/guide/extension` |
+| 接 websocket 推送、排查订阅或心跳问题 | `/guide/realtime` |
 | 排查 OAuth Provider / 第三方登录 | `/guide/backend` 的 OAuth 章节 + `/guide/testing` 的 `oauth.test.ts` |
 | 理解为什么删除被阻止 | `/guide/backend` 的删除引用检查章节 + `framework/delete-reference-checker.test.ts` |
 | 给列表加导出 | `/guide/backend` 的 Excel 导出 + `/guide/web-frontend` 的 `useDownload` / `ListExportButton` |

@@ -126,6 +126,7 @@ pages/console/<module>
 - 新增页面或菜单，更新 `guide/web-frontend.md` 或 `guide/uni-frontend.md`
 - 新增接口、实体、后台能力，更新 `guide/backend.md`
 - 新增共享类型或 API，更新 `guide/shared.md`
+- 新增或改造 websocket topic、协议、心跳、客户端方法，更新 `guide/realtime.md`
 - 新增或重构内置组件，更新 `components/**`
 - 新增测试或测试拆分，更新 `guide/testing.md`
 

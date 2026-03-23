@@ -5,7 +5,7 @@ import { env } from './config/env';
 import { createApp } from './app';
 import { prisma } from './lib/prisma';
 import { closeRedisConnection, ensureRedisConnection } from './lib/redis';
-import { initSocket } from './lib/socket';
+import { closeSocketServer, initSocket } from './lib/socket';
 import { bootstrapSystemRbac } from './services/system-rbac';
 import { createBackendTimerRegistry } from './timers/index';
 
@@ -50,6 +50,7 @@ const shutdown = async (signal: string) => {
   }
 
   await Promise.allSettled([
+    closeSocketServer(),
     closeRedisConnection(),
     prisma.$disconnect(),
   ]);
@@ -78,6 +79,7 @@ void bootstrapSystemRbac(prisma)
     console.error('[backend] bootstrap failed', error);
     timers.stop();
     await Promise.allSettled([
+      closeSocketServer(),
       closeRedisConnection(),
       prisma.$disconnect(),
     ]);

@@ -43,8 +43,8 @@ export default defineConfig(({ command }) => ({
           if (id.includes('element-plus')) {
             return 'vendor-element';
           }
-          if (id.includes('socket.io-client')) {
-            return 'vendor-socket';
+          if (id.includes('/ws/') || id.includes('@rbac/api-common')) {
+            return 'vendor-realtime';
           }
           if (id.includes('/pinia/') || id.includes('/vue-router/') || id.includes('/vue/')) {
             return 'vendor-vue';

@@ -78,13 +78,20 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { io, type Socket } from 'socket.io-client';
-import type { LiveMessage } from '@rbac/api-common';
+import {
+  REALTIME_TOPICS,
+  type AuditEventPayload,
+  type LiveMessage,
+  type PresenceChangedPayload,
+  type RbacUpdatedPayload,
+  type WsClientStatus,
+} from '@rbac/api-common';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import ListExportButton from '@/components/download/ListExportButton.vue';
 import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 import { usePageState } from '@/composables/use-page-state';
-import { api, getStoredAccessToken, wsBaseUrl } from '@/api/client';
+import { useWsTopic } from '@/composables/use-ws-topic';
+import { api, wsClient } from '@/api/client';
 import { useAuthStore } from '@/stores/auth';
 import { getErrorMessage } from '@/utils/errors';
 
@@ -103,7 +110,7 @@ const eventPageSize = 8;
 const auth = useAuthStore();
 const messages = ref<LiveMessage[]>([]);
 const eventFeed = ref<FeedEvent[]>([]);
-const socketConnected = ref(false);
+const realtimeStatus = ref<WsClientStatus>('idle');
 const historyLoading = ref(false);
 const totalHistory = ref(0);
 const knownMessageIds = new Set<string>();
@@ -113,18 +120,34 @@ const { state: pageState } = usePageState<LivePageState>('page:live', {
   eventPage: 1,
 });
 const canSend = computed(() => auth.hasPermission('realtime.send'));
+const currentUserRbacTopic = computed(() =>
+  auth.user ? REALTIME_TOPICS.userRbacUpdated(auth.user.id) : undefined);
 const pagedEventFeed = computed(() => {
   const start = (pageState.eventPage - 1) * eventPageSize;
   return eventFeed.value.slice(start, start + eventPageSize);
+});
+const realtimeStatusLabel = computed(() => {
+  if (realtimeStatus.value === 'open') {
+    return '在线';
+  }
+
+  if (realtimeStatus.value === 'reconnecting') {
+    return '重连中';
+  }
+
+  if (realtimeStatus.value === 'connecting') {
+    return '连接中';
+  }
+
+  return '待连接';
 });
 const stats = computed(() => [
   { label: '历史消息', value: totalHistory.value },
   { label: '当前页消息', value: messages.value.length },
   { label: '实时事件', value: eventFeed.value.length },
-  { label: '连接状态', value: socketConnected.value ? '在线' : '待连接' },
+  { label: '连接状态', value: realtimeStatusLabel.value },
 ]);
 const buildExportRequest = () => api.live.exportHistory();
-let socket: Socket | null = null;
 
 const formatTime = (value: string) => new Date(value).toLocaleTimeString();
 
@@ -204,43 +227,48 @@ const changeEventPage = (value: number) => {
   pageState.eventPage = value;
 };
 
-const connectSocket = () => {
-  socket = io(wsBaseUrl, {
-    auth: {
-      token: getStoredAccessToken(),
-    },
-  });
+useWsTopic<LiveMessage>(REALTIME_TOPICS.chatGlobalMessage, ({ payload }) => {
+  pushMessage(payload);
+});
 
-  socket.on('connect', () => {
-    socketConnected.value = true;
-    pushEvent('连接建立', '已接入实时网关');
-  });
-  socket.on('disconnect', () => {
-    socketConnected.value = false;
-    pushEvent('连接断开', '实时连接已关闭');
-  });
-  socket.on('chat:new', (message: LiveMessage) => {
-    pushMessage(message);
-  });
-  socket.on('presence:changed', (payload) => {
-    pushEvent('在线状态', `${payload.nickname} ${payload.status}`);
-  });
-  socket.on('audit:event', (payload) => {
-    pushEvent('审计广播', `${payload.actor} 执行了 ${payload.action} -> ${payload.target}`);
-  });
-  socket.on('rbac:updated', (payload) => {
-    pushEvent('权限变更', payload.reason);
-  });
-};
+useWsTopic<PresenceChangedPayload>(REALTIME_TOPICS.presenceChanged, ({ payload }) => {
+  pushEvent('在线状态', `${payload.nickname} ${payload.status}`);
+});
+
+useWsTopic<AuditEventPayload>(REALTIME_TOPICS.auditEvent, ({ payload }) => {
+  pushEvent('审计广播', `${payload.actor} 执行了 ${payload.action} -> ${payload.target}`);
+});
+
+useWsTopic<RbacUpdatedPayload>(currentUserRbacTopic, ({ payload }) => {
+  pushEvent('权限变更', payload.reason);
+});
+
+let stopStateWatch: (() => void) | null = null;
+let lastRealtimeStatus: WsClientStatus = wsClient.getState().status;
 
 onMounted(async () => {
+  stopStateWatch = wsClient.watchState((state) => {
+    const wasOpen = lastRealtimeStatus === 'open';
+    const isOpen = state.status === 'open';
+    realtimeStatus.value = state.status;
+
+    if (!wasOpen && isOpen) {
+      pushEvent('连接建立', '已接入实时网关');
+    } else if (wasOpen && !isOpen) {
+      pushEvent(
+        '连接断开',
+        state.status === 'reconnecting' ? '实时连接中断，正在重连' : '实时连接已关闭',
+      );
+    }
+
+    lastRealtimeStatus = state.status;
+  });
+
   await loadHistory();
-  connectSocket();
 });
 
 onUnmounted(() => {
-  socket?.disconnect();
-  socketConnected.value = false;
+  stopStateWatch?.();
+  stopStateWatch = null;
 });
 </script>
-
