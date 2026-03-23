@@ -26,7 +26,7 @@ apps/backend/test
 
 - `framework`：验证可复用的底层抽象。
 - `integration`：验证真实 API、权限、数据库、上传、OAuth、导出等业务链路。
-- `support/backend-testkit.ts`：统一测试数据库、seed、登录、客户端请求头、二进制导出解析和上传辅助。
+- `support/backend-testkit.ts`：统一测试数据库、seed、登录、客户端请求头、二进制导出解析、上传辅助，以及独立随机端口的 mock OAuth Provider。
 
 ## 运行方式
 
@@ -58,6 +58,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - `streams xlsx responses from async row sources and normalizes exported values`：验证导出抽象支持异步行源，并会统一格式化布尔值、数组、对象、时间、sheet 名称和文件名。
 - `creates timestamped file names with zero-padded local datetime parts`：验证时间戳文件名格式稳定，年月日时分秒都会补零。
+- `supports resolving columns from exported rows for dynamic headers`：验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐。
 
 ## Integration
 
@@ -95,6 +96,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - `exposes oauth application permission options without depending on role management permissions`：验证 OAuth 应用的权限 scope 选项接口独立受 `oauth-application.*` 权限控制，同时支持 `POST + body` 分页和按字段搜索，不依赖角色管理权限。
 - `supports authorization code + PKCE + userinfo + protected api`：验证系统作为 OAuth/OIDC Provider 时，浏览器可从 consent 页真实点击“同意并继续”，并完成授权码、PKCE、userinfo、受保护 API、introspect、revoke 的完整协议链路。
 - `supports upstream oauth login, ticket exchange and refresh task`：验证系统作为 OAuth Client 时，第三方登录回调、本地 ticket 交换和外部 access token 刷新任务的完整链路。
+- `revokes external refresh tokens when the upstream provider returns invalid_grant`：验证上游 refresh token 已失效时，后台任务会撤销本地 `EXTERNAL_REFRESH_TOKEN`，并保留当前仍有效的外部 access token，避免定时任务持续报错。
 - `reuses an existing provider link for the same user when the upstream subject changes`：验证第三方账号 subject 变化但仍映射到同一本地用户时，会更新已有 provider 关联，而不是重复插入触发唯一约束错误。
 
 ### `integration/rbac.test.ts`

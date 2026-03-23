@@ -3,6 +3,7 @@ import type { Request, RequestHandler } from 'express';
 import { asyncHandler } from './http';
 
 type ExcelRowSource<TRow> = AsyncIterable<TRow> | Iterable<TRow>;
+type MaybePromise<TValue> = TValue | Promise<TValue>;
 
 export type ExcelExportColumn<TRow> = {
   header: string;
@@ -11,12 +12,21 @@ export type ExcelExportColumn<TRow> = {
   value: (row: TRow) => unknown;
 };
 
+export type ExcelExportColumnResolverContext<TQuery, TRow> = {
+  query: TQuery;
+  rows: TRow[];
+};
+
+export type ExcelExportColumnsInput<TQuery, TRow> =
+  | Array<ExcelExportColumn<TRow>>
+  | ((context: ExcelExportColumnResolverContext<TQuery, TRow>) => MaybePromise<Array<ExcelExportColumn<TRow>>>);
+
 type CreateExcelExportHandlerOptions<TQuery, TRow> = {
   fileName: string | ((query: TQuery) => string);
   sheetName: string | ((query: TQuery) => string);
   parseQuery: (query: Request['query']) => TQuery;
   queryRows: (query: TQuery) => Promise<TRow[] | ExcelRowSource<TRow>> | TRow[] | ExcelRowSource<TRow>;
-  columns: Array<ExcelExportColumn<TRow>>;
+  columns: ExcelExportColumnsInput<TQuery, TRow>;
 };
 
 const EXCEL_CONTENT_TYPE =
@@ -83,6 +93,14 @@ const toAsyncIterable = async function* <TRow>(
   }
 };
 
+const collectRows = async <TRow>(source: TRow[] | ExcelRowSource<TRow>) => {
+  const rows: TRow[] = [];
+  for await (const row of toAsyncIterable(source)) {
+    rows.push(row);
+  }
+  return rows;
+};
+
 const createWorksheetColumns = <TRow>(columns: Array<ExcelExportColumn<TRow>>) =>
   columns.map((column, index) => ({
     header: column.header,
@@ -116,8 +134,22 @@ export const createExcelExportHandler = <TQuery, TRow>({
     const query = parseQuery(req.query);
     const resolvedFileName = sanitizeFileName(resolveValue(fileName, query));
     const resolvedSheetName = resolveValue(sheetName, query);
-    const resolvedColumns = createWorksheetColumns(columns);
-    const rows = await queryRows(query);
+    const rowSource = await queryRows(query);
+    let rows: TRow[] | ExcelRowSource<TRow> = rowSource;
+    let resolvedColumnDefinitions: Array<ExcelExportColumn<TRow>>;
+
+    if (typeof columns === 'function') {
+      const materializedRows = Array.isArray(rowSource) ? rowSource : await collectRows(rowSource);
+      resolvedColumnDefinitions = await columns({
+        query,
+        rows: materializedRows,
+      });
+      rows = materializedRows;
+    } else {
+      resolvedColumnDefinitions = columns;
+    }
+
+    const resolvedColumns = createWorksheetColumns(resolvedColumnDefinitions);
 
     res.status(200);
     res.setHeader('Content-Type', EXCEL_CONTENT_TYPE);
@@ -134,19 +166,21 @@ export const createExcelExportHandler = <TQuery, TRow>({
     });
 
     worksheet.columns = resolvedColumns;
-    worksheet.autoFilter = {
-      from: { row: 1, column: 1 },
-      to: { row: 1, column: resolvedColumns.length },
-    };
+    if (resolvedColumns.length > 0) {
+      worksheet.autoFilter = {
+        from: { row: 1, column: 1 },
+        to: { row: 1, column: resolvedColumns.length },
+      };
 
-    const headerRow = worksheet.getRow(1);
-    headerRow.font = { bold: true };
-    headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
-    headerRow.commit();
+      const headerRow = worksheet.getRow(1);
+      headerRow.font = { bold: true };
+      headerRow.alignment = { vertical: 'middle', horizontal: 'center' };
+      headerRow.commit();
+    }
 
     for await (const row of toAsyncIterable(rows)) {
       const output = resolvedColumns.reduce<Record<string, ExcelJS.CellValue>>((result, column, index) => {
-        result[column.key] = normalizeCellValue(columns[index].value(row));
+        result[column.key] = normalizeCellValue(resolvedColumnDefinitions[index].value(row));
         return result;
       }, {});
       worksheet.addRow(output).commit();

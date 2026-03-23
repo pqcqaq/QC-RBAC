@@ -149,6 +149,7 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `handleExternalProviderCallback` 处理第三方回调。
 - `exchangeOAuthLoginTicket` 把一次性 ticket 换成本地会话。
 - 外部 access token / refresh token 会落在 `OAuthToken` 表。
+- `oauth-upstream-refresh` 定时任务会在 access token 过期前刷新上游 token；如果上游返回 `invalid_grant`，会撤销本地 `EXTERNAL_REFRESH_TOKEN`，避免后续无意义重试。
 - OAuth 用户关联优先按 `(providerId, providerSubject)` 匹配；如果 subject 变化但还是同一个本地用户，会复用已有 `(userId, providerId)` 关联并更新 subject，避免重复建链。
 
 Web 控制台对应的管理页面已经落地：
@@ -188,6 +189,11 @@ Web 控制台对应的管理页面已经落地：
 - `columns`
 - `fileName`
 - `sheetName`
+
+`columns` 现在支持两种形式：
+
+- 直接传静态列数组，保持流式写入。
+- 传函数 `({ query, rows }) => columns`，先基于导出记录生成列头，再写入工作表，适合动态指标列这类场景。
 
 当前已接入：
 

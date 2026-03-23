@@ -55,6 +55,8 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 - Web 控制台页面默认采用 `View.vue + components/ + *-management.ts` 的结构。
 - Uni 页面统一使用自定义组件和 `navigationStyle: 'custom'`，不显示原生 Header。
 - 受管模型删除时会自动做引用检查，引用关系来自 Prisma DMMF，不需要手填 refs 映射。
+- TypeScript 源码禁止显式 `any`；动态边界必须补窄类型、声明类型或 `unknown` + 明确收敛，不能用 `as any` 或 `: any` 跳过。
+- 如果第三方插件会生成带 `any` 的声明文件，优先关闭它的 dts 产出并改为仓库内手写声明，避免每次构建把 `any` 写回源码。
 - 测试按 `framework` 和 `integration` 拆分，文档也要同步反映新的测试入口和覆盖范围。
 
 ## 建议阅读顺序

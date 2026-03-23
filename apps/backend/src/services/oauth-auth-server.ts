@@ -6,7 +6,7 @@ import { createHash, randomUUID } from 'node:crypto';
 import { prisma } from '../lib/prisma';
 import { env } from '../config/env';
 import { addSeconds } from '../utils/time';
-import { badRequest, notFound, unauthorized } from '../utils/errors';
+import { HttpError, badRequest, notFound, unauthorized } from '../utils/errors';
 import { randomBase64Url, hashOpaqueToken, decryptOAuthSecret, encryptOAuthSecret } from '../utils/oauth-security';
 import { oidcKeySet } from '../utils/oidc-keys';
 import {
@@ -473,15 +473,38 @@ const sanitizeReturnTo = (value: string | null | undefined, authClient?: AuthCli
 const buildProviderCallbackUrl = (providerCode: string) =>
   `${issuer}/api/auth/oauth/providers/${providerCode}/callback`;
 
+const readUpstreamErrorDetails = (error: unknown) => {
+  if (!(error instanceof HttpError) || !error.details || typeof error.details !== 'object') {
+    return null;
+  }
+
+  const details = error.details as Record<string, unknown>;
+  return {
+    upstreamError: typeof details.upstreamError === 'string' ? details.upstreamError : undefined,
+    upstreamErrorDescription: typeof details.upstreamErrorDescription === 'string'
+      ? details.upstreamErrorDescription
+      : undefined,
+  };
+};
+
+const isUpstreamInvalidGrantError = (error: unknown) =>
+  readUpstreamErrorDetails(error)?.upstreamError === 'invalid_grant';
+
 const readJsonBody = async <T>(response: Response) => {
   const payload = await response.json().catch(() => null) as T | { error?: string; error_description?: string } | null;
   if (!response.ok) {
-    const message = payload && typeof payload === 'object'
-      ? (payload as { error_description?: string; error?: string }).error_description
-        ?? (payload as { error?: string }).error
-        ?? 'OAuth provider request failed'
-      : 'OAuth provider request failed';
-    throw badRequest(message);
+    const upstreamError = payload && typeof payload === 'object'
+      ? (payload as { error?: string }).error
+      : undefined;
+    const upstreamErrorDescription = payload && typeof payload === 'object'
+      ? (payload as { error_description?: string }).error_description
+      : undefined;
+    const message = upstreamErrorDescription ?? upstreamError ?? 'OAuth provider request failed';
+    throw badRequest(message, {
+      upstreamError,
+      upstreamErrorDescription,
+      upstreamStatus: response.status,
+    });
   }
 
   if (!payload) {
@@ -726,6 +749,19 @@ const revokeExternalAccessTokens = async (oauthUserId: string, providerId: strin
       oauthUserId,
       providerId,
       kind: 'EXTERNAL_ACCESS_TOKEN',
+      revokedAt: null,
+    },
+    data: {
+      revokedAt: new Date(),
+    },
+  });
+};
+
+const revokeExternalRefreshToken = async (tokenId: string) => {
+  await prisma.oAuthToken.updateMany({
+    where: {
+      id: tokenId,
+      kind: 'EXTERNAL_REFRESH_TOKEN',
       revokedAt: null,
     },
     data: {
@@ -1535,6 +1571,18 @@ export const refreshExternalOAuthAccessTokens = async () => {
       refreshed += 1;
     } catch (error) {
       failed += 1;
+      if (isUpstreamInvalidGrantError(error)) {
+        await revokeExternalRefreshToken(row.id);
+        const upstreamDetails = readUpstreamErrorDetails(error);
+        console.warn('[oauth:upstream-refresh] upstream refresh token became invalid', {
+          providerCode: row.provider.code,
+          oauthUserId: row.oauthUser.id,
+          refreshTokenId: row.id,
+          upstreamError: upstreamDetails?.upstreamError,
+          upstreamErrorDescription: upstreamDetails?.upstreamErrorDescription,
+        });
+        continue;
+      }
       console.error('[oauth:upstream-refresh] failed', {
         providerCode: row.provider.code,
         oauthUserId: row.oauthUser.id,

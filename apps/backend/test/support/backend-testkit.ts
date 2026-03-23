@@ -93,7 +93,15 @@ export const appClient: NativeAppTestClient = {
 
 export type BackendTestClient = WebTestClient | UniMiniappTestClient | NativeAppTestClient;
 
+type SupertestBinaryParser = Exclude<
+  Parameters<InstanceType<typeof request.Test>['parse']>[0],
+  (input: string) => unknown
+>;
+
+type ExcelWorkbookLoadInput = Parameters<ExcelJS.Workbook['xlsx']['load']>[0];
+
 let mockProviderServer: http.Server | null = null;
+let mockProviderBaseUrl: string | null = null;
 
 const execPrisma = (...args: string[]) => {
   const result = spawnSync(`pnpm exec prisma ${args.join(' ')}`, {
@@ -109,9 +117,13 @@ const execPrisma = (...args: string[]) => {
 };
 
 const startMockOAuthProvider = async () => {
+  if (mockProviderServer && mockProviderBaseUrl) {
+    return;
+  }
+
   let refreshCounter = 0;
   const server = http.createServer(async (req, res) => {
-    const requestUrl = new URL(req.url ?? '/', 'http://localhost:3310');
+    const requestUrl = new URL(req.url ?? '/', mockProviderBaseUrl ?? 'http://127.0.0.1');
 
     if (req.method === 'POST' && requestUrl.pathname === '/oauth2/token') {
       const chunks: Buffer[] = [];
@@ -120,6 +132,16 @@ const startMockOAuthProvider = async () => {
       }
 
       const form = new URLSearchParams(Buffer.concat(chunks).toString('utf8'));
+      if (form.get('grant_type') === 'refresh_token' && form.get('refresh_token') !== 'upstream-refresh-fixed') {
+        res.statusCode = 400;
+        res.setHeader('Content-Type', 'application/json; charset=utf-8');
+        res.end(JSON.stringify({
+          error: 'invalid_grant',
+          error_description: 'refresh token is invalid',
+        }));
+        return;
+      }
+
       const responseBody = form.get('grant_type') === 'refresh_token'
         ? {
             access_token: `upstream-access-refreshed-${++refreshCounter}`,
@@ -159,11 +181,31 @@ const startMockOAuthProvider = async () => {
     res.end();
   });
 
-  await new Promise<void>((resolve) => {
-    server.listen(3310, () => resolve());
+  await new Promise<void>((resolve, reject) => {
+    const handleError = (error: Error) => {
+      server.off('listening', handleListening);
+      reject(error);
+    };
+    const handleListening = () => {
+      server.off('error', handleError);
+      resolve();
+    };
+
+    server.once('error', handleError);
+    server.once('listening', handleListening);
+    server.listen(0, '127.0.0.1');
   });
 
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    await new Promise<void>((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+    throw new Error('Failed to resolve mock OAuth provider port');
+  }
+
   mockProviderServer = server;
+  mockProviderBaseUrl = `http://127.0.0.1:${address.port}`;
 };
 
 const stopMockOAuthProvider = async () => {
@@ -175,6 +217,24 @@ const stopMockOAuthProvider = async () => {
     mockProviderServer?.close((error) => (error ? reject(error) : resolve()));
   });
   mockProviderServer = null;
+  mockProviderBaseUrl = null;
+};
+
+const syncMockOAuthProviderConfig = async (prisma: PrismaClient) => {
+  if (!mockProviderBaseUrl) {
+    return;
+  }
+
+  await prisma.oAuthProvider.updateMany({
+    where: { code: 'demo-provider' },
+    data: {
+      issuer: mockProviderBaseUrl,
+      discoveryUrl: `${mockProviderBaseUrl}/.well-known/openid-configuration`,
+      authorizationEndpoint: `${mockProviderBaseUrl}/oauth2/authorize`,
+      tokenEndpoint: `${mockProviderBaseUrl}/oauth2/token`,
+      userinfoEndpoint: `${mockProviderBaseUrl}/oauth2/userinfo`,
+    },
+  });
 };
 
 export const bootstrapBackendTestContext = async (options?: { mockOAuthProvider?: boolean }) => {
@@ -201,6 +261,7 @@ export const bootstrapBackendTestContext = async (options?: { mockOAuthProvider?
 
 export const reseedBackendTestContext = async (context: BackendTestContext) => {
   await context.seedDatabase(context.prisma);
+  await syncMockOAuthProviderConfig(context.prisma);
 };
 
 export const teardownBackendTestContext = async (context?: BackendTestContext) => {
@@ -255,21 +316,19 @@ export const withClientAuth = (
   return target;
 };
 
-export const binaryParser = (
-  res: any,
-  callback: (error: Error | null, body?: Buffer) => void,
-) => {
+export const binaryParser: SupertestBinaryParser = (res, callback) => {
   const chunks: Buffer[] = [];
-  res.on('data', (chunk) => {
+  res.on('data', (chunk: ArrayBufferLike) => {
     chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
   });
-  res.on('end', () => callback(null, Buffer.concat(chunks) as unknown as Buffer));
-  res.on('error', (error) => callback(error as Error));
+  res.on('end', () => callback(null, Buffer.concat(chunks)));
+  res.on('error', (error: Error) => callback(error, undefined));
 };
 
-export const loadWorksheet = async (buffer: Buffer | Uint8Array) => {
+export const loadWorksheet = async (buffer: Buffer) => {
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer as any);
+  const workbookBuffer = buffer as unknown as ExcelWorkbookLoadInput;
+  await workbook.xlsx.load(workbookBuffer);
 
   const worksheet = workbook.worksheets[0];
   assert.ok(worksheet);

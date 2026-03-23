@@ -115,6 +115,7 @@ pages/console/<module>
 
 1. 写分页查询接口。
 2. 使用 `createExcelExportHandler(...)` 增加 `/export`。
+   列头固定时直接传 `columns: []`；列头需要根据导出记录动态展开时，传 `columns: ({ query, rows }) => []`。
 3. 如果要给表单里的关联选择器复用，再单独提供 options 接口。
 
 前端：

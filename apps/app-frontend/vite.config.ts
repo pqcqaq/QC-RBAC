@@ -91,7 +91,14 @@ export default defineConfig(({ command, mode }) => {
           'async-component': true,
         },
         dts: {
+          enable: true,
           base: 'src/types',
+          'async-import': {
+            enable: false,
+          },
+          'async-component': {
+            enable: false,
+          },
         },
         logger: false,
       }),

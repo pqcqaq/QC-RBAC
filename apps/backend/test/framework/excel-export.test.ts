@@ -79,4 +79,69 @@ describe('Excel export framework', () => {
 
     assert.equal(fileName, 'audit-20260322-090807.xlsx');
   });
+
+  it('supports resolving columns from exported rows for dynamic headers', async () => {
+    const app = express();
+    type DynamicMetricRow = {
+      name: string;
+      metrics: Record<string, number>;
+    };
+
+    app.get('/dynamic-export', createExcelExportHandler({
+      fileName: 'dynamic-report',
+      sheetName: 'Dynamic export',
+      parseQuery: () => ({}),
+      queryRows: async function* (): AsyncIterable<DynamicMetricRow> {
+        yield {
+          name: 'alpha',
+          metrics: {
+            visits: 12,
+            downloads: 3,
+          },
+        };
+        yield {
+          name: 'beta',
+          metrics: {
+            visits: 9,
+            signups: 2,
+          },
+        };
+      },
+      columns: ({ rows }) => {
+        const metricKeys = [...new Set(rows.flatMap(row => Object.keys(row.metrics)))];
+
+        return [
+          {
+            header: 'Name',
+            value: (row) => row.name,
+          },
+          ...metricKeys.map(metricKey => ({
+            header: metricKey.toUpperCase(),
+            key: `metric_${metricKey}`,
+            value: (row) => row.metrics[metricKey] ?? 0,
+          })),
+        ];
+      },
+    }));
+
+    const response = await request(app)
+      .get('/dynamic-export')
+      .buffer(true)
+      .parse(binaryParser)
+      .expect(200);
+
+    const worksheet = await loadWorksheet(response.body as Buffer);
+    assert.equal(worksheet.getRow(1).getCell(1).value, 'Name');
+    assert.equal(worksheet.getRow(1).getCell(2).value, 'VISITS');
+    assert.equal(worksheet.getRow(1).getCell(3).value, 'DOWNLOADS');
+    assert.equal(worksheet.getRow(1).getCell(4).value, 'SIGNUPS');
+    assert.equal(worksheet.getRow(2).getCell(1).value, 'alpha');
+    assert.equal(worksheet.getRow(2).getCell(2).value, '12');
+    assert.equal(worksheet.getRow(2).getCell(3).value, '3');
+    assert.equal(worksheet.getRow(2).getCell(4).value, '0');
+    assert.equal(worksheet.getRow(3).getCell(1).value, 'beta');
+    assert.equal(worksheet.getRow(3).getCell(2).value, '9');
+    assert.equal(worksheet.getRow(3).getCell(3).value, '0');
+    assert.equal(worksheet.getRow(3).getCell(4).value, '2');
+  });
 });

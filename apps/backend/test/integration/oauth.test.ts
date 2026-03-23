@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { after, before, beforeEach, describe, it } from 'node:test';
 import request from 'supertest';
+import { encryptOAuthSecret, hashOpaqueToken } from '../../src/utils/oauth-security';
 import { withSnowflakeId } from '../../src/utils/persistence';
 import {
   bootstrapBackendTestContext,
@@ -246,6 +247,99 @@ describe('OAuth integration', () => {
       },
     });
     assert.ok(refreshedAccessTokenCount >= 2);
+  });
+
+  it('revokes external refresh tokens when the upstream provider returns invalid_grant', async () => {
+    const { app, prisma } = context;
+
+    const authorizeResult = await withClientAuth(
+      request(app)
+        .get('/api/auth/oauth/providers/demo-provider/authorize-url')
+        .query({ returnTo: '/console' }),
+    ).expect(200);
+
+    const upstreamUrl = new URL(authorizeResult.body.data.redirectUrl);
+    const state = upstreamUrl.searchParams.get('state');
+    assert.ok(state);
+
+    const callback = await request(app)
+      .get('/api/auth/oauth/providers/demo-provider/callback')
+      .query({ code: 'mock-code', state })
+      .expect(302);
+
+    const callbackUrl = new URL(String(callback.headers.location), 'http://localhost:5173');
+    const ticket = callbackUrl.searchParams.get('oauth_ticket');
+    assert.ok(ticket);
+
+    await withClientAuth(request(app).post('/api/auth/oauth/tickets/exchange'))
+      .send({ ticket })
+      .expect(200);
+
+    const [externalRefreshToken, activeAccessToken] = await Promise.all([
+      prisma.oAuthToken.findFirst({
+        where: {
+          kind: 'EXTERNAL_REFRESH_TOKEN',
+          revokedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      }),
+      prisma.oAuthToken.findFirst({
+        where: {
+          kind: 'EXTERNAL_ACCESS_TOKEN',
+          revokedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      }),
+    ]);
+
+    assert.ok(externalRefreshToken);
+    assert.ok(activeAccessToken);
+
+    const invalidRefreshToken = 'upstream-refresh-invalid';
+    await prisma.oAuthToken.update({
+      where: { id: externalRefreshToken.id },
+      data: {
+        tokenHash: hashOpaqueToken(invalidRefreshToken),
+        encryptedValue: encryptOAuthSecret(invalidRefreshToken),
+        refreshAt: new Date(Date.now() - 60_000),
+      },
+    });
+
+    const refreshResult = await refreshExternalOAuthAccessTokens();
+    assert.equal(refreshResult.refreshed, 0);
+    assert.equal(refreshResult.failed, 1);
+
+    const [revokedRefreshToken, remainingActiveRefreshToken, stillActiveAccessToken] = await Promise.all([
+      prisma.oAuthToken.findUnique({
+        where: { id: externalRefreshToken.id },
+        select: {
+          revokedAt: true,
+        },
+      }),
+      prisma.oAuthToken.findFirst({
+        where: {
+          kind: 'EXTERNAL_REFRESH_TOKEN',
+          revokedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      }),
+      prisma.oAuthToken.findUnique({
+        where: { id: activeAccessToken.id },
+        select: {
+          revokedAt: true,
+        },
+      }),
+    ]);
+
+    assert.ok(revokedRefreshToken?.revokedAt);
+    assert.equal(remainingActiveRefreshToken, null);
+    assert.equal(stillActiveAccessToken?.revokedAt, null);
   });
 
   it('reuses an existing provider link for the same user when the upstream subject changes', async () => {

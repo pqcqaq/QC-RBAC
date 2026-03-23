@@ -30,13 +30,20 @@ type TransactionAwarePrismaClient = PrismaClient & {
   };
 };
 
+type PrismaDelegateArgs = Record<string, unknown>;
+
+type DeleteCheckerModelDelegate = {
+  count: (args?: PrismaDelegateArgs) => Promise<number>;
+  findMany: (args?: PrismaDelegateArgs) => Promise<unknown>;
+};
+
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
 const lowerFirst = (value: string) => value.charAt(0).toLowerCase() + value.slice(1);
 
 const getModelDelegate = (client: PrismaClient, model: string) =>
-  (client as unknown as Record<string, Record<string, (...args: any[]) => Promise<unknown>>>)[lowerFirst(model)];
+  (client as unknown as Record<string, DeleteCheckerModelDelegate>)[lowerFirst(model)];
 
 const normalizeUniqueWhere = (where?: unknown) => {
   if (!isPlainObject(where)) {

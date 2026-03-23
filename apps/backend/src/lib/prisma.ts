@@ -37,8 +37,17 @@ const isPlainObject = (value: unknown): value is Record<string, unknown> =>
 
 const lowerFirst = (value: string) => value.charAt(0).toLowerCase() + value.slice(1);
 
+type PrismaDelegateArgs = Record<string, unknown>;
+
+type PrismaModelDelegate = {
+  findFirst: (args?: PrismaDelegateArgs) => Promise<unknown>;
+  update: (args?: PrismaDelegateArgs) => Promise<unknown>;
+  updateMany: (args?: PrismaDelegateArgs) => Promise<unknown>;
+  upsert: (args?: PrismaDelegateArgs) => Promise<unknown>;
+};
+
 const getModelDelegate = (client: PrismaClient, model: string) =>
-  (client as unknown as Record<string, Record<string, (...args: any[]) => unknown>>)[lowerFirst(model)];
+  (client as unknown as Record<string, PrismaModelDelegate>)[lowerFirst(model)];
 
 const mergeActiveWhere = (where?: unknown) => {
   if (!isPlainObject(where)) {
@@ -118,7 +127,7 @@ const stampDeleteData = (actorId: string | null) => ({
 });
 
 const resolveActiveRecordId = async (
-  delegate: Record<string, (...args: any[]) => unknown>,
+  delegate: PrismaModelDelegate,
   where?: unknown,
 ) => {
   const record = await delegate.findFirst({
