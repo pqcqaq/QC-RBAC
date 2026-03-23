@@ -146,7 +146,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 客户端凭证和客户端上下文校验
 - 会话主链路
 - Uni H5 的 `web-uni-h5` 客户端
-- 用户偏好持久化
+- 用户偏好持久化，包括工作台主题 preset 和 `light / dark / auto` 明暗模式
 - 验证码链路
 - 策略开关
 

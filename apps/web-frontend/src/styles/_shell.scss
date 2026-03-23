@@ -265,7 +265,7 @@
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: rgba(248, 251, 254, 0.92);
+  background: var(--surface-overlay);
   box-shadow: var(--shadow-panel);
   backdrop-filter: blur(18px);
 }
@@ -333,7 +333,7 @@
   height: 38px;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--button-surface);
   color: var(--ink-2);
   box-shadow: var(--shadow-panel);
   cursor: pointer;
@@ -343,7 +343,7 @@
 .header-icon-button:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line-strong));
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   color: var(--accent-strong);
 }
 
@@ -356,7 +356,7 @@
   padding: 5px 8px 5px 5px;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.88);
+  background: var(--panel-elevated);
   box-shadow: var(--shadow-panel);
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
@@ -366,7 +366,7 @@
 .header-user.is-open {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 22%, var(--line-strong));
-  background: #ffffff;
+  background: var(--panel-bg-strong);
 }
 
 .header-user__avatar {
@@ -405,7 +405,7 @@
   justify-content: center;
   width: 16px;
   height: 16px;
-  border: 2px solid #ffffff;
+  border: 2px solid var(--surface-0);
   border-radius: 999px;
   background: var(--accent);
   color: #ffffff;
@@ -490,13 +490,13 @@
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
   color: var(--accent-strong);
   flex: 0 0 28px;
 }
 
 .header-dropdown-item.is-danger .header-dropdown-item__icon {
-  background: color-mix(in srgb, var(--danger) 12%, white);
+  background: color-mix(in srgb, var(--danger) 14%, var(--surface-0));
   color: var(--danger);
 }
 
@@ -558,7 +558,7 @@
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.84);
+  background: var(--panel-elevated);
   box-shadow: var(--shadow-panel);
 }
 
@@ -588,7 +588,7 @@
   padding: 8px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.56);
+  background: color-mix(in srgb, var(--surface-0) 62%, transparent);
   color: var(--ink-2);
   white-space: nowrap;
   transition: all 0.18s ease;
@@ -601,7 +601,7 @@
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface-0));
   color: var(--accent-strong);
   flex: 0 0 28px;
 }
@@ -627,14 +627,14 @@
 
 .top-nav-item:hover,
 .top-nav-item.is-active {
-  background: rgba(255, 255, 255, 0.96);
+  background: var(--panel-bg-strong);
   border-color: var(--line-strong);
   color: var(--ink-1);
   box-shadow: var(--shadow-panel);
 }
 
 .top-nav-item.is-active .top-nav-item__icon {
-  background: color-mix(in srgb, var(--accent) 18%, white);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-0));
 }
 
 .admin-shell__main {

@@ -6,6 +6,7 @@
   font-weight: 400;
   text-rendering: optimizeLegibility;
   font-synthesis: none;
+  color-scheme: light;
 
   --app-bg: #eef2f6;
   --surface-0: #ffffff;
@@ -42,9 +43,16 @@
   --shell-sidebar-arrow: rgba(238, 243, 251, 0.58);
   --shell-sidebar-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
   --shell-sidebar-shadow: 0 14px 30px rgba(10, 16, 26, 0.24);
-  --line-soft: #e6edf4;
-  --line-strong: #d8e2ed;
-  --surface-overlay: rgba(255, 255, 255, 0.84);
+  --line-soft: color-mix(in srgb, var(--surface-3) 40%, white);
+  --line-strong: color-mix(in srgb, var(--surface-3) 72%, white);
+  --surface-overlay: color-mix(in srgb, var(--surface-0) 84%, transparent);
+  --panel-bg: color-mix(in srgb, var(--surface-0) 90%, var(--surface-1));
+  --panel-bg-strong: color-mix(in srgb, var(--surface-0) 96%, var(--surface-1));
+  --panel-bg-muted: color-mix(in srgb, var(--surface-1) 92%, white);
+  --panel-elevated: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  --button-surface: color-mix(in srgb, var(--surface-0) 88%, var(--surface-1));
+  --table-header-bg: color-mix(in srgb, var(--surface-2) 58%, white);
+  --table-row-hover-bg: color-mix(in srgb, var(--accent) 6%, white);
   --shadow-panel: 0 6px 16px rgba(12, 24, 36, 0.055);
   --shadow-deep: 0 16px 30px rgba(8, 16, 27, 0.16);
   --header-height: 56px;
@@ -68,19 +76,19 @@
   --el-border-radius-round: 999px;
   --el-border-color: var(--line-strong);
   --el-border-color-light: var(--line-soft);
-  --el-border-color-lighter: #edf2f7;
-  --el-border-color-extra-light: #f4f7fa;
-  --el-fill-color: #f7f9fc;
-  --el-fill-color-light: #f5f8fb;
-  --el-fill-color-lighter: #f8fafc;
-  --el-fill-color-blank: #ffffff;
-  --el-bg-color: #ffffff;
-  --el-bg-color-overlay: #ffffff;
+  --el-border-color-lighter: color-mix(in srgb, var(--line-soft) 62%, white);
+  --el-border-color-extra-light: color-mix(in srgb, var(--line-soft) 38%, white);
+  --el-fill-color: color-mix(in srgb, var(--surface-1) 70%, white);
+  --el-fill-color-light: color-mix(in srgb, var(--surface-1) 82%, white);
+  --el-fill-color-lighter: color-mix(in srgb, var(--surface-1) 92%, white);
+  --el-fill-color-blank: var(--surface-0);
+  --el-bg-color: var(--surface-0);
+  --el-bg-color-overlay: var(--surface-0);
   --el-bg-color-page: transparent;
   --el-text-color-primary: var(--ink-1);
   --el-text-color-regular: var(--ink-2);
   --el-text-color-secondary: var(--ink-3);
-  --el-text-color-placeholder: #8ea0b1;
+  --el-text-color-placeholder: color-mix(in srgb, var(--ink-3) 72%, white);
   --el-mask-color: rgba(11, 20, 31, 0.52);
   --el-box-shadow-light: var(--shadow-panel);
   --el-component-size: 40px;
@@ -88,25 +96,100 @@
   --el-component-size-small: 34px;
 }
 
+:root[data-theme-scheme='dark'] {
+  color: var(--ink-1);
+  background: #111821;
+  color-scheme: dark;
+  --app-bg: color-mix(in srgb, var(--surface-1) 82%, #081018);
+  --surface-4: color-mix(in srgb, var(--surface-3) 82%, black);
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+  --sidebar-ink: var(--ink-1);
+  --sidebar-muted: color-mix(in srgb, var(--ink-3) 88%, white 12%);
+  --shell-sidebar-bg: var(--sidebar-bg);
+  --shell-sidebar-bg-2: var(--sidebar-bg-2);
+  --shell-sidebar-panel-border: rgba(255, 255, 255, 0.08);
+  --shell-sidebar-border: rgba(255, 255, 255, 0.08);
+  --shell-sidebar-ink: var(--sidebar-ink);
+  --shell-sidebar-muted: var(--sidebar-muted);
+  --shell-sidebar-hover-bg: rgba(255, 255, 255, 0.06);
+  --shell-sidebar-open-bg: rgba(255, 255, 255, 0.05);
+  --shell-sidebar-active-bg: linear-gradient(90deg, rgba(var(--accent-rgb), 0.34), rgba(255, 255, 255, 0.06));
+  --shell-sidebar-active-ink: #f7fbff;
+  --shell-sidebar-active-muted: rgba(247, 251, 255, 0.72);
+  --shell-sidebar-arrow: rgba(247, 251, 255, 0.48);
+  --shell-sidebar-active-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+  --shell-sidebar-shadow: 0 18px 42px rgba(0, 0, 0, 0.42);
+  --line-soft: color-mix(in srgb, var(--surface-3) 22%, white 6%);
+  --line-strong: color-mix(in srgb, var(--surface-3) 46%, white 10%);
+  --surface-overlay: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  --panel-bg: color-mix(in srgb, var(--surface-0) 92%, black 8%);
+  --panel-bg-strong: color-mix(in srgb, var(--surface-0) 96%, black 4%);
+  --panel-bg-muted: color-mix(in srgb, var(--surface-1) 92%, black 8%);
+  --panel-elevated: color-mix(in srgb, var(--surface-0) 84%, transparent);
+  --button-surface: color-mix(in srgb, var(--surface-1) 88%, black 12%);
+  --table-header-bg: color-mix(in srgb, var(--surface-2) 84%, black 16%);
+  --table-row-hover-bg: color-mix(in srgb, var(--accent) 10%, var(--surface-1));
+  --shadow-panel: 0 10px 26px rgba(0, 0, 0, 0.28);
+  --shadow-deep: 0 20px 42px rgba(0, 0, 0, 0.44);
+
+  --el-color-primary-dark-2: color-mix(in srgb, var(--accent) 78%, black 22%);
+  --el-color-primary-light-3: color-mix(in srgb, var(--accent) 72%, white 28%);
+  --el-color-primary-light-5: color-mix(in srgb, var(--accent) 58%, white 42%);
+  --el-color-primary-light-7: color-mix(in srgb, var(--accent) 42%, white 58%);
+  --el-color-primary-light-9: color-mix(in srgb, var(--accent) 24%, white 76%);
+  --el-border-color: var(--line-strong);
+  --el-border-color-light: var(--line-soft);
+  --el-border-color-lighter: color-mix(in srgb, var(--line-soft) 62%, black 38%);
+  --el-border-color-extra-light: color-mix(in srgb, var(--line-soft) 34%, black 66%);
+  --el-fill-color: color-mix(in srgb, var(--surface-1) 92%, black 8%);
+  --el-fill-color-light: color-mix(in srgb, var(--surface-1) 82%, black 18%);
+  --el-fill-color-lighter: color-mix(in srgb, var(--surface-1) 72%, black 28%);
+  --el-fill-color-blank: var(--surface-0);
+  --el-bg-color: var(--surface-0);
+  --el-bg-color-overlay: color-mix(in srgb, var(--surface-0) 96%, black 4%);
+  --el-text-color-primary: var(--ink-1);
+  --el-text-color-regular: var(--ink-2);
+  --el-text-color-secondary: var(--ink-3);
+  --el-text-color-placeholder: color-mix(in srgb, var(--ink-3) 76%, white 24%);
+  --el-mask-color: rgba(2, 7, 12, 0.72);
+}
+
 :root[data-sidebar-appearance='light'] {
-  --shell-sidebar-bg: color-mix(in srgb, white 94%, var(--surface-1));
-  --shell-sidebar-bg-2: color-mix(in srgb, white 82%, var(--surface-2));
-  --shell-sidebar-panel-border: color-mix(in srgb, var(--line-strong) 72%, white);
-  --shell-sidebar-border: color-mix(in srgb, var(--line-soft) 92%, white);
+  --shell-sidebar-bg: color-mix(in srgb, var(--surface-0) 94%, var(--surface-1));
+  --shell-sidebar-bg-2: color-mix(in srgb, var(--surface-0) 82%, var(--surface-2));
+  --shell-sidebar-panel-border: color-mix(in srgb, var(--line-strong) 72%, var(--surface-0));
+  --shell-sidebar-border: color-mix(in srgb, var(--line-soft) 92%, var(--surface-0));
   --shell-sidebar-ink: var(--ink-1);
   --shell-sidebar-muted: var(--ink-3);
-  --shell-sidebar-hover-bg: color-mix(in srgb, var(--accent) 7%, white);
-  --shell-sidebar-open-bg: color-mix(in srgb, var(--accent) 5%, white);
+  --shell-sidebar-hover-bg: color-mix(in srgb, var(--accent) 7%, var(--surface-0));
+  --shell-sidebar-open-bg: color-mix(in srgb, var(--accent) 5%, var(--surface-0));
   --shell-sidebar-active-bg: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 18%, white) 0%,
-    color-mix(in srgb, var(--accent) 8%, white) 100%
+    color-mix(in srgb, var(--accent) 18%, var(--surface-0)) 0%,
+    color-mix(in srgb, var(--accent) 8%, var(--surface-0)) 100%
   );
   --shell-sidebar-active-ink: var(--accent-strong);
-  --shell-sidebar-active-muted: color-mix(in srgb, var(--accent-strong) 74%, white 26%);
+  --shell-sidebar-active-muted: color-mix(in srgb, var(--accent-strong) 74%, var(--surface-0) 26%);
   --shell-sidebar-arrow: var(--ink-3);
   --shell-sidebar-active-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 18%, var(--line-strong));
   --shell-sidebar-shadow: 0 10px 24px rgba(11, 21, 31, 0.07);
+}
+
+:root[data-theme-scheme='dark'][data-sidebar-appearance='light'] {
+  --shell-sidebar-bg: color-mix(in srgb, var(--surface-0) 86%, white 14%);
+  --shell-sidebar-bg-2: color-mix(in srgb, var(--surface-1) 92%, white 8%);
+  --shell-sidebar-panel-border: color-mix(in srgb, var(--line-strong) 82%, white 18%);
+  --shell-sidebar-border: color-mix(in srgb, var(--line-soft) 78%, white 22%);
+  --shell-sidebar-hover-bg: color-mix(in srgb, var(--accent) 12%, var(--surface-0));
+  --shell-sidebar-open-bg: color-mix(in srgb, var(--accent) 9%, var(--surface-0));
+  --shell-sidebar-active-bg: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--accent) 28%, var(--surface-0)) 0%,
+    color-mix(in srgb, var(--accent) 12%, var(--surface-1)) 100%
+  );
+  --shell-sidebar-active-ink: var(--ink-1);
+  --shell-sidebar-active-muted: color-mix(in srgb, var(--ink-2) 86%, white 14%);
+  --shell-sidebar-shadow: 0 14px 30px rgba(0, 0, 0, 0.22);
 }
 
 * {
@@ -125,19 +208,100 @@ body {
   background:
     radial-gradient(circle at top left, rgba(var(--accent-rgb), 0.08), transparent 22%),
     linear-gradient(180deg, #f5f8fb 0%, #eef3f8 42%, #e7edf4 100%);
+  transition: background 0.42s ease, color 0.32s ease;
 }
 
-body::before {
+:root[data-theme-scheme='dark'] body {
+  background:
+    radial-gradient(circle at top left, rgba(var(--accent-rgb), 0.16), transparent 24%),
+    linear-gradient(180deg, #111821 0%, #0e151d 42%, #0a1118 100%);
+}
+
+body::before,
+body::after {
   content: '';
   position: fixed;
   inset: 0;
+  pointer-events: none;
+}
+
+body::before {
   background-image:
     linear-gradient(rgba(12, 23, 35, 0.022) 1px, transparent 1px),
     linear-gradient(90deg, rgba(12, 23, 35, 0.022) 1px, transparent 1px);
   background-size: 28px 28px;
-  pointer-events: none;
+  transition: opacity 0.32s ease, background-image 0.32s ease;
+}
+
+:root[data-theme-scheme='dark'] body::before {
+  background-image:
+    linear-gradient(rgba(255, 255, 255, 0.028) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.028) 1px, transparent 1px);
+}
+
+body::after {
+  inset: -18vmax;
+  opacity: 0;
+  background:
+    radial-gradient(
+      circle at var(--theme-switch-origin-x, 50%) var(--theme-switch-origin-y, 72px),
+      rgba(var(--accent-rgb), 0.22) 0%,
+      rgba(var(--accent-rgb), 0.12) 10%,
+      transparent 42%
+    );
+  transform: scale(0.88);
+}
+
+:root[data-theme-transition='running'] body::after {
+  animation: theme-switch-flare 0.52s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+:root[data-theme-transition='running'],
+:root[data-theme-transition='running'] *,
+:root[data-theme-transition='running'] *::before,
+:root[data-theme-transition='running'] *::after {
+  transition:
+    background-color 0.36s ease,
+    background 0.42s ease,
+    color 0.28s ease,
+    border-color 0.34s ease,
+    box-shadow 0.36s ease,
+    fill 0.32s ease,
+    stroke 0.32s ease !important;
+}
+
+@keyframes theme-switch-flare {
+  0% {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+
+  22% {
+    opacity: 1;
+  }
+
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
 }
 
 .admin-theme {
   min-height: 100vh;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  body,
+  body::before,
+  body::after {
+    transition: none !important;
+    animation: none !important;
+  }
+
+  :root[data-theme-transition='running'],
+  :root[data-theme-transition='running'] *,
+  :root[data-theme-transition='running'] *::before,
+  :root[data-theme-transition='running'] *::after {
+    transition: none !important;
+  }
 }

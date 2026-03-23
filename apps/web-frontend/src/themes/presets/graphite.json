@@ -2,7 +2,7 @@
   "id": "graphite",
   "label": "石墨蓝",
   "description": "克制、正式、偏企业后台。",
-  "tokens": {
+  "lightTokens": {
     "--accent": "#1f4f8d",
     "--accent-strong": "#173c68",
     "--accent-soft": "#e9f1fb",
@@ -16,5 +16,20 @@
     "--ink-2": "#405262",
     "--ink-3": "#6e7e8d",
     "--accent-rgb": "31, 79, 141"
+  },
+  "darkTokens": {
+    "--accent": "#7eaef5",
+    "--accent-strong": "#5a8cdf",
+    "--accent-soft": "#1b2f4b",
+    "--sidebar-bg": "#0b121a",
+    "--sidebar-bg-2": "#101a24",
+    "--surface-0": "#111a24",
+    "--surface-1": "#17212c",
+    "--surface-2": "#1d2936",
+    "--surface-3": "#304253",
+    "--ink-1": "#eef4fb",
+    "--ink-2": "#c5d2df",
+    "--ink-3": "#93a4b6",
+    "--accent-rgb": "126, 174, 245"
   }
 }

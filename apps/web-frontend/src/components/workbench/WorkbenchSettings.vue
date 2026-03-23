@@ -16,6 +16,18 @@
 
       <section class="settings-section">
         <header>
+          <h4>界面模式</h4>
+          <span>每个主题预设都支持亮色和暗色，可固定，也可跟随系统。</span>
+        </header>
+        <ThemeModeSwitch
+          :model-value="workbench.themeMode"
+          :resolved-mode="workbench.resolvedThemeMode"
+          @select="handleThemeModeSelect"
+        />
+      </section>
+
+      <section class="settings-section">
+        <header>
           <h4>侧栏风格</h4>
           <span>暗色更聚焦导航，亮色更贴近整体面板。切换后会同步适配菜单、激活态和文案对比度。</span>
         </header>
@@ -101,12 +113,23 @@
             type="button"
             class="theme-preset-card"
             :class="{ 'is-active': preset.id === workbench.themePresetId }"
-            @click="workbench.setThemePreset(preset.id)"
+            @click="handleThemePresetSelect(preset.id, $event)"
           >
             <div class="theme-preset-card__swatches">
-              <span :style="{ background: preset.tokens['--accent'] }" />
-              <span :style="{ background: preset.tokens['--sidebar-bg'] }" />
-              <span :style="{ background: preset.tokens['--surface-2'] }" />
+              <div class="theme-preset-card__mode">
+                <small>亮</small>
+                <div class="theme-preset-card__mode-swatches">
+                  <span :style="{ background: preset.lightTokens['--accent'] }" />
+                  <span :style="{ background: preset.lightTokens['--surface-2'] }" />
+                </div>
+              </div>
+              <div class="theme-preset-card__mode is-dark">
+                <small>暗</small>
+                <div class="theme-preset-card__mode-swatches">
+                  <span :style="{ background: preset.darkTokens['--accent'] }" />
+                  <span :style="{ background: preset.darkTokens['--surface-2'] }" />
+                </div>
+              </div>
             </div>
             <strong>{{ preset.label }}</strong>
             <small>{{ preset.description }}</small>
@@ -123,6 +146,10 @@
           <div>
             <span>当前主题</span>
             <strong>{{ currentTheme?.label ?? '-' }}</strong>
+          </div>
+          <div>
+            <span>界面模式</span>
+            <strong>{{ currentThemeModeLabel }}</strong>
           </div>
           <div>
             <span>侧栏风格</span>
@@ -158,8 +185,8 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
-import { findThemePreset, themePresets } from '@/themes';
-import type { SidebarAppearance } from '@/themes';
+import ThemeModeSwitch from '@/components/workbench/ThemeModeSwitch.vue';
+import { findThemePreset, getThemeModeLabel, themePresets, type SidebarAppearance, type ThemeMode } from '@/themes';
 import {
   useWorkbenchStore,
   type CachedTabDisplayMode,
@@ -193,6 +220,13 @@ const cachedTabDisplayOptions = [
 ] satisfies Array<{ label: string; value: CachedTabDisplayMode; description: string }>;
 
 const currentTheme = computed(() => findThemePreset(workbench.themePresetId));
+const currentThemeModeLabel = computed(() => {
+  if (workbench.themeMode !== 'auto') {
+    return getThemeModeLabel(workbench.themeMode);
+  }
+
+  return `自动·${getThemeModeLabel(workbench.resolvedThemeMode)}`;
+});
 const currentPageTransitionLabel = computed(
   () => pageTransitionOptions.find((option) => option.value === workbench.pageTransition)?.label ?? '淡入淡出',
 );
@@ -207,6 +241,21 @@ const onLayoutChange = (value: string | number | boolean) => {
   if (isLayoutMode(value)) {
     workbench.setLayoutMode(value);
   }
+};
+
+const handleThemeModeSelect = (payload: { value: ThemeMode; trigger: HTMLElement | null }) => {
+  workbench.setThemeMode(payload.value, {
+    animate: true,
+    origin: payload.trigger,
+  });
+};
+
+const handleThemePresetSelect = (themePresetId: string, event: MouseEvent) => {
+  const trigger = event.currentTarget instanceof HTMLElement ? event.currentTarget : null;
+  workbench.setThemePreset(themePresetId, {
+    animate: true,
+    origin: trigger,
+  });
 };
 </script>
 

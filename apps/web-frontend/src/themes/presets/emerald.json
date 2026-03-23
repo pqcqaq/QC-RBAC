@@ -2,7 +2,7 @@
   "id": "emerald",
   "label": "松石绿",
   "description": "稳重的运营中台色系。",
-  "tokens": {
+  "lightTokens": {
     "--accent": "#1f6b57",
     "--accent-strong": "#14483a",
     "--accent-soft": "#e7f4ef",
@@ -16,5 +16,20 @@
     "--ink-2": "#3f5751",
     "--ink-3": "#70857f",
     "--accent-rgb": "31, 107, 87"
+  },
+  "darkTokens": {
+    "--accent": "#63c9ab",
+    "--accent-strong": "#38a183",
+    "--accent-soft": "#16352d",
+    "--sidebar-bg": "#0b1714",
+    "--sidebar-bg-2": "#10201c",
+    "--surface-0": "#111d1a",
+    "--surface-1": "#162520",
+    "--surface-2": "#1d2f29",
+    "--surface-3": "#2f4c43",
+    "--ink-1": "#edf8f4",
+    "--ink-2": "#c1d8d1",
+    "--ink-3": "#8eaaa2",
+    "--accent-rgb": "99, 201, 171"
   }
 }

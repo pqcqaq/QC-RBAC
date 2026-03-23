@@ -7,10 +7,16 @@ import { defineStore } from 'pinia';
 import { api } from '@/api/client';
 import {
   applySidebarAppearance,
+  applyThemeMode,
   applyThemePreset,
   defaultSidebarAppearance,
+  defaultThemeMode,
   defaultThemePresetId,
+  resolveThemeMode,
+  runThemeTransition,
+  subscribeToSystemThemeChange,
   type SidebarAppearance,
+  type ResolvedThemeMode,
 } from '@/themes';
 import { pageRegistryMap } from '@/meta/pages';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
@@ -19,6 +25,7 @@ import { useMenuStore } from '@/stores/menus';
 export type WorkbenchLayoutMode = UserWorkbenchPreferences['layoutMode'];
 export type PageTransitionMode = UserWorkbenchPreferences['pageTransition'];
 export type CachedTabDisplayMode = UserWorkbenchPreferences['cachedTabDisplayMode'];
+export type ThemeModePreference = UserWorkbenchPreferences['themeMode'];
 export type VisitedTab = WorkbenchVisitedTab;
 
 type WorkbenchSnapshot = UserWorkbenchPreferences & {
@@ -34,9 +41,16 @@ type ApplySnapshotOptions = {
 const STORAGE_KEY = 'rbac-workbench';
 const REMOTE_SYNC_DEBOUNCE_MS = 400;
 let remoteSyncTimer: ReturnType<typeof setTimeout> | null = null;
+let systemThemeCleanup: (() => void) | null = null;
+
+type ThemeApplyOptions = {
+  animate?: boolean;
+  origin?: HTMLElement | null;
+};
 
 const createDefaultPreferences = (): UserWorkbenchPreferences => ({
   themePresetId: defaultThemePresetId,
+  themeMode: defaultThemeMode,
   sidebarAppearance: defaultSidebarAppearance,
   sidebarCollapsed: false,
   layoutMode: 'sidebar',
@@ -81,6 +95,7 @@ const normalizePageStateMap = (value: unknown) => (isRecord(value) ? value : {})
 
 const normalizePreferences = (value?: Partial<UserWorkbenchPreferences> | null): UserWorkbenchPreferences => ({
   themePresetId: typeof value?.themePresetId === 'string' && value.themePresetId ? value.themePresetId : defaultThemePresetId,
+  themeMode: value?.themeMode === 'light' || value?.themeMode === 'dark' ? value.themeMode : defaultThemeMode,
   sidebarAppearance: value?.sidebarAppearance === 'light' ? 'light' : defaultSidebarAppearance,
   sidebarCollapsed: Boolean(value?.sidebarCollapsed),
   layoutMode: value?.layoutMode === 'tabs' ? 'tabs' : 'sidebar',
@@ -192,6 +207,8 @@ export const useWorkbenchStore = defineStore('workbench', {
     initialized: false,
     settingsVisible: false,
     themePresetId: defaultThemePresetId,
+    themeMode: defaultThemeMode as ThemeModePreference,
+    resolvedThemeMode: resolveThemeMode(defaultThemeMode) as ResolvedThemeMode,
     sidebarAppearance: defaultSidebarAppearance as SidebarAppearance,
     sidebarCollapsed: false,
     layoutMode: 'sidebar' as WorkbenchLayoutMode,
@@ -211,6 +228,7 @@ export const useWorkbenchStore = defineStore('workbench', {
     buildPreferences(): UserWorkbenchPreferences {
       return {
         themePresetId: this.themePresetId,
+        themeMode: this.themeMode,
         sidebarAppearance: this.sidebarAppearance,
         sidebarCollapsed: this.sidebarCollapsed,
         layoutMode: this.layoutMode,
@@ -286,11 +304,41 @@ export const useWorkbenchStore = defineStore('workbench', {
     syncCacheFromTabs() {
       this.cachedViewNames = resolveCacheNames(this.visitedTabs);
     },
+    applyTheme(options: ThemeApplyOptions = {}) {
+      const nextResolvedThemeMode = resolveThemeMode(this.themeMode);
+      const apply = () => {
+        this.resolvedThemeMode = nextResolvedThemeMode;
+        applyThemeMode(this.themeMode, nextResolvedThemeMode);
+        applyThemePreset(this.themePresetId, nextResolvedThemeMode);
+        applySidebarAppearance(this.sidebarAppearance);
+      };
+
+      if (options.animate) {
+        void runThemeTransition(apply, options);
+        return;
+      }
+
+      apply();
+    },
+    bindSystemThemeMode() {
+      if (systemThemeCleanup) {
+        return;
+      }
+
+      systemThemeCleanup = subscribeToSystemThemeChange((resolvedMode) => {
+        if (this.themeMode !== 'auto' || this.resolvedThemeMode === resolvedMode) {
+          return;
+        }
+
+        this.applyTheme();
+      });
+    },
     applySnapshot(snapshot: Partial<UserWorkbenchPreferences> | null | undefined, options: ApplySnapshotOptions = {}) {
       const menus = useMenuStore();
       const next = normalizePreferences(snapshot);
 
       this.themePresetId = next.themePresetId;
+      this.themeMode = next.themeMode;
       this.sidebarAppearance = next.sidebarAppearance;
       this.sidebarCollapsed = next.sidebarCollapsed;
       this.layoutMode = next.layoutMode;
@@ -299,8 +347,7 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.visitedTabs = menus.ready ? normalizeVisitedTabs(next.visitedTabs) : next.visitedTabs;
       this.cachedViewNames = resolveCacheNames(this.visitedTabs);
       this.pageStateMap = { ...next.pageStateMap };
-      applyThemePreset(this.themePresetId);
-      applySidebarAppearance(this.sidebarAppearance);
+      this.applyTheme();
 
       if (options.persistLocal !== false) {
         this.persist({ syncRemote: options.syncRemote });
@@ -311,6 +358,7 @@ export const useWorkbenchStore = defineStore('workbench', {
         return;
       }
 
+      this.bindSystemThemeMode();
       const snapshot = safeParse();
       this.localSnapshotOwnerId = snapshot.ownerUserId;
       this.applySnapshot(snapshot, { persistLocal: false, syncRemote: false });
@@ -354,14 +402,19 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.syncCacheFromTabs();
       this.persist();
     },
-    setThemePreset(themePresetId: string) {
+    setThemePreset(themePresetId: string, options: ThemeApplyOptions = {}) {
       this.themePresetId = themePresetId;
-      applyThemePreset(themePresetId);
+      this.applyTheme(options);
+      this.persist();
+    },
+    setThemeMode(themeMode: ThemeModePreference, options: ThemeApplyOptions = {}) {
+      this.themeMode = themeMode;
+      this.applyTheme(options);
       this.persist();
     },
     setSidebarAppearance(sidebarAppearance: SidebarAppearance) {
       this.sidebarAppearance = sidebarAppearance;
-      applySidebarAppearance(sidebarAppearance);
+      this.applyTheme();
       this.persist();
     },
     setSidebarCollapsed(sidebarCollapsed: boolean) {

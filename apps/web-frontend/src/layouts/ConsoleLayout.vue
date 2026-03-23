@@ -82,6 +82,13 @@
                 @change="handleAvatarInputChange"
               >
 
+              <ThemeModeSwitch
+                :model-value="workbench.themeMode"
+                :resolved-mode="workbench.resolvedThemeMode"
+                size="compact"
+                @select="handleThemeModeSelect"
+              />
+
               <button class="header-icon-button" type="button" title="工作台设置" @click="workbench.openSettings">
                 <UnoIcon name="i-carbon-settings" title="工作台设置" :size="18" />
               </button>
@@ -203,7 +210,7 @@
       <el-footer class="admin-shell__footer">
         <div class="content-container">
           <div class="footer-strip">
-            <span>{{ activeTheme?.label ?? '默认主题' }}</span>
+            <span>{{ activeTheme?.label ?? '默认主题' }} · {{ themeModeLabel }}</span>
             <span>{{ workbench.layoutMode === 'sidebar' ? 'Sidebar' : 'Tabs' }} · {{ workbench.visitedTabs.length }} tabs</span>
             <span>{{ footerClock }}</span>
           </div>
@@ -224,7 +231,8 @@ import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
 import MenuTreeNav from '@/components/workbench/MenuTreeNav.vue';
 import WorkbenchSettings from '@/components/workbench/WorkbenchSettings.vue';
 import WorkbenchTabs from '@/components/workbench/WorkbenchTabs.vue';
-import { findThemePreset } from '@/themes';
+import ThemeModeSwitch from '@/components/workbench/ThemeModeSwitch.vue';
+import { findThemePreset, getThemeModeLabel, type ThemeMode } from '@/themes';
 import { uploadAvatarFile } from '@/utils/direct-upload';
 import { getErrorMessage } from '@/utils/errors';
 import { useAuthStore } from '@/stores/auth';
@@ -255,6 +263,13 @@ const pageMeta = computed(() => {
   };
 });
 const activeTheme = computed(() => findThemePreset(workbench.themePresetId));
+const themeModeLabel = computed(() => {
+  if (workbench.themeMode !== 'auto') {
+    return getThemeModeLabel(workbench.themeMode);
+  }
+
+  return `自动·${getThemeModeLabel(workbench.resolvedThemeMode)}`;
+});
 const avatarInputRef = ref<HTMLInputElement | null>(null);
 const userDropdownVisible = ref(false);
 const avatarUploading = ref(false);
@@ -389,6 +404,13 @@ const handleAvatarInputChange = async (event: Event) => {
     avatarUploading.value = false;
     target.value = '';
   }
+};
+
+const handleThemeModeSelect = (payload: { value: ThemeMode; trigger: HTMLElement | null }) => {
+  workbench.setThemeMode(payload.value, {
+    animate: true,
+    origin: payload.trigger,
+  });
 };
 
 watch(

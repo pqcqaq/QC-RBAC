@@ -12,6 +12,7 @@ const workbenchVisitedTabSchema = z.object({
 
 const workbenchPreferencesSchema = z.object({
   themePresetId: z.string().min(1),
+  themeMode: z.enum(['light', 'dark', 'auto']),
   sidebarAppearance: z.enum(['light', 'dark']),
   sidebarCollapsed: z.boolean(),
   layoutMode: z.enum(['sidebar', 'tabs']),

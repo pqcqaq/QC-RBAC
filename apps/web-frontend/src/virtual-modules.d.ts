@@ -3,7 +3,8 @@ declare module 'virtual:admin-theme-presets' {
     id: string;
     label: string;
     description: string;
-    tokens: Record<string, string>;
+    lightTokens: Record<string, string>;
+    darkTokens: Record<string, string>;
   }>;
 
   export default presets;

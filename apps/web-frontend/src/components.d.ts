@@ -59,6 +59,7 @@ declare module 'vue' {
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
     SurfacePanel: typeof import('./components/workbench/SurfacePanel.vue')['default']
+    ThemeModeSwitch: typeof import('./components/workbench/ThemeModeSwitch.vue')['default']
     UnoIcon: typeof import('./components/common/UnoIcon.vue')['default']
     UnoIconPicker: typeof import('./components/common/UnoIconPicker.vue')['default']
     WorkbenchSettings: typeof import('./components/workbench/WorkbenchSettings.vue')['default']

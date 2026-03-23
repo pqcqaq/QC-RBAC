@@ -156,6 +156,7 @@ apps/web-frontend/src
 它维护：
 
 - 主题 preset
+- 全局明暗模式（`light | dark | auto`）
 - 侧边栏样式与收起状态
 - 布局模式
 - 页面切换动画
@@ -174,6 +175,31 @@ apps/web-frontend/src
 - 远端更新通过 debounce 同步，避免频繁请求
 
 这样做的结果是：重新登录后，控制台配置不会丢失。
+
+### 主题系统
+
+主题实现拆在两层：
+
+- `src/themes/presets/*.json`
+  每个预设同时提供 `lightTokens` 和 `darkTokens`
+- `src/themes/index.ts`
+  负责解析当前 preset、计算 `auto` 模式下的实际明暗值、把 token 写入 `document.documentElement`
+
+当前规则：
+
+- `themePresetId` 决定色系
+- `themeMode` 决定亮色、暗色或跟随系统
+- `resolvedThemeMode` 是运行时实际生效的 `light / dark`
+- `sidebarAppearance` 仍然独立控制导航栏是偏亮还是偏暗
+
+切换流程：
+
+- header 和设置抽屉都复用 `src/components/workbench/ThemeModeSwitch.vue`
+- 用户点击切换后，`workbench store` 调 `runThemeTransition(...)`
+- `runThemeTransition(...)` 会写入主题切换动画需要的 CSS 变量和状态，再应用新的 token
+- 当 `themeMode = auto` 时，store 会订阅 `prefers-color-scheme`，系统明暗变化后自动重算并重新应用主题
+
+这个实现的目的不是只改主色，而是让同一个主题预设在亮暗两套表面、文字、边框和阴影语义下都能稳定工作。
 
 ## 页面组织方式
 
@@ -266,7 +292,7 @@ pages/console/<module>
 - 顶部面包屑和用户菜单
 - 页面标题、描述
 - 工作台标签栏
-- 主题和布局切换入口
+- 主题预设、亮暗模式和布局切换入口
 
 页面本身不需要重复实现这些公共结构。
 

@@ -9,15 +9,15 @@
 }
 
 .el-button.is-plain {
-  background: #ffffff;
+  background: var(--button-surface);
 }
 
 .el-input__wrapper,
 .el-select__wrapper,
 .el-textarea__inner,
 .el-segmented {
-  background: #f9fbfd;
-  box-shadow: 0 0 0 1px #dce5ee inset;
+  background: var(--panel-bg-muted);
+  box-shadow: 0 0 0 1px var(--line-strong) inset;
 }
 
 .el-input__wrapper,
@@ -62,11 +62,11 @@
   border: 1px solid var(--line-strong);
   border-radius: var(--radius-md);
   overflow: hidden;
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   --el-table-border-color: var(--line-strong);
-  --el-table-header-bg-color: #f4f7fb;
-  --el-table-tr-bg-color: #ffffff;
-  --el-table-row-hover-bg-color: #f7faff;
+  --el-table-header-bg-color: var(--table-header-bg);
+  --el-table-tr-bg-color: var(--panel-bg-strong);
+  --el-table-row-hover-bg-color: var(--table-row-hover-bg);
 }
 
 .el-table th.el-table__cell {

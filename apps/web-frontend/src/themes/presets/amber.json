@@ -2,7 +2,7 @@
   "id": "amber",
   "label": "琥珀棕",
   "description": "偏财务/合规后台的暖灰风格。",
-  "tokens": {
+  "lightTokens": {
     "--accent": "#9a5b12",
     "--accent-strong": "#6b3e0b",
     "--accent-soft": "#f8efe4",
@@ -16,5 +16,20 @@
     "--ink-2": "#5d4d3d",
     "--ink-3": "#8d7a69",
     "--accent-rgb": "154, 91, 18"
+  },
+  "darkTokens": {
+    "--accent": "#efb061",
+    "--accent-strong": "#cc8e39",
+    "--accent-soft": "#43311f",
+    "--sidebar-bg": "#16110c",
+    "--sidebar-bg-2": "#201812",
+    "--surface-0": "#201813",
+    "--surface-1": "#291f18",
+    "--surface-2": "#33271e",
+    "--surface-3": "#574232",
+    "--ink-1": "#fbf2e7",
+    "--ink-2": "#dbc8b3",
+    "--ink-3": "#a8947f",
+    "--accent-rgb": "239, 176, 97"
   }
 }

@@ -20,7 +20,7 @@
   padding: 8px 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.82);
+  background: var(--panel-elevated);
   box-shadow: var(--shadow-panel);
 }
 
@@ -48,7 +48,7 @@
   right: 0;
   bottom: 0;
   height: 1px;
-  background: color-mix(in srgb, var(--line-soft) 92%, white);
+  background: color-mix(in srgb, var(--line-soft) 92%, var(--surface-0));
 }
 
 .workbench-tabs__scroll {
@@ -87,7 +87,7 @@
   padding: 7px 10px;
   border: 1px solid transparent;
   border-radius: var(--radius-md);
-  background: rgba(255, 255, 255, 0.62);
+  background: color-mix(in srgb, var(--surface-0) 72%, transparent);
   color: var(--ink-2);
   transition: all 0.18s ease;
 }
@@ -95,7 +95,7 @@
 .workbench-tabs__inner.is-embedded .workbench-tab {
   padding: 7px 9px;
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.68);
+  background: color-mix(in srgb, var(--surface-0) 74%, transparent);
 }
 
 .workbench-tab.is-style-browser {
@@ -122,8 +122,12 @@
   position: absolute;
   inset: 0 1px 0;
   border-radius: 12px 12px 0 0;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.54) 0%, rgba(243, 246, 250, 0.8) 100%);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.18);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-0) 78%, transparent) 0%,
+    color-mix(in srgb, var(--surface-1) 88%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-strong) 68%, transparent);
   z-index: -1;
 }
 
@@ -138,13 +142,13 @@
   top: 8px;
   bottom: 8px;
   width: 1px;
-  background: color-mix(in srgb, var(--line-soft) 88%, white);
+  background: color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .workbench-tab:hover,
 .workbench-tab.is-active {
   border-color: color-mix(in srgb, var(--accent) 20%, var(--line-strong));
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   color: var(--ink-1);
   box-shadow: var(--shadow-panel);
 }
@@ -157,8 +161,12 @@
 }
 
 .workbench-tab.is-style-browser:hover::before {
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.7) 0%, rgba(247, 249, 252, 0.92) 100%);
-  box-shadow: inset 0 0 0 1px rgba(148, 163, 184, 0.2);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-0) 88%, transparent) 0%,
+    color-mix(in srgb, var(--surface-1) 94%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-strong) 74%, transparent);
 }
 
 .workbench-tab.is-style-browser.is-active {
@@ -167,8 +175,12 @@
 
 .workbench-tab.is-style-browser.is-active::before {
   inset: 0 0 -1px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(252, 253, 255, 0.98) 100%);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 94%, white);
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-0) 98%, transparent) 0%,
+    color-mix(in srgb, var(--surface-1) 98%, transparent) 100%
+  );
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 94%, var(--surface-0));
 }
 
 .workbench-tab.is-style-browser.is-active::after {
@@ -178,7 +190,7 @@
   right: 10px;
   bottom: -1px;
   height: 2px;
-  background: rgba(255, 255, 255, 0.98);
+  background: color-mix(in srgb, var(--surface-0) 98%, transparent);
 }
 
 .workbench-tab__icon {
@@ -246,7 +258,7 @@
   height: 32px;
   border: 1px solid var(--line-soft);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--button-surface);
   color: var(--ink-2);
   cursor: pointer;
   transition: transform 0.18s ease, border-color 0.18s ease, color 0.18s ease, background 0.18s ease;
@@ -272,18 +284,18 @@
 .workbench-tabs__action:hover {
   transform: translateY(-1px);
   border-color: color-mix(in srgb, var(--accent) 22%, var(--line-strong));
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   color: var(--accent-strong);
 }
 
 .workbench-tabs__action:disabled:hover {
   border-color: var(--line-soft);
-  background: rgba(255, 255, 255, 0.78);
+  background: var(--button-surface);
   color: var(--ink-2);
 }
 
 .workbench-tabs__inner.is-embedded .workbench-tabs__action {
-  background: rgba(255, 255, 255, 0.58);
+  background: color-mix(in srgb, var(--surface-0) 68%, transparent);
 }
 
 .settings-panel {
@@ -354,7 +366,7 @@
   padding: 10px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   text-align: left;
   color: inherit;
   cursor: pointer;
@@ -388,89 +400,89 @@
 
 .settings-mode-card__preview.is-dark span:nth-child(1) {
   width: 58%;
-  background: rgba(255, 255, 255, 0.92);
+  background: color-mix(in srgb, var(--ink-1) 92%, transparent);
 }
 
 .settings-mode-card__preview.is-dark span:nth-child(2) {
   width: 82%;
-  background: rgba(255, 255, 255, 0.16);
+  background: color-mix(in srgb, var(--ink-1) 16%, transparent);
 }
 
 .settings-mode-card__preview.is-dark span:nth-child(3) {
   width: 68%;
-  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.46), rgba(255, 255, 255, 0.18));
+  background: linear-gradient(90deg, rgba(var(--accent-rgb), 0.46), color-mix(in srgb, var(--ink-1) 18%, transparent));
 }
 
 .settings-mode-card__preview.is-light {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, white 96%, var(--surface-1)) 0%,
-    color-mix(in srgb, white 80%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--surface-0) 96%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 80%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 86%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 86%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-light span:nth-child(1) {
   width: 58%;
-  background: color-mix(in srgb, var(--ink-1) 88%, white);
+  background: color-mix(in srgb, var(--ink-1) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-light span:nth-child(2) {
   width: 82%;
-  background: color-mix(in srgb, var(--ink-3) 32%, white);
+  background: color-mix(in srgb, var(--ink-3) 32%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-light span:nth-child(3) {
   width: 68%;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 24%, white),
-    color-mix(in srgb, var(--accent) 10%, white)
+    color-mix(in srgb, var(--accent) 24%, var(--surface-0)),
+    color-mix(in srgb, var(--accent) 10%, var(--surface-0))
   );
 }
 
 .settings-mode-card__preview.is-transition-none {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, white 94%, var(--surface-1)) 0%,
-    color-mix(in srgb, white 84%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--surface-0) 94%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 84%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-none span:nth-child(1) {
   width: 54%;
-  background: color-mix(in srgb, var(--ink-1) 84%, white);
+  background: color-mix(in srgb, var(--ink-1) 84%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-none span:nth-child(2) {
   width: 80%;
-  background: color-mix(in srgb, var(--ink-3) 20%, white);
+  background: color-mix(in srgb, var(--ink-3) 20%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-none span:nth-child(3) {
   width: 68%;
-  background: color-mix(in srgb, var(--accent) 18%, white);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-fade {
   background: radial-gradient(circle at top right, rgba(var(--accent-rgb), 0.16), transparent 46%),
     linear-gradient(
       180deg,
-      color-mix(in srgb, white 96%, var(--surface-1)) 0%,
-      color-mix(in srgb, white 82%, var(--surface-2)) 100%
+      color-mix(in srgb, var(--surface-0) 96%, var(--surface-1)) 0%,
+      color-mix(in srgb, var(--surface-0) 82%, var(--surface-2)) 100%
     );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 86%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 86%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-fade span:nth-child(1) {
   width: 54%;
-  background: color-mix(in srgb, var(--ink-1) 86%, white);
+  background: color-mix(in srgb, var(--ink-1) 86%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-fade span:nth-child(2) {
   width: 80%;
-  background: color-mix(in srgb, var(--ink-3) 16%, white);
+  background: color-mix(in srgb, var(--ink-3) 16%, var(--surface-0));
   opacity: 0.55;
 }
 
@@ -478,8 +490,8 @@
   width: 68%;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 28%, white),
-    color-mix(in srgb, var(--accent) 8%, white)
+    color-mix(in srgb, var(--accent) 28%, var(--surface-0)),
+    color-mix(in srgb, var(--accent) 8%, var(--surface-0))
   );
   opacity: 0.78;
 }
@@ -488,21 +500,21 @@
   overflow: hidden;
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--accent) 8%, white) 0%,
-    color-mix(in srgb, white 86%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--accent) 8%, var(--surface-0)) 0%,
+    color-mix(in srgb, var(--surface-0) 86%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-transition-slide span:nth-child(1) {
   width: 58%;
-  background: color-mix(in srgb, var(--ink-1) 86%, white);
+  background: color-mix(in srgb, var(--ink-1) 86%, var(--surface-0));
   transform: translateX(0);
 }
 
 .settings-mode-card__preview.is-transition-slide span:nth-child(2) {
   width: 80%;
-  background: color-mix(in srgb, var(--ink-3) 22%, white);
+  background: color-mix(in srgb, var(--ink-3) 22%, var(--surface-0));
   transform: translateX(10px);
 }
 
@@ -510,8 +522,8 @@
   width: 70%;
   background: linear-gradient(
     90deg,
-    color-mix(in srgb, var(--accent) 32%, white),
-    color-mix(in srgb, var(--accent) 10%, white)
+    color-mix(in srgb, var(--accent) 32%, var(--surface-0)),
+    color-mix(in srgb, var(--accent) 10%, var(--surface-0))
   );
   transform: translateX(18px);
 }
@@ -519,17 +531,17 @@
 .settings-mode-card__preview.is-tabs-hidden {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, white 96%, var(--surface-1)) 0%,
-    color-mix(in srgb, white 84%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--surface-0) 96%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 84%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-hidden span:nth-child(1) {
   width: 100%;
   height: 26px;
   border-radius: 12px;
-  background: color-mix(in srgb, var(--ink-3) 14%, white);
+  background: color-mix(in srgb, var(--ink-3) 14%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-hidden span:nth-child(2),
@@ -542,10 +554,10 @@
 .settings-mode-card__preview.is-tabs-classic {
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, white 96%, var(--surface-1)) 0%,
-    color-mix(in srgb, white 82%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--surface-0) 96%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 82%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-classic span:nth-child(1),
@@ -557,27 +569,27 @@
 
 .settings-mode-card__preview.is-tabs-classic span:nth-child(1) {
   width: 46%;
-  background: color-mix(in srgb, var(--accent) 18%, white);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-classic span:nth-child(2) {
   width: 58%;
-  background: color-mix(in srgb, var(--ink-3) 14%, white);
+  background: color-mix(in srgb, var(--ink-3) 14%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-classic span:nth-child(3) {
   width: 42%;
-  background: color-mix(in srgb, var(--ink-3) 14%, white);
+  background: color-mix(in srgb, var(--ink-3) 14%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-browser {
   align-content: end;
   background: linear-gradient(
     180deg,
-    color-mix(in srgb, white 96%, var(--surface-1)) 0%,
-    color-mix(in srgb, white 82%, var(--surface-2)) 100%
+    color-mix(in srgb, var(--surface-0) 96%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 82%, var(--surface-2)) 100%
   );
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, white);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--line-soft) 88%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-browser span:nth-child(1),
@@ -589,17 +601,17 @@
 
 .settings-mode-card__preview.is-tabs-browser span:nth-child(1) {
   width: 44%;
-  background: color-mix(in srgb, var(--ink-3) 12%, white);
+  background: color-mix(in srgb, var(--ink-3) 12%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-browser span:nth-child(2) {
   width: 54%;
-  background: color-mix(in srgb, var(--accent) 18%, white);
+  background: color-mix(in srgb, var(--accent) 18%, var(--surface-0));
 }
 
 .settings-mode-card__preview.is-tabs-browser span:nth-child(3) {
   width: 38%;
-  background: color-mix(in srgb, var(--ink-3) 12%, white);
+  background: color-mix(in srgb, var(--ink-3) 12%, var(--surface-0));
 }
 
 .settings-mode-card strong {
@@ -624,7 +636,7 @@
   padding: 10px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  background: #ffffff;
+  background: var(--panel-bg-strong);
   text-align: left;
   color: inherit;
   cursor: pointer;
@@ -639,15 +651,39 @@
 }
 
 .theme-preset-card__swatches {
+  display: grid;
+  gap: 8px;
+}
+
+.theme-preset-card__mode {
+  display: grid;
+  gap: 6px;
+}
+
+.theme-preset-card__mode small {
+  color: var(--ink-3);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.theme-preset-card__mode-swatches {
   display: flex;
   gap: 6px;
 }
 
+.theme-preset-card__mode.is-dark .theme-preset-card__mode-swatches {
+  padding: 6px;
+  border-radius: 10px;
+  background: linear-gradient(180deg, var(--sidebar-bg) 0%, var(--sidebar-bg-2) 100%);
+}
+
 .theme-preset-card__swatches span {
-  width: 30px;
-  height: 30px;
+  width: 24px;
+  height: 24px;
   border-radius: 8px;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  border: 1px solid color-mix(in srgb, var(--line-soft) 88%, transparent);
 }
 
 .theme-preset-card strong {
@@ -666,7 +702,7 @@
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.9);
+  background: var(--surface-overlay);
   box-shadow: var(--shadow-panel);
 }
 
@@ -697,7 +733,7 @@
   padding: 12px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+  background: linear-gradient(180deg, var(--panel-bg-strong) 0%, var(--panel-bg-muted) 100%);
 }
 
 .page-scaffold__stat span {

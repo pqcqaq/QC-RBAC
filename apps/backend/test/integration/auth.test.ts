@@ -192,6 +192,7 @@ describe('Auth integration', () => {
     const preferencesPayload = {
       workbench: {
         themePresetId: 'graphite',
+        themeMode: 'dark',
         sidebarAppearance: 'light',
         sidebarCollapsed: true,
         layoutMode: 'tabs',

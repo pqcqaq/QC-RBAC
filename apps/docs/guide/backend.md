@@ -248,6 +248,7 @@ apps/backend
 - `/api/auth/preferences` 持久化到 `User.preferences`
 - `/api/auth/me` 返回 `preferences`
 - Web 工作台在登录、刷新、重新进入时都会从这里恢复配置
+- 当前持久化字段已包含 `themePresetId`、`themeMode(light/dark/auto)`、侧栏风格、布局、切换动画、缓存标签和页面状态
 
 ## RBAC 与菜单
 

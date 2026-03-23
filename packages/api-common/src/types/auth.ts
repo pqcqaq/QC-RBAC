@@ -114,6 +114,7 @@ export interface PermissionSummary {
 export type PaginatedRoleSummaries = PaginatedResult<RoleSummary>;
 export type PaginatedPermissionSummaries = PaginatedResult<PermissionSummary>;
 
+export type WorkbenchThemeMode = 'light' | 'dark' | 'auto';
 export type WorkbenchSidebarAppearance = 'light' | 'dark';
 export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
 export type WorkbenchPageTransitionMode = 'none' | 'fade' | 'slide';
@@ -130,6 +131,7 @@ export interface WorkbenchVisitedTab {
 
 export interface UserWorkbenchPreferences {
   themePresetId: string;
+  themeMode: WorkbenchThemeMode;
   sidebarAppearance: WorkbenchSidebarAppearance;
   sidebarCollapsed: boolean;
   layoutMode: WorkbenchLayoutMode;

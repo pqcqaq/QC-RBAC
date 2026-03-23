@@ -89,13 +89,13 @@ strong {
 }
 
 .permission-tag {
-  background: color-mix(in srgb, var(--accent) 10%, white);
-  color: color-mix(in srgb, var(--accent) 78%, #0f1822);
+  background: color-mix(in srgb, var(--accent) 16%, var(--surface-0));
+  color: color-mix(in srgb, var(--accent) 78%, var(--ink-1));
 }
 
 .role-pill {
-  background: #eff3f7;
-  color: #36495a;
+  background: color-mix(in srgb, var(--surface-2) 88%, var(--surface-0));
+  color: color-mix(in srgb, var(--ink-2) 88%, var(--surface-0));
 }
 
 .role-pill--dark {
@@ -215,8 +215,8 @@ strong {
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  background: #f7fafc;
-  color: #173240;
+  background: color-mix(in srgb, var(--surface-1) 92%, var(--surface-0));
+  color: color-mix(in srgb, var(--ink-1) 92%, var(--surface-0));
   font-family: 'Cascadia Code', 'Consolas', monospace;
   font-size: 12px;
   line-height: 1.6;
