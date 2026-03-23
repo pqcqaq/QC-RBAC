@@ -25,6 +25,64 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 - 心跳保活
 - 指数退避重连
 
+## 本次改造总览
+
+这次改造不是单纯把 `socket.io` 替换成 `WebSocket`，而是把项目后续会持续依赖的 realtime 基础设施一起补齐了。
+
+### 1. 协议层统一成标准 WebSocket
+
+- 前后端不再依赖 `socket.io` 协议，统一改成浏览器、Node、uni 都能直接使用的标准 `WebSocket`
+- 共享层补齐了 `ready`、`message`、`sub:ack`、`unsub:ack`、`ping`、`pong`、`error` 这些协议消息
+- 订阅和取消订阅都要求服务端回 ack，前端再据此同步本地 topic 状态，避免“我以为订阅成功，但服务端没记住”的漂移
+
+### 2. 后端补齐连接关联和分发索引
+
+- hub 现在会同时记录连接、用户、客户端和 topic 的关联关系
+- 同一个用户下的多个客户端、同一个客户端下的多个连接都能被识别和归组
+- 后端提供统一分发入口，业务侧只需要按 topic 发布消息，不需要自己管理连接列表
+
+### 3. 共享层补齐跨平台 client manager
+
+- `api-common` 提供统一的 `wsClient` 抽象，而不是让 Web、Uni 各写一套 websocket 管理逻辑
+- 平台差异通过 adaptor 处理：Web 用浏览器原生 `WebSocket`，Uni 用 `uni.connectSocket`
+- client manager 负责自动连接、自动断开、topic 去重、topic 重放、状态监听和 handler 分发
+
+### 4. 订阅模型改成 topic + 通配匹配
+
+- 前后端统一采用类似 MQTT 的 topic 模型
+- 支持精确匹配、`+` 单层通配和 `#` 多层通配
+- 这样后续要做按用户、按业务域、按资源层级推送时，不需要每次重新设计协议
+
+### 5. 心跳、断线恢复和资源回收内建
+
+- 后端定时 `ping`，超时无活动连接会主动关闭
+- 客户端自动 `pong`，并在超时或非致命断开后走指数退避重连
+- 当本地已经没有任何期望 topic 时，客户端会主动断开，避免无意义长连占用
+
+### 6. 前端使用方式收敛到 hook 和全局同步器
+
+- 组件级监听统一走 `useWsTopic(...)`
+- 页面不再直接管理 websocket 生命周期，也不再自己写心跳和重连
+- Web 控制台额外接入了 `admin-sync`，登录后自动监听当前用户自己的权限更新 topic
+
+### 7. 管理后台的权限 / 菜单实时同步已经落地
+
+- 权限、角色、用户、菜单相关写操作现在都会在后端触发 realtime 推送
+- 推送 payload 带 `RbacUpdatedPayload.targets`，用于声明本次前端到底该刷新 `auth.me()`、`menus.current()`，还是两者都刷新
+- Web admin 收到连续多条消息时会先做短暂合并，再执行一次收敛刷新，避免请求风暴
+
+### 8. 推送算法做了在线用户筛选，避免粗暴广播
+
+- 权限变更只通知真正受影响且当前在线的用户
+- 菜单变更会根据菜单树和权限受众推导受影响用户，再和当前在线连接求交集
+- 菜单改动不会顺手做不必要的权限缓存失效，权限改动才会触发对应的 cache invalidate
+
+### 9. 测试和文档同步补齐
+
+- framework 测试覆盖 topic matcher、shared client、心跳和重连
+- integration 测试覆盖同用户多客户端归组、订阅 ack、定向 RBAC 推送、菜单受众推送
+- docs 已同步补齐协议、API、平台接入、Web admin 实时同步和测试说明
+
 ## 分层结构
 
 <MermaidDiagram

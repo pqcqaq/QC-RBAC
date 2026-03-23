@@ -114,6 +114,14 @@ REALTIME_TOPICS.userRbacUpdated(userId)
 
 这样菜单改动、角色改动、权限收缩后，控制台能在当前会话里实时收敛，而不会造成明显的重复请求放大。
 
+这部分也是本次 websocket 改造在 Web admin 里的默认落地点。现在控制台已经具备：
+
+- 基于共享 `wsClient` 的自动连接和自动断开
+- 基于共享协议的 `sub / unsub` ack 同步
+- 基础层统一处理的心跳和指数退避重连
+- 基于 `useWsTopic(...)` 的页面级 topic 监听
+- 基于 `admin-sync` 的用户权限、角色、菜单实时收敛刷新
+
 ### 登录态时序
 
 <MermaidDiagram
