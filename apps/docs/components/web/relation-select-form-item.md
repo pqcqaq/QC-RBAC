@@ -22,6 +22,12 @@ description: Web 表单里的关联选择组件，适合外键和多对多关系
 
 搜索区和每一行的渲染都通过插槽交给业务页面。
 
+默认触发区已经内置成一体化选择控件：
+
+- 主区负责打开选择弹窗
+- 右侧清空操作内嵌在同一个控件里
+- 不再渲染分裂的独立清空链接按钮
+
 ## 对应源码
 
 - `apps/web-frontend/src/components/form/RelationSelectFormItem.vue`
@@ -126,12 +132,12 @@ type RelationSelectRequest = (
 | `requestParams` | `QueryParams` | `{}` | 固定透传给请求函数的参数 |
 | `searchDefaults` | `Record<string, string \| number \| null \| undefined>` | `{}` | 搜索表单初始值和重置值 |
 | `dialogTitle` | `string` | `选择${label}` | 弹窗标题 |
-| `triggerText` | `string` | `''` | 触发按钮文本 |
+| `triggerText` | `string` | `''` | 默认触发区主标题，为空时回退为 `选择${label}` |
 | `emptyText` | `string` | `暂无可选项` | 空状态文案 |
 | `dialogWidth` | `string \| number` | `'880px'` | 弹窗宽度 |
 | `pageSize` | `number` | `10` | 每页数量 |
 | `multiple` | `boolean` | `false` | 是否多选 |
-| `allowClear` | `boolean` | `true` | 是否显示清空按钮 |
+| `allowClear` | `boolean` | `true` | 默认触发区是否显示右侧内嵌清空操作 |
 | `showSelectedPreview` | `boolean` | `true` | 是否显示已选标签预览 |
 | `previewTagLimit` | `number` | `3` | 标签预览数量 |
 | `layout` | `'list' \| 'card'` | `'list'` | 行布局样式 |
@@ -145,7 +151,9 @@ type RelationSelectRequest = (
 
 ### `trigger`
 
-默认是一个按钮。需要自定义触发区时使用。
+默认是一个一体化选择控件，左侧打开弹窗，右侧在有值时显示内嵌清空操作。需要自定义触发区时使用。
+
+自定义 `trigger` 后，组件不会再渲染默认触发区和内置清空段。如果你仍然需要清空能力，直接调用插槽参数里的 `clear`。
 
 插槽参数：
 
@@ -193,7 +201,7 @@ type RelationSelectRequest = (
 
 - 单选时，点击某一行会立即回填并关闭弹窗。
 - 多选时，点击只更新暂存选择，点击“确定”后统一回填。
-- 点击“清空”会回填 `null` 或 `[]`。
+- 点击默认触发区右侧的内嵌清空操作，或在自定义 `trigger` 中调用 `clear`，都会回填 `null` 或 `[]`。
 
 ## 行数据约定
 

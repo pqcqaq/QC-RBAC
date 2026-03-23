@@ -10,20 +10,60 @@
         :selection-text="selectionText"
         :disabled="disabled"
       >
-        <el-button :disabled="disabled" @click="openDialog">
-          {{ selectionText }}
-        </el-button>
-      </slot>
+        <div
+          class="relation-select-form-item__trigger-control"
+          :class="{
+            'relation-select-form-item__trigger-control--active': hasSelection,
+            'relation-select-form-item__trigger-control--disabled': disabled,
+          }"
+          role="group"
+          :aria-disabled="disabled ? 'true' : 'false'"
+        >
+          <button
+            type="button"
+            class="relation-select-form-item__trigger-main"
+            :disabled="disabled"
+            @click="openDialog"
+          >
+            <span class="relation-select-form-item__trigger-copy">
+              <span class="relation-select-form-item__trigger-title">
+                {{ defaultTriggerTitle }}
+              </span>
+              <span class="relation-select-form-item__trigger-description">
+                {{ defaultTriggerDescription }}
+              </span>
+            </span>
 
-      <el-button
-        v-if="allowClear && hasSelection"
-        link
-        type="primary"
-        :disabled="disabled"
-        @click="clearSelection"
-      >
-        清空
-      </el-button>
+            <span class="relation-select-form-item__trigger-meta">
+              <span
+                v-if="defaultTriggerBadgeText"
+                class="relation-select-form-item__trigger-badge"
+              >
+                {{ defaultTriggerBadgeText }}
+              </span>
+              <span
+                class="relation-select-form-item__trigger-arrow"
+                aria-hidden="true"
+              />
+            </span>
+          </button>
+
+          <button
+            v-if="showClearAction"
+            type="button"
+            class="relation-select-form-item__trigger-clear"
+            :disabled="disabled"
+            :title="clearButtonTitle"
+            :aria-label="clearButtonTitle"
+            @click.stop="clearSelection"
+          >
+            <span
+              class="relation-select-form-item__trigger-clear-icon"
+              aria-hidden="true"
+            />
+          </button>
+        </div>
+      </slot>
     </div>
 
     <div
@@ -239,6 +279,7 @@ const selectedRows = computed(() =>
     .map((id) => selectedRowMap.value.get(id))
     .filter((row): row is RelationSelectRow => Boolean(row)),
 );
+const showClearAction = computed(() => props.allowClear && hasSelection.value);
 const hasSearchSlot = computed(() => Boolean(slots.search));
 const resolvedDialogTitle = computed(() => props.dialogTitle ?? `选择${props.label}`);
 const selectionText = computed(() => {
@@ -256,6 +297,36 @@ const selectionText = computed(() => {
 
   return `已选 ${selectedCount.value} 项`;
 });
+const defaultTriggerTitle = computed(() => {
+  if (!selectedCount.value) {
+    return props.triggerText || `选择${props.label}`;
+  }
+
+  if (!props.multiple && selectedRows.value.length === 1) {
+    return resolveRowLabel(selectedRows.value[0]);
+  }
+
+  return props.triggerText || `已选择 ${selectedCount.value} 项`;
+});
+const defaultTriggerDescription = computed(() => {
+  if (!selectedCount.value) {
+    return props.multiple ? '支持分页搜索与多项选择' : '点击打开后选择关联项';
+  }
+
+  return props.multiple
+    ? `当前已选 ${selectedCount.value} 项，可继续调整`
+    : '当前已选择，点击后可重新指定';
+});
+const defaultTriggerBadgeText = computed(() => {
+  if (!selectedCount.value) {
+    return '';
+  }
+
+  return props.multiple ? `${selectedCount.value}` : '已选';
+});
+const clearButtonTitle = computed(() =>
+  props.multiple ? `清空已选 ${selectedCount.value} 项` : '清空当前选择',
+);
 const stagedSelectionText = computed(() => {
   if (!stagedSelection.value.length) {
     return '当前未选择';
@@ -471,8 +542,186 @@ watch(
 .relation-select-form-item__trigger-row {
   display: flex;
   align-items: center;
+  width: 100%;
+}
+
+.relation-select-form-item__trigger-control {
+  display: flex;
+  align-items: stretch;
+  width: min(100%, 460px);
+  border: 1px solid var(--line-soft);
+  border-radius: 18px;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, white 90%, var(--accent) 4%),
+    var(--surface-1)
+  );
+  box-shadow:
+    0 12px 30px rgba(11, 26, 41, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  overflow: hidden;
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.relation-select-form-item__trigger-control:hover:not(
+    .relation-select-form-item__trigger-control--disabled
+  ) {
+  border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong));
+  box-shadow:
+    0 16px 34px rgba(11, 26, 41, 0.08),
+    0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
+  transform: translateY(-1px);
+}
+
+.relation-select-form-item__trigger-control:focus-within {
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  box-shadow:
+    0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
+    0 16px 32px rgba(11, 26, 41, 0.08);
+}
+
+.relation-select-form-item__trigger-control--active {
+  border-color: color-mix(in srgb, var(--accent) 24%, var(--line-strong));
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, white 86%, var(--accent) 8%),
+    color-mix(in srgb, var(--surface-1) 96%, var(--accent) 4%)
+  );
+}
+
+.relation-select-form-item__trigger-control--disabled {
+  opacity: 0.62;
+  box-shadow: none;
+  transform: none;
+}
+
+.relation-select-form-item__trigger-main {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+  flex: 1;
+  padding: 13px 16px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.relation-select-form-item__trigger-main:disabled {
+  cursor: not-allowed;
+}
+
+.relation-select-form-item__trigger-copy {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.relation-select-form-item__trigger-title {
+  display: block;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.relation-select-form-item__trigger-description {
+  display: block;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.relation-select-form-item__trigger-meta {
+  display: inline-flex;
+  align-items: center;
   gap: 10px;
-  flex-wrap: wrap;
+  flex: 0 0 auto;
+}
+
+.relation-select-form-item__trigger-badge {
+  min-width: 38px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  color: color-mix(in srgb, var(--accent) 78%, #0f1822);
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  text-align: center;
+}
+
+.relation-select-form-item__trigger-arrow {
+  width: 9px;
+  height: 9px;
+  margin-right: 2px;
+  border-top: 1.5px solid var(--ink-3);
+  border-right: 1.5px solid var(--ink-3);
+  transform: rotate(45deg);
+  opacity: 0.7;
+}
+
+.relation-select-form-item__trigger-clear {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 52px;
+  padding: 0;
+  border: 0;
+  border-left: 1px solid color-mix(in srgb, var(--line-soft) 82%, var(--accent) 12%);
+  background: color-mix(in srgb, var(--surface-1) 84%, var(--accent) 10%);
+  color: var(--ink-3);
+  cursor: pointer;
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease;
+}
+
+.relation-select-form-item__trigger-clear:hover:not(:disabled) {
+  background: color-mix(in srgb, #ff6b57 10%, white);
+  color: #d1432f;
+}
+
+.relation-select-form-item__trigger-clear:disabled {
+  cursor: not-allowed;
+}
+
+.relation-select-form-item__trigger-clear-icon {
+  position: relative;
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+}
+
+.relation-select-form-item__trigger-clear-icon::before,
+.relation-select-form-item__trigger-clear-icon::after {
+  content: '';
+  position: absolute;
+  top: 6px;
+  left: 0;
+  width: 14px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.relation-select-form-item__trigger-clear-icon::before {
+  transform: rotate(45deg);
+}
+
+.relation-select-form-item__trigger-clear-icon::after {
+  transform: rotate(-45deg);
 }
 
 .relation-select-form-item__preview {
@@ -617,6 +866,12 @@ watch(
 
   .relation-select-dialog__options--card {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .relation-select-form-item__trigger-control {
+    width: 100%;
   }
 }
 </style>
