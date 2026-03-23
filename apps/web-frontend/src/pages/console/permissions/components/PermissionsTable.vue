@@ -28,8 +28,8 @@
           <el-table-column prop="action" label="动作" width="120" />
           <el-table-column label="来源" width="120">
             <template #default="{ row }">
-              <el-tag :type="isSeedPermission(row.code) ? 'warning' : 'info'" effect="light" round>
-                {{ isSeedPermission(row.code) ? '系统种子' : '自定义' }}
+              <el-tag :type="row.isSystem ? 'warning' : 'info'" effect="light" round>
+                {{ row.isSystem ? '系统种子' : '自定义' }}
               </el-tag>
             </template>
           </el-table-column>
@@ -45,7 +45,7 @@
                 <el-button link @click="emit('detail', row)">详情</el-button>
                 <el-button v-permission="'permission.update'" link @click="emit('edit', row)">编辑</el-button>
                 <el-button
-                  v-if="!isSeedPermission(row.code)"
+                  v-if="!row.isSystem"
                   v-permission="'permission.delete'"
                   link
                   type="danger"
@@ -87,7 +87,6 @@ const props = defineProps<{
   page: number;
   pageSize: number;
   contextMenuItems: ContextMenuItem<PermissionRecord>[];
-  isSeedPermission: (code: string) => boolean;
 }>();
 
 const emit = defineEmits<{

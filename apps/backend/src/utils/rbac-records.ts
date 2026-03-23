@@ -44,7 +44,7 @@ export const roleWithPermissionSummaryInclude = {
 
 type PermissionSummaryInput = Pick<
   Permission,
-  'id' | 'code' | 'name' | 'module' | 'action' | 'description'
+  'id' | 'code' | 'name' | 'module' | 'action' | 'description' | 'isSystem'
 >;
 
 type PermissionRecordInput = PermissionSummaryInput & Pick<Permission, 'createdAt' | 'updatedAt'>;
@@ -69,6 +69,7 @@ export const toPermissionSummary = (permission: PermissionSummaryInput): Permiss
   module: permission.module,
   action: permission.action,
   description: permission.description ?? undefined,
+  isSystem: permission.isSystem,
 });
 
 export const toPermissionRecord = (permission: PermissionRecordInput): PermissionRecord => ({

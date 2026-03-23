@@ -21,7 +21,6 @@ tmp-unibest
 apps/backend/prisma/dev.db
 apps/backend/prisma/dev.db-journal
 apps/backend/prisma/generated
-apps/backend/prisma/migrations
 apps/web-frontend/.vite
 apps/app-frontend/dist
 *.tsbuildinfo

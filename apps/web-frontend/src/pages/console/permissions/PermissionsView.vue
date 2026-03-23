@@ -25,7 +25,6 @@
       :page="pageState.page"
       :page-size="pageSize"
       :context-menu-items="permissionContextMenuItems"
-      :is-seed-permission="isSeedPermission"
       @detail="openDetail"
       @edit="openEdit"
       @delete="removePermission"
@@ -43,7 +42,6 @@
     <PermissionDetailDrawer
       v-model:visible="detailVisible"
       :permission="detailPermission"
-      :is-seed-permission="isSeedPermission"
     />
   </PageScaffold>
 </template>
@@ -51,7 +49,6 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import { permissionCatalog } from '@rbac/api-common';
 import type { PermissionFormPayload, PermissionRecord } from '@rbac/api-common';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 import PermissionEditorDialog from '@/components/permissions/PermissionEditorDialog.vue';
@@ -117,7 +114,7 @@ const createEmptyForm = (): PermissionEditorForm => ({
 
 const canEdit = computed(() => auth.hasPermission('permission.update'));
 const canDelete = computed(() => auth.hasPermission('permission.delete'));
-const seedCount = computed(() => permissions.value.filter((item) => isSeedPermission(item.code)).length);
+const seedCount = computed(() => permissions.value.filter((item) => item.isSystem).length);
 const customCount = computed(() => permissions.value.length - seedCount.value);
 
 const stats = computed(() => [
@@ -126,8 +123,6 @@ const stats = computed(() => [
   { label: '当前页自定义', value: customCount.value },
   { label: '模块目录', value: moduleOptions.value.length },
 ]);
-
-const isSeedPermission = (code: string) => permissionCatalog.some((item) => item.code === code);
 
 const buildFilterParams = () => ({
   q: pageState.filters.q || undefined,
@@ -222,7 +217,7 @@ const {
     seedPermissionLocked.value = false;
   },
   afterOpenEdit: (row) => {
-    seedPermissionLocked.value = isSeedPermission(row.code);
+    seedPermissionLocked.value = row.isSystem;
   },
   afterSaved: refreshPageData,
   messages: {
@@ -271,7 +266,7 @@ const permissionContextMenuItems = [
   {
     key: 'delete',
     label: '删除权限',
-    hidden: (row) => !canDelete.value || isSeedPermission(row.code),
+    hidden: (row) => !canDelete.value || row.isSystem,
     danger: true,
     onSelect: (row) => removePermission(row),
   },

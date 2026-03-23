@@ -1,4 +1,11 @@
-export const permissionCatalog = [
+export type SystemPermissionSeed = {
+  module: string;
+  code: string;
+  name: string;
+  action: string;
+};
+
+export const systemPermissionCatalog: readonly SystemPermissionSeed[] = [
   { module: 'dashboard', code: 'dashboard.view', name: '查看仪表盘', action: 'read' },
   { module: 'audit', code: 'audit.read', name: '查看审计日志', action: 'read' },
   { module: 'menu', code: 'menu.read', name: '查看菜单管理', action: 'read' },
@@ -40,15 +47,3 @@ export const permissionCatalog = [
   { module: 'realtime', code: 'realtime.read', name: '查看实时频道', action: 'read' },
   { module: 'realtime', code: 'realtime.send', name: '发送实时消息', action: 'create' },
 ] as const;
-
-export type PermissionCode = (typeof permissionCatalog)[number]['code'];
-
-export const permissionsByModule = permissionCatalog.reduce<Record<string, Array<(typeof permissionCatalog)[number]>>>(
-  (grouped, permission) => {
-    grouped[permission.module] ??= [];
-    grouped[permission.module].push(permission);
-    return grouped;
-  },
-  {},
-);
-

@@ -1,5 +1,5 @@
 import type { PrismaClient, Permission, Role } from '../lib/prisma-generated';
-import { permissionCatalog } from '@rbac/api-common';
+import { systemPermissionCatalog } from '../constants/system-permissions';
 import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
 
 type SystemRoleSeed = {
@@ -295,13 +295,14 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
 const ensureSeedPermissions = async (prisma: PrismaClient) => {
   const permissions: Permission[] = [];
 
-  for (const permission of permissionCatalog) {
+  for (const permission of systemPermissionCatalog) {
     const persisted = await prisma.permission.upsert({
       where: { code: permission.code },
       update: {
         name: permission.name,
         module: permission.module,
         action: permission.action,
+        isSystem: true,
         description: `${permission.module} / ${permission.action}`,
       },
       create: withSnowflakeId({
@@ -309,6 +310,7 @@ const ensureSeedPermissions = async (prisma: PrismaClient) => {
         name: permission.name,
         module: permission.module,
         action: permission.action,
+        isSystem: true,
         description: `${permission.module} / ${permission.action}`,
       }),
     });

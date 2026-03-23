@@ -1,0 +1,47 @@
+ALTER TABLE "Permission"
+ADD COLUMN "isSystem" BOOLEAN NOT NULL DEFAULT false;
+
+UPDATE "Permission"
+SET "isSystem" = true
+WHERE "code" IN (
+  'dashboard.view',
+  'audit.read',
+  'menu.read',
+  'menu.create',
+  'menu.update',
+  'menu.delete',
+  'menu.assign-permission',
+  'user.read',
+  'user.create',
+  'user.update',
+  'user.delete',
+  'user.assign-role',
+  'role.read',
+  'role.create',
+  'role.update',
+  'role.delete',
+  'role.assign-permission',
+  'permission.read',
+  'permission.create',
+  'permission.update',
+  'permission.delete',
+  'client.read',
+  'client.create',
+  'client.update',
+  'client.delete',
+  'oauth-provider.read',
+  'oauth-provider.create',
+  'oauth-provider.update',
+  'oauth-provider.delete',
+  'oauth-application.read',
+  'oauth-application.create',
+  'oauth-application.update',
+  'oauth-application.delete',
+  'rbac.explorer',
+  'file.read',
+  'file.upload',
+  'file.update',
+  'file.delete',
+  'realtime.read',
+  'realtime.send'
+);

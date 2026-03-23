@@ -12,8 +12,8 @@
             <p class="panel-caption">Permission Profile</p>
             <h3 class="panel-heading panel-heading--md">{{ permission.code }}</h3>
           </div>
-          <el-tag :type="isSeedPermission(permission.code) ? 'warning' : 'info'" round>
-            {{ isSeedPermission(permission.code) ? '系统种子' : '自定义权限' }}
+          <el-tag :type="permission.isSystem ? 'warning' : 'info'" round>
+            {{ permission.isSystem ? '系统种子' : '自定义权限' }}
           </el-tag>
         </div>
 
@@ -50,7 +50,6 @@ import type { PermissionRecord } from '@rbac/api-common';
 defineProps<{
   visible: boolean;
   permission: PermissionRecord | null;
-  isSeedPermission: (code: string) => boolean;
 }>();
 
 const emit = defineEmits<{

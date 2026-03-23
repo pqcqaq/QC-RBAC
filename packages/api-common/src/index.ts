@@ -1,4 +1,3 @@
-export * from './constants/permissions';
 export * from './types/auth';
 export * from './types/common';
 export * from './types/oauth';

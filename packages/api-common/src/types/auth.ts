@@ -1,4 +1,3 @@
-import type { PermissionCode } from '../constants/permissions';
 import type { PaginatedResult } from './common';
 import type { AuthClientSummary } from './auth-client';
 import type { MediaAssetRecord } from './files';
@@ -11,6 +10,7 @@ export type AuthStrategyCode = 'username-password' | 'email-code' | 'phone-code'
 export type AuthIdentifierType = 'USERNAME' | 'EMAIL' | 'PHONE';
 export type AuthCredentialType = 'PASSWORD' | 'VERIFICATION_CODE';
 export type AuthVerificationPurpose = 'LOGIN' | 'REGISTER';
+export type PermissionCode = string;
 
 export interface LegacyLoginPayload {
   account: string;
@@ -105,11 +105,12 @@ export interface RoleSummary {
 
 export interface PermissionSummary {
   id: string;
-  code: PermissionCode | string;
+  code: PermissionCode;
   name: string;
   module: string;
   action: string;
   description?: string;
+  isSystem: boolean;
 }
 
 export type PaginatedRoleSummaries = PaginatedResult<RoleSummary>;

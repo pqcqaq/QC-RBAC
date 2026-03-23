@@ -229,6 +229,7 @@ export const resolvePermissionSummariesByIds = async (
       module: true,
       action: true,
       description: true,
+      isSystem: true,
     },
   });
 
