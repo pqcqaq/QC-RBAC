@@ -3,6 +3,10 @@ node_modules
 .env
 .env.*
 !.env.example
+!apps/app-frontend/env/.env
+!apps/app-frontend/env/.env.development
+!apps/app-frontend/env/.env.production
+!apps/app-frontend/env/.env.test
 dist
 .vitepress/cache
 apps/docs/.vitepress/cache
