@@ -74,9 +74,9 @@ const emit = defineEmits<{
   align-items: center;
   gap: 14px;
   padding: 14px 16px;
-  border: 1px solid color-mix(in srgb, #ff6b57 22%, var(--line-soft));
+  border: 1px solid color-mix(in srgb, var(--danger) 24%, var(--line-soft));
   border-radius: 18px;
-  background: color-mix(in srgb, #fff1ee 84%, white);
+  background: var(--surface-danger-subtle);
 }
 
 .menu-delete-dialog__icon {
@@ -87,8 +87,8 @@ const emit = defineEmits<{
   width: 56px;
   height: 56px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #143255);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
 }
 
 .menu-delete-dialog__copy {
@@ -126,7 +126,7 @@ const emit = defineEmits<{
   padding: 14px 16px;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-delete-dialog__fact span {

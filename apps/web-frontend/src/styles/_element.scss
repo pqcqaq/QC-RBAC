@@ -121,7 +121,92 @@
 .el-popover.el-popper {
   border-radius: 10px;
   border-color: var(--line-soft);
+  background: var(--surface-float-bg);
   box-shadow: var(--shadow-panel);
+}
+
+.el-breadcrumb__inner,
+.el-breadcrumb__inner a,
+.el-breadcrumb__separator {
+  color: var(--ink-3);
+}
+
+.el-breadcrumb__item:last-child .el-breadcrumb__inner,
+.el-breadcrumb__item:last-child .el-breadcrumb__inner a {
+  color: var(--ink-1);
+}
+
+.el-menu--popup-container,
+.el-menu--popup {
+  border-radius: 14px;
+  border: 1px solid var(--shell-sidebar-panel-border);
+  background: linear-gradient(180deg, var(--shell-sidebar-bg) 0%, var(--shell-sidebar-bg-2) 100%);
+  box-shadow: var(--shell-sidebar-shadow);
+}
+
+.el-menu--popup {
+  min-width: 220px;
+  padding: 6px;
+}
+
+.el-menu--popup .el-menu {
+  border-right: none;
+  background: transparent;
+}
+
+.el-menu--popup .el-menu-item,
+.el-menu--popup .el-sub-menu__title {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  margin: 0 0 3px;
+  padding: 8px 10px !important;
+  border-radius: var(--radius-sm);
+  color: var(--shell-sidebar-ink);
+  line-height: 1.25;
+  transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.el-menu--popup .el-menu-item:hover,
+.el-menu--popup .el-sub-menu__title:hover {
+  background: var(--shell-sidebar-hover-bg);
+}
+
+.el-menu--popup .el-menu-item.is-active,
+.el-menu--popup .el-sub-menu.is-opened > .el-sub-menu__title {
+  background: var(--shell-sidebar-active-bg);
+  color: var(--shell-sidebar-active-ink);
+  box-shadow: var(--shell-sidebar-active-shadow);
+}
+
+.el-menu--popup .el-sub-menu__title .el-sub-menu__icon-arrow {
+  color: var(--shell-sidebar-arrow);
+}
+
+.el-menu--popup .menu-icon {
+  color: var(--shell-sidebar-muted);
+}
+
+.el-menu--popup .menu-copy__title {
+  color: var(--shell-sidebar-ink);
+}
+
+.el-menu--popup .menu-copy small {
+  color: var(--shell-sidebar-muted);
+}
+
+.el-menu--popup .el-menu-item.is-active .menu-icon,
+.el-menu--popup .el-sub-menu.is-opened > .el-sub-menu__title .menu-icon,
+.el-menu--popup .el-sub-menu.is-opened > .el-sub-menu__title .el-sub-menu__icon-arrow,
+.el-menu--popup .el-menu-item.is-active .menu-copy__title,
+.el-menu--popup .el-sub-menu.is-opened > .el-sub-menu__title .menu-copy__title {
+  color: var(--shell-sidebar-active-ink);
+}
+
+.el-menu--popup .el-menu-item.is-active .menu-copy small,
+.el-menu--popup .el-sub-menu.is-opened > .el-sub-menu__title .menu-copy small {
+  color: var(--shell-sidebar-active-muted);
 }
 
 .el-empty__description p {

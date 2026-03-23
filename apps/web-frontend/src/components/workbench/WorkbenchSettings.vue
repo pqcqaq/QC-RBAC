@@ -119,15 +119,15 @@
               <div class="theme-preset-card__mode">
                 <small>亮</small>
                 <div class="theme-preset-card__mode-swatches">
-                  <span :style="{ background: preset.lightTokens['--accent'] }" />
-                  <span :style="{ background: preset.lightTokens['--surface-2'] }" />
+                  <span :style="{ background: getPresetSwatch(preset, 'light', '--accent') }" />
+                  <span :style="{ background: getPresetSwatch(preset, 'light', '--surface-2') }" />
                 </div>
               </div>
               <div class="theme-preset-card__mode is-dark">
                 <small>暗</small>
                 <div class="theme-preset-card__mode-swatches">
-                  <span :style="{ background: preset.darkTokens['--accent'] }" />
-                  <span :style="{ background: preset.darkTokens['--surface-2'] }" />
+                  <span :style="{ background: getPresetSwatch(preset, 'dark', '--accent') }" />
+                  <span :style="{ background: getPresetSwatch(preset, 'dark', '--surface-2') }" />
                 </div>
               </div>
             </div>
@@ -186,7 +186,14 @@
 import { computed } from 'vue';
 import { useRoute } from 'vue-router';
 import ThemeModeSwitch from '@/components/workbench/ThemeModeSwitch.vue';
-import { findThemePreset, getThemeModeLabel, themePresets, type SidebarAppearance, type ThemeMode } from '@/themes';
+import {
+  findThemePreset,
+  getThemeModeLabel,
+  themePresets,
+  type SidebarAppearance,
+  type ThemeMode,
+  type ThemePreset,
+} from '@/themes';
 import {
   useWorkbenchStore,
   type CachedTabDisplayMode,
@@ -256,6 +263,15 @@ const handleThemePresetSelect = (themePresetId: string, event: MouseEvent) => {
     animate: true,
     origin: trigger,
   });
+};
+
+const getPresetSwatch = (
+  preset: ThemePreset,
+  mode: 'light' | 'dark',
+  token: string,
+) => {
+  const tokens = mode === 'dark' ? preset.darkTokens : preset.lightTokens;
+  return tokens[token] ?? (token === '--accent' ? 'var(--accent)' : 'var(--surface-2)');
 };
 </script>
 

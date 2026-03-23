@@ -73,8 +73,12 @@ const toggleTab = () => {
   min-height: 100vh;
   padding: 42px 40px;
   background:
-    radial-gradient(circle at top center, rgba(255, 255, 255, 0.82), transparent 26%),
-    linear-gradient(180deg, #f4efe8 0%, #eee5d8 100%);
+    radial-gradient(circle at top center, rgba(var(--accent-rgb), 0.14), transparent 28%),
+    linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--surface-1) 96%, var(--surface-2)) 0%,
+      color-mix(in srgb, var(--surface-2) 92%, var(--surface-3)) 100%
+    );
 }
 
 .auth-access-panel__shell {
@@ -83,10 +87,10 @@ const toggleTab = () => {
   width: min(100%, 540px);
   margin: 0 auto;
   padding: 28px;
-  border: 1px solid rgba(19, 42, 57, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 32px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.98) 0%, rgba(249, 245, 239, 0.98) 100%);
-  box-shadow: 0 34px 80px rgba(21, 38, 50, 0.13);
+  background: var(--surface-card-bg);
+  box-shadow: var(--shadow-deep);
 }
 
 .auth-access-panel__topbar {
@@ -97,7 +101,7 @@ const toggleTab = () => {
 }
 
 .auth-access-panel__back {
-  color: #375a6d;
+  color: var(--accent-strong);
   font-size: 13px;
   font-weight: 700;
 }
@@ -108,8 +112,8 @@ const toggleTab = () => {
   min-height: 30px;
   padding: 0 12px;
   border-radius: 999px;
-  background: rgba(23, 56, 74, 0.06);
-  color: #556973;
+  background: var(--surface-accent-soft);
+  color: var(--ink-2);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -122,7 +126,7 @@ const toggleTab = () => {
 }
 
 .auth-access-panel__eyebrow {
-  color: #8a8f86;
+  color: var(--ink-3);
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.28em;
@@ -130,21 +134,21 @@ const toggleTab = () => {
 }
 
 .auth-access-panel__intro h2 {
-  color: #122b39;
+  color: var(--ink-1);
   font-size: 34px;
   line-height: 1.02;
 }
 
 .auth-access-panel__copy {
-  color: #5d6e77;
+  color: var(--ink-2);
   line-height: 1.75;
 }
 
 .auth-access-panel__surface {
   padding: 22px;
-  border: 1px solid rgba(18, 43, 57, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 24px;
-  background: rgba(255, 255, 255, 0.72);
+  background: var(--surface-float-bg);
 }
 
 .auth-access-panel__stack {
@@ -156,7 +160,7 @@ const toggleTab = () => {
   justify-self: center;
   border: none;
   background: none;
-  color: #375a6d;
+  color: var(--accent-strong);
   font-size: 13px;
   font-weight: 700;
 }

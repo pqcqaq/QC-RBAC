@@ -169,7 +169,7 @@ const clearValue = () => {
   padding: 12px 14px;
   border: 1px solid var(--line-strong);
   border-radius: 16px;
-  background: color-mix(in srgb, white 92%, var(--surface-2));
+  background: var(--surface-card-soft-bg);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
@@ -188,7 +188,7 @@ const clearValue = () => {
   align-items: center;
   justify-content: center;
   flex: 0 0 auto;
-  color: color-mix(in srgb, var(--accent) 76%, #143255);
+  color: var(--accent-strong);
 }
 
 .uno-icon-picker__preview,
@@ -196,7 +196,7 @@ const clearValue = () => {
   width: 42px;
   height: 42px;
   border-radius: 14px;
-  background: color-mix(in srgb, var(--accent) 14%, white);
+  background: var(--surface-accent-subtle);
 }
 
 .uno-icon-picker__copy,
@@ -250,7 +250,7 @@ const clearValue = () => {
   padding: 14px;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .uno-icon-picker__current-copy {
@@ -272,7 +272,7 @@ const clearValue = () => {
   padding: 12px;
   border: 1px solid var(--line-soft);
   border-radius: 16px;
-  background: color-mix(in srgb, white 96%, var(--surface-2));
+  background: var(--surface-card-bg);
   cursor: pointer;
   text-align: left;
   transition: border-color 0.18s ease, transform 0.18s ease, box-shadow 0.18s ease;
@@ -286,7 +286,7 @@ const clearValue = () => {
 }
 
 .uno-icon-picker__item.is-active {
-  background: color-mix(in srgb, var(--accent) 8%, white);
+  background: var(--surface-accent-soft);
 }
 
 @media (max-width: 720px) {

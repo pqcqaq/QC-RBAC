@@ -26,7 +26,7 @@
   overflow: hidden;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-lg);
-  background: rgba(255, 255, 255, 0.92);
+  background: var(--surface-card-bg);
   box-shadow: var(--shadow-panel);
 }
 
@@ -112,7 +112,7 @@
 .metric-card {
   min-height: 108px;
   padding: 16px;
-  background: linear-gradient(180deg, #ffffff 0%, #fafcfe 100%);
+  background: var(--surface-card-strong-bg);
 }
 
 .metric-value-row {
@@ -191,7 +191,7 @@
   padding: 14px 16px;
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
-  background: #f8fafc;
+  background: var(--surface-card-muted-bg);
 }
 
 .permission-cluster header {
@@ -216,7 +216,12 @@
   display: grid;
   grid-template-columns: minmax(0, 1.15fr) minmax(420px, 0.85fr);
   min-height: 100vh;
-  background: linear-gradient(135deg, #eef3f8 0%, #e8eef5 46%, #dde6f0 100%);
+  background: linear-gradient(
+    135deg,
+    var(--surface-2) 0%,
+    color-mix(in srgb, var(--surface-1) 72%, var(--surface-2)) 46%,
+    color-mix(in srgb, var(--surface-2) 88%, var(--surface-3)) 100%
+  );
 }
 
 .auth-showcase {
@@ -282,7 +287,7 @@
   padding: 26px;
   border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
+  background: var(--surface-card-bg);
   box-shadow: var(--shadow-deep);
 }
 

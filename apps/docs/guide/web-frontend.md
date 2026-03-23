@@ -191,6 +191,7 @@ apps/web-frontend/src
 - `themeMode` 决定亮色、暗色或跟随系统
 - `resolvedThemeMode` 是运行时实际生效的 `light / dark`
 - `sidebarAppearance` 仍然独立控制导航栏是偏亮还是偏暗
+- 控制台和公共组件禁止直接写死浅色容器颜色，必须优先复用 `themes/styles/_tokens.scss` 里的 surface / ink / sidebar 语义变量
 
 切换流程：
 
@@ -200,6 +201,12 @@ apps/web-frontend/src
 - 当 `themeMode = auto` 时，store 会订阅 `prefers-color-scheme`，系统明暗变化后自动重算并重新应用主题
 
 这个实现的目的不是只改主色，而是让同一个主题预设在亮暗两套表面、文字、边框和阴影语义下都能稳定工作。
+
+实际开发时，下面这条约束必须遵守：
+
+- header、sidebar、dropdown、dialog、自定义 selector、列表容器等都要使用 `--surface-*`、`--ink-*`、`--shell-sidebar-*` token
+- 如果组件里出现 `white`、`#fff`、浅色灰底、固定深色文字，暗色模式通常就会失效
+- 侧栏折叠菜单的弹层不属于页面 DOM 树内部，必须单独覆盖 Element Plus 的 `el-menu--popup*` 样式，不能只改 `.admin-menu`
 
 ## 页面组织方式
 

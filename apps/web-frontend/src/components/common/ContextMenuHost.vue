@@ -412,8 +412,8 @@ defineExpose({
   padding: 8px;
   border: 1px solid color-mix(in srgb, var(--accent) 8%, var(--line-strong));
   border-radius: 14px;
-  background: rgba(255, 255, 255, 0.94);
-  box-shadow: 0 22px 48px rgba(10, 21, 33, 0.18);
+  background: var(--surface-float-bg);
+  box-shadow: var(--shadow-deep);
   backdrop-filter: blur(18px);
   transform-origin: var(--context-menu-origin, left top);
 }
@@ -460,8 +460,8 @@ defineExpose({
 
 .context-menu__item--danger:hover:not(:disabled),
 .context-menu__item--danger:focus-visible {
-  background: color-mix(in srgb, var(--danger) 10%, white);
-  color: color-mix(in srgb, var(--danger) 90%, #5d2328);
+  background: var(--surface-danger-subtle);
+  color: var(--danger);
 }
 
 .context-menu__item-head {

@@ -227,9 +227,9 @@ const emit = defineEmits<{
 }
 
 .relation-option-list--selected {
-  border-color: color-mix(in srgb, var(--accent) 58%, white);
-  background: color-mix(in srgb, var(--accent) 8%, white);
-  box-shadow: 0 10px 24px rgba(11, 26, 41, 0.07);
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  background: var(--surface-accent-soft);
+  box-shadow: var(--shadow-panel);
 }
 
 .relation-option-list__header {
@@ -244,8 +244,8 @@ const emit = defineEmits<{
   min-width: 44px;
   padding: 4px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 600;
   line-height: 1;

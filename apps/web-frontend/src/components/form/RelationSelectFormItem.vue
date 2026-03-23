@@ -648,14 +648,8 @@ watch(
   width: min(100%, 460px);
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 90%, var(--accent) 4%),
-    var(--surface-1)
-  );
-  box-shadow:
-    0 12px 30px rgba(11, 26, 41, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: var(--surface-card-strong-bg);
+  box-shadow: var(--shadow-panel);
   overflow: hidden;
   transition:
     border-color 0.18s ease,
@@ -669,7 +663,7 @@ watch(
   ) {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong));
   box-shadow:
-    0 16px 34px rgba(11, 26, 41, 0.08),
+    var(--shadow-deep),
     0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
   transform: translateY(-1px);
 }
@@ -678,16 +672,12 @@ watch(
   border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
   box-shadow:
     0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
-    0 16px 32px rgba(11, 26, 41, 0.08);
+    var(--shadow-deep);
 }
 
 .relation-select-form-item__trigger-control--active {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line-strong));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 86%, var(--accent) 8%),
-    color-mix(in srgb, var(--surface-1) 96%, var(--accent) 4%)
-  );
+  background: linear-gradient(180deg, var(--surface-card-bg), var(--surface-accent-soft));
 }
 
 .relation-select-form-item__trigger-control--disabled {
@@ -751,8 +741,8 @@ watch(
   min-width: 38px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 78%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -786,8 +776,8 @@ watch(
 }
 
 .relation-select-form-item__trigger-clear:hover:not(:disabled) {
-  background: color-mix(in srgb, #ff6b57 10%, white);
-  color: #d1432f;
+  background: var(--surface-danger-subtle);
+  color: var(--danger);
 }
 
 .relation-select-form-item__trigger-clear:disabled {
@@ -905,13 +895,13 @@ watch(
 
 .relation-select-dialog__option--default:hover {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--line-strong));
-  box-shadow: 0 12px 28px rgba(11, 26, 41, 0.08);
+  box-shadow: var(--shadow-panel);
   transform: translateY(-1px);
 }
 
 .relation-select-dialog__option--default.relation-select-dialog__option--active {
-  border-color: color-mix(in srgb, var(--accent) 70%, white);
-  background: color-mix(in srgb, var(--accent) 8%, white);
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  background: var(--surface-accent-soft);
 }
 
 .relation-select-dialog__option--custom {
@@ -952,8 +942,8 @@ watch(
   min-width: 44px;
   padding: 4px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 600;
   text-align: center;

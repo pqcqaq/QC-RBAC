@@ -290,7 +290,7 @@ const permissionDialogTitle = computed(() =>
   padding: 16px 18px;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-dialog__intro-copy {
@@ -318,7 +318,7 @@ const permissionDialogTitle = computed(() =>
   padding: 14px 16px;
   border: 1px dashed var(--line-strong);
   border-radius: 16px;
-  background: color-mix(in srgb, white 84%, var(--surface-2));
+  background: var(--surface-card-muted-bg);
   color: var(--ink-2);
 }
 
@@ -351,14 +351,8 @@ const permissionDialogTitle = computed(() =>
   padding: 13px 16px;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 90%, var(--accent) 4%),
-    var(--surface-1)
-  );
-  box-shadow:
-    0 12px 30px rgba(11, 26, 41, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  background: var(--surface-card-strong-bg);
+  box-shadow: var(--shadow-panel);
   color: inherit;
   text-align: left;
   cursor: pointer;
@@ -371,18 +365,14 @@ const permissionDialogTitle = computed(() =>
 .menu-action-permission-trigger__selector:hover:not(.is-disabled) {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong));
   box-shadow:
-    0 16px 34px rgba(11, 26, 41, 0.08),
+    var(--shadow-deep),
     0 0 0 1px color-mix(in srgb, var(--accent) 8%, transparent);
   transform: translateY(-1px);
 }
 
 .menu-action-permission-trigger__selector.is-active {
   border-color: color-mix(in srgb, var(--accent) 24%, var(--line-strong));
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 86%, var(--accent) 8%),
-    color-mix(in srgb, var(--surface-1) 96%, var(--accent) 4%)
-  );
+  background: linear-gradient(180deg, var(--surface-card-bg), var(--surface-accent-soft));
 }
 
 .menu-action-permission-trigger__selector.is-disabled {
@@ -421,8 +411,8 @@ const permissionDialogTitle = computed(() =>
   min-width: 44px;
   padding: 4px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 78%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -444,16 +434,16 @@ const permissionDialogTitle = computed(() =>
   padding: 0 14px;
   border: 1px solid var(--line-soft);
   border-radius: 16px;
-  background: color-mix(in srgb, white 90%, var(--surface-2));
+  background: var(--surface-card-bg);
   color: var(--ink-3);
   cursor: pointer;
   transition: border-color 0.18s ease, color 0.18s ease, background-color 0.18s ease;
 }
 
 .menu-action-permission-trigger__clear:hover:not(:disabled) {
-  border-color: color-mix(in srgb, #ff6b57 28%, var(--line-strong));
-  background: color-mix(in srgb, #ff6b57 8%, white);
-  color: #c94a37;
+  border-color: color-mix(in srgb, var(--danger) 28%, var(--line-strong));
+  background: var(--surface-danger-subtle);
+  color: var(--danger);
 }
 
 .menu-action-permission-trigger__clear:disabled {
@@ -475,9 +465,9 @@ const permissionDialogTitle = computed(() =>
 }
 
 .menu-permission-option--selected {
-  border-color: color-mix(in srgb, var(--accent) 58%, white);
-  background: color-mix(in srgb, var(--accent) 8%, white);
-  box-shadow: 0 10px 24px rgba(11, 26, 41, 0.07);
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  background: var(--surface-accent-soft);
+  box-shadow: var(--shadow-panel);
 }
 
 .menu-permission-option__header {
@@ -492,8 +482,8 @@ const permissionDialogTitle = computed(() =>
   min-width: 44px;
   padding: 4px 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 600;
   line-height: 1;

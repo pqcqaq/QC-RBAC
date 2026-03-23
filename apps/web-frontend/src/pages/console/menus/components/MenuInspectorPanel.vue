@@ -133,18 +133,18 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
 }
 
 .menu-tree-node__type.is-directory {
-  background: color-mix(in srgb, var(--accent) 16%, white);
-  color: color-mix(in srgb, var(--accent) 82%, #143255);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
 }
 
 .menu-tree-node__type.is-page {
-  background: color-mix(in srgb, #0f9d80 14%, white);
-  color: #0d6e5c;
+  background: color-mix(in srgb, var(--success) 14%, var(--surface-0));
+  color: var(--success);
 }
 
 .menu-tree-node__type.is-action {
-  background: color-mix(in srgb, #ff9a1f 18%, white);
-  color: #9a5a00;
+  background: color-mix(in srgb, var(--warning) 18%, var(--surface-0));
+  color: var(--warning);
 }
 
 .menu-inspector {
@@ -159,7 +159,7 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   padding: 18px;
   border: 1px solid var(--line-soft);
   border-radius: 22px;
-  background: linear-gradient(180deg, rgba(255, 255, 255, 0.96) 0%, rgba(248, 251, 254, 0.88) 100%);
+  background: var(--surface-card-strong-bg);
 }
 
 .menu-inspector__icon {
@@ -170,8 +170,8 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   width: 56px;
   height: 56px;
   border-radius: 18px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #143255);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
 }
 
 .menu-inspector__hero-copy {
@@ -213,7 +213,7 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   padding: 14px 16px;
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: color-mix(in srgb, white 94%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-inspector__stat span,
@@ -246,7 +246,7 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   padding: 14px 16px;
   border: 1px dashed var(--line-strong);
   border-radius: 16px;
-  background: color-mix(in srgb, white 84%, var(--surface-2));
+  background: var(--surface-card-muted-bg);
   color: var(--ink-2);
 }
 

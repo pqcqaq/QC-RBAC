@@ -387,14 +387,14 @@ watch(
   min-height: 280px;
   border: 1px dashed var(--line-strong);
   border-radius: 18px;
-  background: color-mix(in srgb, white 90%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-tree-scroll {
   max-height: min(72vh, 780px);
   border: 1px solid var(--line-soft);
   border-radius: 18px;
-  background: color-mix(in srgb, white 90%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-tree-scroll :deep(.el-scrollbar__view) {
@@ -425,13 +425,13 @@ watch(
 }
 
 .menu-tree :deep(.el-tree-node__expand-icon:hover) {
-  background: color-mix(in srgb, white 84%, var(--surface-2));
+  background: var(--surface-card-muted-bg);
   color: var(--accent-strong);
 }
 
 .menu-tree :deep(.el-tree-node.is-current > .el-tree-node__content .menu-tree-node) {
   border-color: color-mix(in srgb, var(--accent) 34%, var(--line-strong));
-  background: color-mix(in srgb, white 82%, var(--accent) 8%);
+  background: var(--surface-accent-soft);
   box-shadow: var(--shadow-panel);
 }
 
@@ -450,7 +450,7 @@ watch(
 
 .menu-tree-node:hover {
   border-color: color-mix(in srgb, var(--accent) 16%, var(--line-strong));
-  background: color-mix(in srgb, white 92%, var(--surface-2));
+  background: var(--surface-card-bg);
 }
 
 .menu-tree-node--action {
@@ -465,8 +465,8 @@ watch(
   width: 32px;
   height: 32px;
   border-radius: 10px;
-  background: color-mix(in srgb, var(--accent) 11%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #143255);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
 }
 
 .menu-tree-node__body {
@@ -508,18 +508,18 @@ watch(
 }
 
 .menu-tree-node__type.is-directory {
-  background: color-mix(in srgb, var(--accent) 16%, white);
-  color: color-mix(in srgb, var(--accent) 82%, #143255);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
 }
 
 .menu-tree-node__type.is-page {
-  background: color-mix(in srgb, #0f9d80 14%, white);
-  color: #0d6e5c;
+  background: color-mix(in srgb, var(--success) 14%, var(--surface-0));
+  color: var(--success);
 }
 
 .menu-tree-node__type.is-action {
-  background: color-mix(in srgb, #ff9a1f 18%, white);
-  color: #9a5a00;
+  background: color-mix(in srgb, var(--warning) 18%, var(--surface-0));
+  color: var(--warning);
 }
 
 .menu-tree-node__subtitle {
@@ -549,7 +549,7 @@ watch(
   min-height: 20px;
   padding: 0 8px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 8%, white);
+  background: var(--surface-accent-soft);
   color: var(--ink-2);
   font-size: 10px;
   font-weight: 600;
@@ -564,17 +564,17 @@ watch(
 }
 
 .menu-chip--ghost {
-  background: color-mix(in srgb, white 84%, var(--surface-2));
+  background: var(--surface-card-muted-bg);
   color: var(--ink-3);
 }
 
 .menu-chip--muted {
-  background: color-mix(in srgb, white 78%, var(--surface-2));
+  background: var(--surface-card-soft-bg);
   color: var(--ink-3);
 }
 
 .menu-chip--accent {
-  background: color-mix(in srgb, var(--accent) 14%, white);
+  background: var(--surface-accent-subtle);
   color: var(--accent-strong);
 }
 

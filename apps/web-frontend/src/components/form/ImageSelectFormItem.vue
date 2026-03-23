@@ -490,14 +490,8 @@ const handleDrop = (event: DragEvent) => {
   width: min(100%, 520px);
   border: 1px solid var(--line-soft);
   border-radius: 20px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 92%, var(--accent) 4%),
-    color-mix(in srgb, var(--surface-1) 96%, var(--accent) 4%)
-  );
-  box-shadow:
-    0 14px 30px rgba(11, 26, 41, 0.05),
-    inset 0 1px 0 rgba(255, 255, 255, 0.72);
+  background: var(--surface-card-strong-bg);
+  box-shadow: var(--shadow-panel);
   overflow: hidden;
   transition:
     border-color 0.18s ease,
@@ -508,7 +502,7 @@ const handleDrop = (event: DragEvent) => {
 .image-select__trigger:hover:not(.image-select__trigger--disabled) {
   border-color: color-mix(in srgb, var(--accent) 30%, var(--line-strong));
   box-shadow:
-    0 18px 32px rgba(11, 26, 41, 0.08),
+    var(--shadow-deep),
     0 0 0 1px color-mix(in srgb, var(--accent) 10%, transparent);
   transform: translateY(-1px);
 }
@@ -517,7 +511,7 @@ const handleDrop = (event: DragEvent) => {
   border-color: color-mix(in srgb, var(--accent) 44%, var(--line-strong));
   box-shadow:
     0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent),
-    0 18px 32px rgba(11, 26, 41, 0.08);
+    var(--shadow-deep);
 }
 
 .image-select__trigger--active {
@@ -608,8 +602,8 @@ const handleDrop = (event: DragEvent) => {
 .image-select__trigger-badge {
   padding: 4px 10px;
   border-radius: 999px;
-  background: color-mix(in srgb, var(--accent) 12%, white);
-  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  background: var(--surface-accent-subtle);
+  color: var(--accent-strong);
   font-size: 11px;
   font-weight: 700;
   line-height: 1;
@@ -641,8 +635,8 @@ const handleDrop = (event: DragEvent) => {
 }
 
 .image-select__trigger-clear:hover:not(:disabled) {
-  background: color-mix(in srgb, #ff6b57 10%, white);
-  color: #d1432f;
+  background: var(--surface-danger-subtle);
+  color: var(--danger);
 }
 
 .image-select__trigger-clear:disabled {
@@ -690,11 +684,7 @@ const handleDrop = (event: DragEvent) => {
   padding: 16px 18px;
   border: 1px dashed color-mix(in srgb, var(--line-strong) 72%, var(--accent) 18%);
   border-radius: 18px;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, white 94%, var(--accent) 4%),
-    color-mix(in srgb, var(--surface-1) 92%, var(--accent) 6%)
-  );
+  background: linear-gradient(180deg, var(--surface-card-bg), var(--surface-accent-soft));
   transition:
     border-color 0.18s ease,
     background-color 0.18s ease,
@@ -708,13 +698,13 @@ const handleDrop = (event: DragEvent) => {
 
 .image-select__upload-surface--clickable:hover {
   border-color: color-mix(in srgb, var(--accent) 42%, var(--line-strong));
-  box-shadow: 0 12px 24px rgba(11, 26, 41, 0.08);
+  box-shadow: var(--shadow-panel);
   transform: translateY(-1px);
 }
 
 .image-select__upload-surface--dragging {
-  border-color: color-mix(in srgb, var(--accent) 72%, white);
-  background: color-mix(in srgb, var(--accent) 8%, white);
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  background: var(--surface-accent-soft);
   box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
@@ -784,13 +774,13 @@ const handleDrop = (event: DragEvent) => {
 
 .image-select__option:hover {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--line-strong));
-  box-shadow: 0 16px 30px rgba(11, 26, 41, 0.08);
+  box-shadow: var(--shadow-panel);
   transform: translateY(-1px);
 }
 
 .image-select__option--selected {
-  border-color: color-mix(in srgb, var(--accent) 70%, white);
-  background: color-mix(in srgb, var(--accent) 7%, white);
+  border-color: color-mix(in srgb, var(--accent) 46%, var(--line-strong));
+  background: var(--surface-accent-soft);
 }
 
 .image-select__option-preview {

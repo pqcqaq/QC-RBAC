@@ -156,16 +156,16 @@ const contextMenuSourceItems = computed(() => props.contextMenuItems as unknown 
   align-items: center;
   justify-content: center;
   border-radius: 10px;
-  background: #f3f4f6;
-  color: #1f2937;
+  background: var(--surface-icon-tile);
+  color: var(--ink-1);
   font-size: 13px;
   font-weight: 700;
   overflow: hidden;
 }
 
 .table-identity__logo--image {
-  background: #fff;
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  background: var(--surface-image-tile);
+  border: 1px solid var(--line-soft);
 }
 
 .table-identity__logo img {

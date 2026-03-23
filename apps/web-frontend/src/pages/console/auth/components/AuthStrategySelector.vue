@@ -48,10 +48,10 @@ const emit = defineEmits<{
 .auth-strategy-pill {
   min-height: 38px;
   padding: 0 16px;
-  border: 1px solid rgba(18, 43, 57, 0.08);
+  border: 1px solid var(--line-soft);
   border-radius: 999px;
-  background: rgba(247, 243, 236, 0.9);
-  color: #4f626d;
+  background: var(--surface-card-soft-bg);
+  color: var(--ink-2);
   font-size: 13px;
   font-weight: 700;
   transition: border-color 0.18s ease, background 0.18s ease, color 0.18s ease, transform 0.18s ease;
@@ -59,20 +59,24 @@ const emit = defineEmits<{
 
 .auth-strategy-pill:hover {
   transform: translateY(-1px);
-  border-color: rgba(23, 56, 74, 0.18);
-  color: #17384a;
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line-strong));
+  color: var(--accent-strong);
 }
 
 .auth-strategy-pill.is-active {
-  border-color: rgba(23, 56, 74, 0.22);
-  background: linear-gradient(135deg, rgba(23, 56, 74, 0.95) 0%, rgba(39, 79, 99, 0.92) 100%);
-  color: #eef4f7;
-  box-shadow: 0 14px 26px rgba(18, 43, 57, 0.14);
+  border-color: color-mix(in srgb, var(--accent) 28%, var(--line-strong));
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--accent) 30%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--accent) 18%, var(--surface-0)) 100%
+  );
+  color: var(--ink-1);
+  box-shadow: var(--shadow-panel);
 }
 
 .auth-strategy-picker :deep(.el-empty) {
   min-height: 140px;
-  border: 1px dashed rgba(18, 43, 57, 0.18);
+  border: 1px dashed color-mix(in srgb, var(--line-strong) 92%, transparent);
   border-radius: 22px;
 }
 </style>

@@ -96,14 +96,14 @@ const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
 
 .auth-form-note {
   padding: 0 2px;
-  color: #607078;
+  color: var(--ink-2);
   font-size: 13px;
   line-height: 1.7;
 }
 
 .auth-form-grid :deep(.el-form-item__label) {
   padding-bottom: 6px;
-  color: #42555f;
+  color: var(--ink-2);
   font-size: 13px;
   font-weight: 600;
 }
@@ -112,18 +112,18 @@ const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
   min-height: 50px;
   padding: 0 14px;
   border-radius: 16px;
-  background: #f8f3ec;
-  box-shadow: 0 0 0 1px rgba(18, 43, 57, 0.08) inset;
+  background: var(--surface-card-soft-bg);
+  box-shadow: 0 0 0 1px var(--line-soft) inset;
 }
 
 .auth-form-grid :deep(.el-input__wrapper.is-focus) {
-  box-shadow: 0 0 0 1px #17384a inset;
+  box-shadow: 0 0 0 1px var(--accent) inset;
 }
 
 .auth-form-grid :deep(.el-input-group__append) {
   padding: 0 8px;
   border-radius: 0 16px 16px 0;
-  background: #f1e9dc;
+  background: var(--surface-card-muted-bg);
   box-shadow: none;
 }
 
@@ -132,8 +132,8 @@ const resolveVerificationHint = (strategy: AuthStrategyDescriptor) => {
   padding: 0 14px;
   border: none;
   border-radius: 12px;
-  background: #17384a;
-  color: #f7f3ec;
+  background: var(--accent);
+  color: var(--accent-contrast);
   box-shadow: none;
 }
 

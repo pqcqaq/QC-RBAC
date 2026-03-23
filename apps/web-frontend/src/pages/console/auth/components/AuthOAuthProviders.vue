@@ -44,7 +44,7 @@ defineEmits<{
 }
 
 .auth-oauth-providers__title {
-  color: #7a818a;
+  color: var(--ink-3);
   font-size: 12px;
   line-height: 1.4;
   text-align: center;
@@ -64,16 +64,16 @@ defineEmits<{
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid rgba(18, 43, 57, 0.1);
+  border: 1px solid var(--line-soft);
   border-radius: 14px;
-  background: #fff;
+  background: var(--surface-card-bg);
   transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease;
 }
 
 .auth-oauth-providers__item:hover:not(:disabled) {
   transform: translateY(-1px);
-  border-color: rgba(18, 43, 57, 0.18);
-  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.08);
+  border-color: color-mix(in srgb, var(--accent) 22%, var(--line-strong));
+  box-shadow: var(--shadow-panel);
 }
 
 .auth-oauth-providers__item:disabled {
@@ -88,7 +88,7 @@ defineEmits<{
 }
 
 .auth-oauth-providers__fallback {
-  color: #1f2937;
+  color: var(--ink-1);
   font-size: 15px;
   font-weight: 700;
 }

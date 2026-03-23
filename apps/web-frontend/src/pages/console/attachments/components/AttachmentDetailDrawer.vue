@@ -110,7 +110,7 @@ const formatTime = (value: string) => new Date(value).toLocaleString();
   padding: 14px 16px;
   border: 1px solid var(--el-border-color);
   border-radius: 14px;
-  background: color-mix(in srgb, white 90%, var(--surface-2));
+  background: var(--surface-card-bg);
   word-break: break-all;
   color: var(--el-text-color-regular);
 }

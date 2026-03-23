@@ -19,6 +19,7 @@
   --ink-3: #748598;
   --accent: #1f4f8d;
   --accent-strong: #173c68;
+  --accent-contrast: #ffffff;
   --accent-soft: #e9f1fb;
   --accent-rgb: 31, 79, 141;
   --success: #1f7a53;
@@ -46,6 +47,20 @@
   --line-soft: color-mix(in srgb, var(--surface-3) 40%, white);
   --line-strong: color-mix(in srgb, var(--surface-3) 72%, white);
   --surface-overlay: color-mix(in srgb, var(--surface-0) 84%, transparent);
+  --surface-float-bg: color-mix(in srgb, var(--surface-0) 88%, transparent);
+  --surface-card-bg: color-mix(in srgb, var(--surface-0) 92%, transparent);
+  --surface-card-strong-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-0) 98%, var(--surface-1)) 0%,
+    color-mix(in srgb, var(--surface-0) 92%, var(--surface-1)) 100%
+  );
+  --surface-card-muted-bg: color-mix(in srgb, var(--surface-1) 90%, var(--surface-2));
+  --surface-card-soft-bg: color-mix(in srgb, var(--surface-0) 84%, var(--surface-2));
+  --surface-accent-subtle: color-mix(in srgb, var(--accent) 12%, var(--surface-0));
+  --surface-accent-soft: color-mix(in srgb, var(--accent) 8%, var(--surface-0));
+  --surface-danger-subtle: color-mix(in srgb, var(--danger) 10%, var(--surface-0));
+  --surface-icon-tile: color-mix(in srgb, var(--surface-2) 82%, var(--surface-0));
+  --surface-image-tile: color-mix(in srgb, var(--surface-0) 94%, var(--surface-1));
   --panel-bg: color-mix(in srgb, var(--surface-0) 90%, var(--surface-1));
   --panel-bg-strong: color-mix(in srgb, var(--surface-0) 96%, var(--surface-1));
   --panel-bg-muted: color-mix(in srgb, var(--surface-1) 92%, white);
@@ -101,6 +116,7 @@
   background: #111821;
   color-scheme: dark;
   --app-bg: color-mix(in srgb, var(--surface-1) 82%, #081018);
+  --accent-contrast: #081018;
   --surface-4: color-mix(in srgb, var(--surface-3) 82%, black);
   --sidebar-border: rgba(255, 255, 255, 0.08);
   --sidebar-ink: var(--ink-1);
@@ -122,6 +138,20 @@
   --line-soft: color-mix(in srgb, var(--surface-3) 22%, white 6%);
   --line-strong: color-mix(in srgb, var(--surface-3) 46%, white 10%);
   --surface-overlay: color-mix(in srgb, var(--surface-0) 82%, transparent);
+  --surface-float-bg: color-mix(in srgb, var(--surface-0) 92%, black 8%);
+  --surface-card-bg: color-mix(in srgb, var(--surface-0) 94%, black 6%);
+  --surface-card-strong-bg: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--surface-0) 98%, black 2%) 0%,
+    color-mix(in srgb, var(--surface-1) 96%, black 4%) 100%
+  );
+  --surface-card-muted-bg: color-mix(in srgb, var(--surface-1) 90%, black 10%);
+  --surface-card-soft-bg: color-mix(in srgb, var(--surface-0) 86%, var(--surface-1));
+  --surface-accent-subtle: color-mix(in srgb, var(--accent) 18%, var(--surface-0));
+  --surface-accent-soft: color-mix(in srgb, var(--accent) 12%, var(--surface-0));
+  --surface-danger-subtle: color-mix(in srgb, var(--danger) 14%, var(--surface-0));
+  --surface-icon-tile: color-mix(in srgb, var(--surface-2) 86%, var(--surface-0));
+  --surface-image-tile: color-mix(in srgb, var(--surface-0) 96%, black 4%);
   --panel-bg: color-mix(in srgb, var(--surface-0) 92%, black 8%);
   --panel-bg-strong: color-mix(in srgb, var(--surface-0) 96%, black 4%);
   --panel-bg-muted: color-mix(in srgb, var(--surface-1) 92%, black 8%);
