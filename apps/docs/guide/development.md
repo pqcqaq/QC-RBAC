@@ -51,7 +51,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 - 权限码由 `packages/api-common/src/constants/permissions.ts` 统一维护，后端 seed 和前端权限判断都依赖它。
 - 后端列表接口统一使用分页，前端列表页统一通过 `page` / `pageSize` 请求并保留筛选状态。
 - 列表导出统一走后端 `createExcelExportHandler` 和前端 `useDownload` / `ListExportButton`。
-- 表单里的关联选择统一使用 `RelationSelectFormItem`，搜索区走插槽，选项接口统一走 `POST + body`。
+- 表单里的关联选择统一使用 `RelationSelectFormItem`，搜索区走插槽，选项接口统一走 `POST + body`，并且后端必须同时提供 `resolve(ids)` 回显接口。
 - Web 控制台页面默认采用 `View.vue + components/ + *-management.ts` 的结构。
 - Uni 页面统一使用自定义组件和 `navigationStyle: 'custom'`，不显示原生 Header。
 - 受管模型删除时会自动做引用检查，引用关系来自 Prisma DMMF，不需要手填 refs 映射。

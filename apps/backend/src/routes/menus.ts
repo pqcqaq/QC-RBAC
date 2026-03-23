@@ -5,7 +5,9 @@ import { authMiddleware } from '../middlewares/auth';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
 import {
   listPermissionSummaries,
+  parseOptionResolvePayload,
   parsePermissionSummarySearchPayload,
+  resolvePermissionSummariesByIds,
 } from '../services/rbac-options';
 import {
   createMenuNode,
@@ -49,6 +51,14 @@ const handleMenuPermissionOptions = asyncHandler(async (req, res) => {
   );
 });
 
+const handleMenuPermissionOptionResolve = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await resolvePermissionSummariesByIds(parseOptionResolvePayload(req).ids),
+    'Resolved menu permission options',
+  );
+});
+
 menusRouter.get(
   '/current',
   asyncHandler(async (req, res) => {
@@ -66,6 +76,12 @@ menusRouter.post(
   '/options/permissions',
   requireAnyPermission('menu.read', 'menu.create', 'menu.update', 'menu.assign-permission'),
   handleMenuPermissionOptions,
+);
+
+menusRouter.post(
+  '/options/permissions/resolve',
+  requireAnyPermission('menu.read', 'menu.create', 'menu.update', 'menu.assign-permission'),
+  handleMenuPermissionOptionResolve,
 );
 
 menusRouter.get(

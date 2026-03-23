@@ -150,7 +150,10 @@ pages/console/<module>
 1. `options` 接口统一用 `POST`
 2. 查询参数放在 body，至少包含 `page`、`pageSize`
 3. 业务过滤字段直接平铺，不再包一层 `search`
-4. 返回值统一为 `items + meta`
+4. 分页返回值统一为 `items + meta`
+5. 同时提供 `POST .../options/.../resolve`
+6. `resolve` 的 body 固定为 `{ ids: string[] }`
+7. `resolve` 返回值直接是行数组，顺序按 ids 保持
 
 ## 新增客户端类型
 

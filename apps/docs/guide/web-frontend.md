@@ -214,10 +214,13 @@ pages/console/<module>
 ### `RelationSelectFormItem` 的约定
 
 - 传入分页接口，例如 `api.users.roles`、`api.roles.permissions`
+- 同一个接口对象还必须提供 `resolve(ids)`，组件会在编辑态自动补齐已选项回显
 - 搜索区不在组件内部写死，而是通过 `#search` 插槽自定义
 - `params.xxx` 直接映射后端 body 字段
-- 行渲染通过 `#row` 插槽自定义
+- 行渲染通过 `#row` 插槽自定义，并拿到 `selected / disabled / multiple / toggle`
+- 只要使用 `#row`，业务侧就完全接管整行视觉，默认卡片和状态胶囊不会再自动渲染
 - 组件支持单选和多选，并通过 `update:modelValue` 回填 id 或 ids
+- 编辑弹窗打开前即使已经有 `id / ids`，组件也会先走 `resolve(ids)` 拿到展示字段，不需要用户先点开选择器
 
 当前已经替换：
 

@@ -71,7 +71,7 @@ describe('Admin resource integration', () => {
       })
       .expect(200);
 
-    await request(app)
+    const createdRoleA = await request(app)
       .post('/api/roles')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .send({
@@ -82,7 +82,7 @@ describe('Admin resource integration', () => {
       })
       .expect(200);
 
-    await request(app)
+    const createdRoleB = await request(app)
       .post('/api/roles')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .send({
@@ -128,6 +128,19 @@ describe('Admin resource integration', () => {
     assert.equal(roleOptionsPage.body.data.meta.total, 1);
     assert.equal(roleOptionsPage.body.data.items[0].code, 'custom-auditor');
 
+    const resolvedRoleOptions = await request(app)
+      .post('/api/users/options/roles/resolve')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        ids: [createdRoleB.body.data.id, createdRoleA.body.data.id, 'missing-role-id'],
+      })
+      .expect(200);
+
+    assert.deepEqual(
+      resolvedRoleOptions.body.data.map((item: { code: string }) => item.code),
+      ['custom-auditor', 'custom-reader'],
+    );
+
     const permissionOptionsPage = await request(app)
       .post('/api/roles/options/permissions')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
@@ -136,6 +149,19 @@ describe('Admin resource integration', () => {
 
     assert.equal(permissionOptionsPage.body.data.meta.total, 1);
     assert.equal(permissionOptionsPage.body.data.items[0].code, 'custom.read-b');
+
+    const resolvedPermissionOptions = await request(app)
+      .post('/api/roles/options/permissions/resolve')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        ids: [permissionB.body.data.id, permissionA.body.data.id, 'missing-permission-id'],
+      })
+      .expect(200);
+
+    assert.deepEqual(
+      resolvedPermissionOptions.body.data.map((item: { code: string }) => item.code),
+      ['custom.read-b', 'custom.read-a'],
+    );
 
     const menuPermissionOptions = await request(app)
       .post('/api/menus/options/permissions')
@@ -149,6 +175,17 @@ describe('Admin resource integration', () => {
         (item: { code: string }) => item.code === 'dashboard.view',
       ),
     );
+
+    const resolvedMenuPermissionOptions = await request(app)
+      .post('/api/menus/options/permissions/resolve')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        ids: [permissionA.body.data.id],
+      })
+      .expect(200);
+
+    assert.equal(resolvedMenuPermissionOptions.body.data.length, 1);
+    assert.equal(resolvedMenuPermissionOptions.body.data[0].code, 'custom.read-a');
 
     const messagePage = await request(app)
       .get('/api/realtime/messages')

@@ -5,7 +5,9 @@ import { requireAnyPermission, requirePermission } from '../middlewares/require-
 import { ok, asyncHandler } from '../utils/http';
 import {
   listPermissionSummaries,
+  parseOptionResolvePayload,
   parsePermissionSummarySearchPayload,
+  resolvePermissionSummariesByIds,
 } from '../services/rbac-options';
 import {
   createOAuthApplication,
@@ -79,6 +81,14 @@ const handleOAuthApplicationPermissionOptions = asyncHandler(async (req, res) =>
     res,
     await listPermissionSummaries(parsePermissionSummarySearchPayload(req)),
     'OAuth application permission options',
+  );
+});
+
+const handleOAuthApplicationPermissionOptionResolve = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await resolvePermissionSummariesByIds(parseOptionResolvePayload(req).ids),
+    'Resolved OAuth application permission options',
   );
 });
 
@@ -164,6 +174,16 @@ oauthManagementRouter.post(
     'oauth-application.update',
   ),
   handleOAuthApplicationPermissionOptions,
+);
+
+oauthManagementRouter.post(
+  '/applications/options/permissions/resolve',
+  requireAnyPermission(
+    'oauth-application.read',
+    'oauth-application.create',
+    'oauth-application.update',
+  ),
+  handleOAuthApplicationPermissionOptionResolve,
 );
 
 oauthManagementRouter.get(

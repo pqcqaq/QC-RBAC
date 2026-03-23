@@ -271,11 +271,20 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `POST /api/menus/options/permissions`
 - `POST /api/oauth/applications/options/permissions`
 
+当前回显接口：
+
+- `POST /api/users/options/roles/resolve`
+- `POST /api/roles/options/permissions/resolve`
+- `POST /api/menus/options/permissions/resolve`
+- `POST /api/oauth/applications/options/permissions/resolve`
+
 请求体约定：
 
 - `page`、`pageSize` 是统一分页字段
 - 业务过滤字段直接平铺在 body 上，例如 `q`、`code`、`name`、`module`、`action`
 - 前端 `RelationSelectFormItem` 的 `params.xxx` 会直接映射到这些字段
+- 回显接口 body 固定为 `{ ids: string[] }`
+- 回显接口返回数组，顺序按传入 ids 保持，缺失记录会自动忽略
 
 ## OAuth / OIDC
 
@@ -347,6 +356,7 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
   - `/api/oauth/providers`
   - `/api/oauth/applications`
 - OAuth 应用权限 scope 选择单独走 `POST /api/oauth/applications/options/permissions`
+- OAuth 应用权限 scope 的编辑态回显走 `POST /api/oauth/applications/options/permissions/resolve`
 
 关键实现：
 

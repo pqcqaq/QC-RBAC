@@ -52,7 +52,13 @@ import type {
   UserPermissionSource,
   UserRecord,
 } from '../types/rbac';
-import type { OptionSearchPayload, PaginatedResult, QueryParams } from '../types/common';
+import type {
+  OptionEndpoint,
+  OptionResolvePayload,
+  OptionSearchPayload,
+  PaginatedResult,
+  QueryParams,
+} from '../types/common';
 
 type CrudResourceOptions = {
   resource: string;
@@ -72,15 +78,38 @@ const createDownloadEndpoint =
     ...(fileName ? { fileName } : {}),
   });
 
-const createOptionSearchEndpoint =
+const createOptionEndpoint =
   (client: ReturnType<typeof createRequestClient>) =>
-  <TResult, TPayload extends OptionSearchPayload = OptionSearchPayload>(resource: string) =>
-  (payload?: TPayload) =>
-    client.request<TResult>({
-      url: resource,
-      method: 'POST',
-      data: payload ?? {},
-    });
+  <
+    TItem,
+    TResult extends PaginatedResult<TItem>,
+    TPayload extends OptionSearchPayload = OptionSearchPayload,
+  >(
+    resource: string,
+  ): OptionEndpoint<TItem, TResult, TPayload> => {
+    const endpoint = ((payload?: TPayload) =>
+      client.request<TResult>({
+        url: resource,
+        method: 'POST',
+        data: payload ?? {},
+      })) as OptionEndpoint<TItem, TResult, TPayload>;
+
+    endpoint.resolve = async (ids: string[]) => {
+      const normalizedIds = [...new Set(ids.map((id) => id.trim()).filter(Boolean))];
+      if (!normalizedIds.length) {
+        return [];
+      }
+
+      const payload: OptionResolvePayload = { ids: normalizedIds };
+      return client.request<TItem[]>({
+        url: `${resource}/resolve`,
+        method: 'POST',
+        data: payload,
+      });
+    };
+
+    return endpoint;
+  };
 
 const createCrudEndpoints = <
   TRecord,
@@ -107,7 +136,7 @@ const createCrudEndpoints = <
 
 export const createApiFactory = (options: ClientOptions) => {
   const client = createRequestClient(options);
-  const createOptionSearch = createOptionSearchEndpoint(client);
+  const createOptionSearch = createOptionEndpoint(client);
   const userCrud = createCrudEndpoints<UserRecord, UserFormPayload, PaginatedResult<UserRecord>>(
     client,
     { resource: '/users', exportFileName: 'users.xlsx' },
@@ -215,11 +244,17 @@ export const createApiFactory = (options: ClientOptions) => {
       ...userCrud,
       permissionSources: (id: string) =>
         client.request<UserPermissionSource>({ url: `/users/${id}/permission-sources` }),
-      roles: createOptionSearch<PaginatedRoleSummaries>('/users/options/roles'),
+      roles: createOptionSearch<
+        PaginatedRoleSummaries['items'][number],
+        PaginatedRoleSummaries
+      >('/users/options/roles'),
     },
     roles: {
       ...roleCrud,
-      permissions: createOptionSearch<PaginatedPermissionSummaries>('/roles/options/permissions'),
+      permissions: createOptionSearch<
+        PaginatedPermissionSummaries['items'][number],
+        PaginatedPermissionSummaries
+      >('/roles/options/permissions'),
     },
     permissions: {
       ...permissionCrud,
@@ -232,7 +267,10 @@ export const createApiFactory = (options: ClientOptions) => {
       providers: oauthProviderCrud,
       applications: {
         ...oauthApplicationCrud,
-        permissions: createOptionSearch<PaginatedPermissionSummaries>(
+        permissions: createOptionSearch<
+          PaginatedPermissionSummaries['items'][number],
+          PaginatedPermissionSummaries
+        >(
           '/oauth/applications/options/permissions',
         ),
       },
@@ -241,7 +279,10 @@ export const createApiFactory = (options: ClientOptions) => {
       ...menuCrud,
       current: () => client.request<MenuNodeRecord[]>({ url: '/menus/current' }),
       tree: menuCrud.list,
-      permissions: createOptionSearch<PaginatedPermissionSummaries>(
+      permissions: createOptionSearch<
+        PaginatedPermissionSummaries['items'][number],
+        PaginatedPermissionSummaries
+      >(
         '/menus/options/permissions',
       ),
     },

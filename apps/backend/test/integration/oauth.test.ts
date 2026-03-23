@@ -41,7 +41,12 @@ describe('OAuth integration', () => {
       where: { code: 'oauth-application.update' },
       select: { id: true },
     });
+    const dashboardPermission = await prisma.permission.findUnique({
+      where: { code: 'dashboard.view' },
+      select: { id: true },
+    });
     assert.ok(oauthApplicationPermission);
+    assert.ok(dashboardPermission);
 
     const createdRole = await request(app)
       .post('/api/roles')
@@ -80,6 +85,15 @@ describe('OAuth integration', () => {
         (item: { code: string }) => item.code === 'dashboard.view',
       ),
     );
+
+    const resolvedPermissionOptions = await request(app)
+      .post('/api/oauth/applications/options/permissions/resolve')
+      .set('Authorization', `Bearer ${editorSession.tokens.accessToken}`)
+      .send({ ids: [dashboardPermission.id] })
+      .expect(200);
+
+    assert.equal(resolvedPermissionOptions.body.data.length, 1);
+    assert.equal(resolvedPermissionOptions.body.data[0].code, 'dashboard.view');
 
     await request(app)
       .get('/api/roles/options/permissions')

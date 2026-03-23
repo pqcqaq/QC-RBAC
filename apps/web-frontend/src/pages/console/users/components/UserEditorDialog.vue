@@ -49,9 +49,17 @@
           </div>
         </template>
 
-        <template #row="{ row }">
-          <div class="relation-option-card">
-            <strong>{{ row.name }}</strong>
+        <template #row="{ row, selected }">
+          <div
+            class="relation-option-card"
+            :class="{ 'relation-option-card--selected': selected }"
+          >
+            <div class="relation-option-card__header">
+              <strong>{{ row.name }}</strong>
+              <span class="relation-option-card__badge">
+                {{ selected ? '已选' : '选择' }}
+              </span>
+            </div>
             <span>{{ row.code }}</span>
             <p v-if="row.description">{{ row.description }}</p>
           </div>
@@ -94,7 +102,43 @@ const emit = defineEmits<{
 <style scoped lang="scss">
 .relation-option-card {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: var(--surface-1);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease,
+    transform 0.18s ease;
+}
+
+.relation-option-card--selected {
+  border-color: color-mix(in srgb, var(--accent) 58%, white);
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  box-shadow: 0 12px 28px rgba(11, 26, 41, 0.08);
+  transform: translateY(-1px);
+}
+
+.relation-option-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.relation-option-card__badge {
+  flex: 0 0 auto;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
 }
 
 .relation-search-bar {

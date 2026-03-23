@@ -35,7 +35,7 @@ description: Web 表单里的关联选择组件，适合外键和多对多关系
 
 ## 请求约定
 
-`request` 不是普通数组加载器，而是一个分页请求函数：
+`request` 不是普通数组加载器，而是一个统一的 relation option endpoint。它既负责分页查询，也负责按 ids 回显：
 
 ```ts
 type RelationSelectRequestParams = OptionSearchPayload & {
@@ -43,9 +43,10 @@ type RelationSelectRequestParams = OptionSearchPayload & {
   pageSize: number
 }
 
-type RelationSelectRequest = (
-  params: RelationSelectRequestParams,
-) => Promise<PaginatedResult<RelationSelectRow>>
+type RelationSelectRequest = {
+  (params: RelationSelectRequestParams): Promise<PaginatedResult<RelationSelectRow>>
+  resolve(ids: string[]): Promise<RelationSelectRow[]>
+}
 ```
 
 当前项目里的标准用法：
@@ -54,6 +55,7 @@ type RelationSelectRequest = (
 - 后端选项接口统一走 `POST + body`。
 - body 中固定字段是 `page`、`pageSize`。
 - 其他过滤字段直接平铺，例如 `q`、`code`、`name`、`module`、`action`。
+- 同一个 endpoint 还必须提供 `resolve(ids)`，用于编辑态和回填态直接拉取已选项展示数据。
 
 这也是为什么搜索区应该放在插槽里，而不是写死在组件内部。
 
@@ -83,8 +85,11 @@ type RelationSelectRequest = (
     </div>
   </template>
 
-  <template #row="{ row }">
-    <div class="relation-option-list">
+  <template #row="{ row, selected }">
+    <div
+      class="relation-option-list"
+      :class="{ 'relation-option-list--selected': selected }"
+    >
       <strong>{{ row.name }}</strong>
       <span>{{ row.code }}</span>
       <p>{{ row.module }} · {{ row.action }}</p>
@@ -114,7 +119,10 @@ type RelationSelectRequest = (
   </template>
 
   <template #row="{ row, selected }">
-    <div class="relation-option-list">
+    <div
+      class="relation-option-list"
+      :class="{ 'relation-option-list--selected': selected }"
+    >
       <strong>{{ row.name }} <span v-if="selected">已选</span></strong>
       <span>{{ row.code }}</span>
     </div>
@@ -128,7 +136,7 @@ type RelationSelectRequest = (
 | --- | --- | --- | --- |
 | `label` | `string` | - | 表单项标题 |
 | `modelValue` | `string \| string[] \| null \| undefined` | - | 单选传 `string \| null`，多选传 `string[]` |
-| `request` | `RelationSelectRequest` | - | 分页加载函数 |
+| `request` | `RelationSelectRequest` | - | 统一的关联数据源，包含分页查询和 `resolve(ids)` 回显 |
 | `requestParams` | `QueryParams` | `{}` | 固定透传给请求函数的参数 |
 | `searchDefaults` | `Record<string, string \| number \| null \| undefined>` | `{}` | 搜索表单初始值和重置值 |
 | `dialogTitle` | `string` | `选择${label}` | 弹窗标题 |
@@ -183,12 +191,16 @@ type RelationSelectRequest = (
 
 自定义每一行如何显示。
 
+只要传入 `#row`，组件就不会再渲染默认的卡片边框、右侧状态胶囊和默认排版，整行内容完全交给业务侧控制。也就是说，选中态、角标、说明区、按钮感样式都应该在你的插槽里自己实现。
+
 插槽参数：
 
 | 参数 | 类型 | 说明 |
 | --- | --- | --- |
 | `row` | `RelationSelectRow` | 当前行 |
 | `selected` | `boolean` | 当前行是否选中 |
+| `disabled` | `boolean` | 当前行是否不可选 |
+| `multiple` | `boolean` | 当前是否为多选模式 |
 | `toggle` | `() => void` | 切换当前行选中状态 |
 
 ## 事件
@@ -202,6 +214,7 @@ type RelationSelectRequest = (
 - 单选时，点击某一行会立即回填并关闭弹窗。
 - 多选时，点击只更新暂存选择，点击“确定”后统一回填。
 - 点击默认触发区右侧的内嵌清空操作，或在自定义 `trigger` 中调用 `clear`，都会回填 `null` 或 `[]`。
+- 组件在编辑态检测到已有 `id / ids` 时，会自动调用 `request.resolve(ids)` 获取展示行，不需要先打开弹窗。
 
 ## 行数据约定
 
@@ -230,14 +243,32 @@ type RelationSelectRow = {
 如果你要新增一个能被这个组件复用的选项接口，后端建议直接遵守当前约定：
 
 1. 路由提供 `POST /api/<resource>/options/...`
-2. body 读取 `page`、`pageSize` 和过滤字段
-3. 返回格式统一为：
+2. 同时提供 `POST /api/<resource>/options/.../resolve`
+3. 分页接口 body 读取 `page`、`pageSize` 和过滤字段
+4. 分页接口返回格式统一为：
 
 ```ts
 {
   items: [],
   meta: { page, pageSize, total }
 }
+```
+
+5. 回显接口 body 统一为：
+
+```ts
+{
+  ids: ['id-1', 'id-2']
+}
+```
+
+6. 回显接口返回值直接是行数组，顺序按 `ids` 保持：
+
+```ts
+[
+  { id: 'id-1', name: '...' },
+  { id: 'id-2', name: '...' }
+]
 ```
 
 当前实现可参考：

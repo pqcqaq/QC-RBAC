@@ -1,4 +1,4 @@
-import type { OptionSearchPayload, PaginatedResult } from '@rbac/api-common';
+import type { OptionEndpoint, OptionSearchPayload, PaginatedResult } from '@rbac/api-common';
 
 export type RelationSelectRow = {
   id: string;
@@ -19,9 +19,11 @@ export type RelationSelectRequestParams = OptionSearchPayload & {
   pageSize: number;
 };
 
-export type RelationSelectRequest = (
-  params: RelationSelectRequestParams,
-) => Promise<PaginatedResult<RelationSelectRow>>;
+export type RelationSelectRequest = OptionEndpoint<
+  RelationSelectRow,
+  PaginatedResult<RelationSelectRow>,
+  RelationSelectRequestParams
+>;
 
 export const normalizeRelationSelectValue = (
   value: RelationSelectModelValue,

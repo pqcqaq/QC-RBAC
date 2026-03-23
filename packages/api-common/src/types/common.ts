@@ -15,6 +15,20 @@ export type OptionSearchPayload<TFilters extends QueryParams = QueryParams> = TF
 export type OptionListQuery<TFilters extends QueryParams = QueryParams> =
   OptionSearchPayload<TFilters>;
 
+export interface OptionResolvePayload {
+  ids: string[];
+}
+
+export type OptionResolveRequest<TItem> = (ids: string[]) => Promise<TItem[]>;
+
+export type OptionEndpoint<
+  TItem,
+  TResult,
+  TPayload extends OptionSearchPayload = OptionSearchPayload,
+> = ((payload?: TPayload) => Promise<TResult>) & {
+  resolve: OptionResolveRequest<TItem>;
+};
+
 export interface PaginationMeta {
   page: number;
   pageSize: number;

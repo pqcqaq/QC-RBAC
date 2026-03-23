@@ -12,7 +12,9 @@ import { roleWithPermissionSummaryInclude, toRoleRecord } from '../utils/rbac-re
 import { withSnowflakeId } from '../utils/persistence';
 import {
   listPermissionSummaries,
+  parseOptionResolvePayload,
   parsePermissionSummarySearchPayload,
+  resolvePermissionSummariesByIds,
 } from '../services/rbac-options';
 import { softDeleteRole, syncRolePermissions } from '../services/rbac-write';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
@@ -85,6 +87,14 @@ const handlePermissionOptions = asyncHandler(async (req, res) => {
   );
 });
 
+const handlePermissionOptionResolve = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await resolvePermissionSummariesByIds(parseOptionResolvePayload(req).ids),
+    'Resolved permission options',
+  );
+});
+
 rolesRouter.get(
   '/options/permissions',
   requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
@@ -95,6 +105,12 @@ rolesRouter.post(
   '/options/permissions',
   requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
   handlePermissionOptions,
+);
+
+rolesRouter.post(
+  '/options/permissions/resolve',
+  requireAnyPermission('role.read', 'role.create', 'role.update', 'role.assign-permission'),
+  handlePermissionOptionResolve,
 );
 
 rolesRouter.get(

@@ -1,5 +1,10 @@
 import type { Request } from 'express';
-import type { PaginatedPermissionSummaries, PaginatedRoleSummaries } from '@rbac/api-common';
+import type {
+  PaginatedPermissionSummaries,
+  PaginatedRoleSummaries,
+  PermissionSummary,
+  RoleSummary,
+} from '@rbac/api-common';
 import { z } from 'zod';
 import type { Prisma } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
@@ -24,6 +29,10 @@ const permissionSummaryFilterSchema = z.object({
   description: z.string().optional().transform(trimText),
 });
 
+const optionResolvePayloadSchema = z.object({
+  ids: z.union([z.array(z.string()), z.string()]).optional(),
+});
+
 type OptionSearchRequest = Pick<Request, 'method' | 'body' | 'query'>;
 
 type RoleSummarySearchPayload = ReturnType<typeof parseRoleSummarySearchPayload>;
@@ -32,6 +41,11 @@ type PermissionSummarySearchPayload = ReturnType<typeof parsePermissionSummarySe
 const resolveOptionSearchSource = (req: OptionSearchRequest) => {
   const source = req.method === 'GET' ? req.query : req.body;
   return source && typeof source === 'object' ? source : {};
+};
+
+const orderResolvedItems = <TItem extends { id: string }>(ids: string[], items: TItem[]) => {
+  const itemMap = new Map(items.map((item) => [item.id, item] as const));
+  return ids.map((id) => itemMap.get(id)).filter((item): item is TItem => Boolean(item));
 };
 
 const buildRoleSummarySearchWhere = ({
@@ -126,6 +140,19 @@ export const parsePermissionSummarySearchPayload = (req: OptionSearchRequest) =>
   };
 };
 
+export const parseOptionResolvePayload = (req: OptionSearchRequest) => {
+  const input = optionResolvePayloadSchema.parse(resolveOptionSearchSource(req));
+  const rawIds = Array.isArray(input.ids)
+    ? input.ids
+    : typeof input.ids === 'string'
+      ? input.ids.split(',')
+      : [];
+
+  return {
+    ids: [...new Set(rawIds.map((id) => id.trim()).filter(Boolean))],
+  };
+};
+
 export const listRoleSummaries = async ({
   page,
   pageSize,
@@ -171,4 +198,39 @@ export const listPermissionSummaries = async ({
     items: permissions.map(toPermissionSummary),
     meta: { page, pageSize, total },
   };
+};
+
+export const resolveRoleSummariesByIds = async (ids: string[]): Promise<RoleSummary[]> => {
+  if (!ids.length) {
+    return [];
+  }
+
+  const roles = await prisma.role.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, code: true, name: true, description: true },
+  });
+
+  return orderResolvedItems(ids, roles).map(toRoleSummary);
+};
+
+export const resolvePermissionSummariesByIds = async (
+  ids: string[],
+): Promise<PermissionSummary[]> => {
+  if (!ids.length) {
+    return [];
+  }
+
+  const permissions = await prisma.permission.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      code: true,
+      name: true,
+      module: true,
+      action: true,
+      description: true,
+    },
+  });
+
+  return orderResolvedItems(ids, permissions).map(toPermissionSummary);
 };

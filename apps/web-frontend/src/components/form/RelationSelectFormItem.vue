@@ -135,6 +135,8 @@
               type="button"
               class="relation-select-dialog__option"
               :class="{
+                'relation-select-dialog__option--default': !hasRowSlot,
+                'relation-select-dialog__option--custom': hasRowSlot,
                 'relation-select-dialog__option--active': isRowSelected(row),
                 'relation-select-dialog__option--disabled': isRowDisabled(row),
                 'relation-select-dialog__option--card': layout === 'card',
@@ -142,25 +144,29 @@
               :disabled="isRowDisabled(row)"
               @click="selectRow(row)"
             >
-              <div class="relation-select-dialog__option-content">
-                <slot
-                  name="row"
-                  :row="row"
-                  :selected="isRowSelected(row)"
-                  :toggle="() => selectRow(row)"
-                >
-                  <div class="relation-select-dialog__fallback">
-                    <strong>{{ resolveRowLabel(row) }}</strong>
-                    <span v-if="resolveRowMeta(row)">
-                      {{ resolveRowMeta(row) }}
-                    </span>
+              <slot
+                name="row"
+                :row="row"
+                :selected="isRowSelected(row)"
+                :disabled="isRowDisabled(row)"
+                :multiple="multiple"
+                :toggle="() => selectRow(row)"
+              >
+                <div class="relation-select-dialog__option-layout">
+                  <div class="relation-select-dialog__option-content">
+                    <div class="relation-select-dialog__fallback">
+                      <strong>{{ resolveRowLabel(row) }}</strong>
+                      <span v-if="resolveRowMeta(row)">
+                        {{ resolveRowMeta(row) }}
+                      </span>
+                    </div>
                   </div>
-                </slot>
-              </div>
 
-              <span class="relation-select-dialog__option-indicator">
-                {{ isRowSelected(row) ? '已选' : multiple ? '选择' : '使用' }}
-              </span>
+                  <span class="relation-select-dialog__option-indicator">
+                    {{ isRowSelected(row) ? '已选' : multiple ? '选择' : '使用' }}
+                  </span>
+                </div>
+              </slot>
             </button>
           </div>
 
@@ -260,6 +266,7 @@ const attrs = useAttrs();
 const slots = useSlots();
 const dialogVisible = ref(false);
 const loading = ref(false);
+const resolvingSelection = ref(false);
 const page = ref(1);
 const rows = ref<RelationSelectRow[]>([]);
 const total = ref(0);
@@ -268,6 +275,7 @@ const selectedRowMap = shallowRef(new Map<string, RelationSelectRow>());
 const searchParams = reactive<RelationSelectSearchParams>({ ...(props.searchDefaults ?? {}) });
 
 let requestVersion = 0;
+let resolveSelectionVersion = 0;
 
 const normalizedModelValue = computed(() =>
   normalizeRelationSelectValue(props.modelValue, props.multiple),
@@ -280,6 +288,7 @@ const selectedRows = computed(() =>
     .filter((row): row is RelationSelectRow => Boolean(row)),
 );
 const showClearAction = computed(() => props.allowClear && hasSelection.value);
+const hasRowSlot = computed(() => Boolean(slots.row));
 const hasSearchSlot = computed(() => Boolean(slots.search));
 const resolvedDialogTitle = computed(() => props.dialogTitle ?? `选择${props.label}`);
 const selectionText = computed(() => {
@@ -309,6 +318,14 @@ const defaultTriggerTitle = computed(() => {
   return props.triggerText || `已选择 ${selectedCount.value} 项`;
 });
 const defaultTriggerDescription = computed(() => {
+  if (
+    selectedCount.value &&
+    resolvingSelection.value &&
+    selectedRows.value.length < selectedCount.value
+  ) {
+    return '正在加载已选项';
+  }
+
   if (!selectedCount.value) {
     return props.multiple ? '支持分页搜索与多项选择' : '点击打开后选择关联项';
   }
@@ -374,6 +391,49 @@ const cacheRows = (items: RelationSelectRow[]) => {
     }
   });
   selectedRowMap.value = next;
+};
+
+const cancelResolveSelectedRows = () => {
+  resolveSelectionVersion += 1;
+  resolvingSelection.value = false;
+};
+
+const resolveSelectedRows = async (ids: string[]) => {
+  const missingIds = ids.filter((id) => !selectedRowMap.value.has(id));
+  if (!missingIds.length) {
+    return;
+  }
+
+  const currentRequest = ++resolveSelectionVersion;
+
+  try {
+    resolvingSelection.value = true;
+    const resolvedRows = await props.request.resolve(missingIds);
+
+    if (currentRequest !== resolveSelectionVersion) {
+      return;
+    }
+
+    const activeIds = new Set(ids);
+    const next = new Map(selectedRowMap.value);
+    resolvedRows.forEach((row) => {
+      const rowId = getRowId(row);
+      if (activeIds.has(rowId)) {
+        next.set(rowId, row);
+      }
+    });
+    selectedRowMap.value = next;
+  } catch (error: unknown) {
+    if (currentRequest !== resolveSelectionVersion) {
+      return;
+    }
+
+    ElMessage.error(getErrorMessage(error, `加载已选${props.label}失败`));
+  } finally {
+    if (currentRequest === resolveSelectionVersion) {
+      resolvingSelection.value = false;
+    }
+  }
 };
 
 const resetSearchParams = () => {
@@ -472,6 +532,7 @@ const resetSearch = () => {
 };
 
 const clearSelection = () => {
+  cancelResolveSelectedRows();
   emit('update:modelValue', props.multiple ? [] : null);
   syncSelectedRowMap([]);
 };
@@ -506,8 +567,25 @@ watch(
   normalizedModelValue,
   (value) => {
     syncSelectedRowMap(value);
+    if (!value.length) {
+      cancelResolveSelectedRows();
+      return;
+    }
+
+    void resolveSelectedRows(value);
   },
   { immediate: true },
+);
+
+watch(
+  () => props.request,
+  () => {
+    if (!normalizedModelValue.value.length) {
+      return;
+    }
+
+    void resolveSelectedRows(normalizedModelValue.value);
+  },
 );
 
 watch(
@@ -776,18 +854,24 @@ watch(
 }
 
 .relation-select-dialog__option {
+  width: 100%;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  padding: 0;
+}
+
+.relation-select-dialog__option--default {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 14px;
-  width: 100%;
   padding: 14px 16px;
   border: 1px solid var(--line-soft);
   border-radius: 16px;
   background: var(--surface-1);
-  text-align: left;
-  color: inherit;
-  cursor: pointer;
   transition:
     border-color 0.18s ease,
     box-shadow 0.18s ease,
@@ -795,15 +879,27 @@ watch(
     transform 0.18s ease;
 }
 
-.relation-select-dialog__option:hover {
+.relation-select-dialog__option--default:hover {
   border-color: color-mix(in srgb, var(--accent) 32%, var(--line-strong));
   box-shadow: 0 12px 28px rgba(11, 26, 41, 0.08);
   transform: translateY(-1px);
 }
 
-.relation-select-dialog__option--active {
+.relation-select-dialog__option--default.relation-select-dialog__option--active {
   border-color: color-mix(in srgb, var(--accent) 70%, white);
   background: color-mix(in srgb, var(--accent) 8%, white);
+}
+
+.relation-select-dialog__option--custom {
+  border-radius: 20px;
+  transition:
+    opacity 0.18s ease,
+    transform 0.18s ease;
+}
+
+.relation-select-dialog__option--custom:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--accent) 12%, transparent);
 }
 
 .relation-select-dialog__option--disabled {
@@ -811,6 +907,14 @@ watch(
   cursor: not-allowed;
   box-shadow: none;
   transform: none;
+}
+
+.relation-select-dialog__option-layout {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  width: 100%;
 }
 
 .relation-select-dialog__option-content {

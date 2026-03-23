@@ -113,9 +113,17 @@
             </div>
           </template>
 
-          <template #row="{ row }">
-            <div class="relation-option-list">
-              <strong>{{ row.name }}</strong>
+          <template #row="{ row, selected }">
+            <div
+              class="relation-option-list"
+              :class="{ 'relation-option-list--selected': selected }"
+            >
+              <div class="relation-option-list__header">
+                <strong>{{ row.name }}</strong>
+                <span class="relation-option-list__badge">
+                  {{ selected ? '已选' : '选择' }}
+                </span>
+              </div>
               <span>{{ row.code }}</span>
               <p>{{ row.module }} · {{ row.action }}</p>
             </div>
@@ -207,7 +215,41 @@ const emit = defineEmits<{
 
 .relation-option-list {
   display: grid;
-  gap: 4px;
+  gap: 6px;
+  padding: 14px 16px;
+  border: 1px solid var(--line-soft);
+  border-radius: 16px;
+  background: var(--surface-1);
+  transition:
+    border-color 0.18s ease,
+    box-shadow 0.18s ease,
+    background-color 0.18s ease;
+}
+
+.relation-option-list--selected {
+  border-color: color-mix(in srgb, var(--accent) 58%, white);
+  background: color-mix(in srgb, var(--accent) 8%, white);
+  box-shadow: 0 10px 24px rgba(11, 26, 41, 0.07);
+}
+
+.relation-option-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.relation-option-list__badge {
+  flex: 0 0 auto;
+  min-width: 44px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 12%, white);
+  color: color-mix(in srgb, var(--accent) 76%, #0f1822);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  text-align: center;
 }
 
 .relation-option-list strong {

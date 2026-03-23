@@ -11,7 +11,12 @@ import { publishRbacMutation } from '../utils/rbac-mutation';
 import { toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records';
 import { withSnowflakeId } from '../utils/persistence';
 import { authService } from '../services/auth-service';
-import { listRoleSummaries, parseRoleSummarySearchPayload } from '../services/rbac-options';
+import {
+  listRoleSummaries,
+  parseOptionResolvePayload,
+  parseRoleSummarySearchPayload,
+  resolveRoleSummariesByIds,
+} from '../services/rbac-options';
 import { softDeleteUser, syncUserRoles } from '../services/rbac-write';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
@@ -81,6 +86,14 @@ const handleRoleOptions = asyncHandler(async (req, res) => {
   return ok(res, await listRoleSummaries(parseRoleSummarySearchPayload(req)), 'Role options');
 });
 
+const handleRoleOptionResolve = asyncHandler(async (req, res) => {
+  return ok(
+    res,
+    await resolveRoleSummariesByIds(parseOptionResolvePayload(req).ids),
+    'Resolved role options',
+  );
+});
+
 usersRouter.get(
   '/options/roles',
   requireAnyPermission('user.read', 'user.create', 'user.update', 'user.assign-role'),
@@ -91,6 +104,12 @@ usersRouter.post(
   '/options/roles',
   requireAnyPermission('user.read', 'user.create', 'user.update', 'user.assign-role'),
   handleRoleOptions,
+);
+
+usersRouter.post(
+  '/options/roles/resolve',
+  requireAnyPermission('user.read', 'user.create', 'user.update', 'user.assign-role'),
+  handleRoleOptionResolve,
 );
 
 usersRouter.get(

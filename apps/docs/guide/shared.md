@@ -146,7 +146,7 @@ packages/api-common/src/api/factory.ts
 
 - CRUD 资源走 `createCrudEndpoints(...)`
 - 导出接口统一返回 `DownloadRequestConfig`
-- 关系选择这类分页选项接口统一走 `POST + body`
+- 关系选择这类分页选项接口统一走 `POST + body`，并且同一个 endpoint 自带 `resolve(ids)` 回显能力
 - 非 CRUD 能力，例如 `oauthAuthorizeUrl`、`exchangeOauthTicket`、`permissionSources`，继续作为明确方法挂在对应分组下
 
 ## 一次请求是怎么贯通的
@@ -188,7 +188,7 @@ packages/api-common/src/api/factory.ts
 - 客户端按类型配置
 - 附件标签筛选与导出
 - OAuth Provider / Application 管理
-- 关系选择组件的分页选项协议
+- 关系选择组件的分页选项协议和编辑态回显协议
 
 ## 为什么这层重要
 
