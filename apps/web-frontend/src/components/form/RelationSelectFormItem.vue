@@ -119,6 +119,16 @@
           </span>
         </div>
 
+        <div v-if="hasExtraSlot" class="relation-select-dialog__extra">
+          <slot
+            name="extra"
+            :params="searchParams"
+            :search="applySearch"
+            :reset="resetSearch"
+            :loading="loading"
+          />
+        </div>
+
         <div v-loading="loading" class="relation-select-dialog__body">
           <div
             v-if="rows.length"
@@ -290,6 +300,7 @@ const selectedRows = computed(() =>
 const showClearAction = computed(() => props.allowClear && hasSelection.value);
 const hasRowSlot = computed(() => Boolean(slots.row));
 const hasSearchSlot = computed(() => Boolean(slots.search));
+const hasExtraSlot = computed(() => Boolean(slots.extra));
 const resolvedDialogTitle = computed(() => props.dialogTitle ?? `选择${props.label}`);
 const selectionText = computed(() => {
   if (!selectedCount.value) {
@@ -562,6 +573,14 @@ const selectRow = (row: RelationSelectRow) => {
   emit('update:modelValue', rowId);
   closeDialog();
 };
+
+defineExpose({
+  openDialog,
+  closeDialog,
+  clearSelection,
+  applySearch,
+  resetSearch,
+});
 
 watch(
   normalizedModelValue,
@@ -838,6 +857,11 @@ watch(
 
 .relation-select-dialog__body {
   min-height: 220px;
+}
+
+.relation-select-dialog__extra {
+  display: grid;
+  gap: 12px;
 }
 
 .relation-select-dialog__options {

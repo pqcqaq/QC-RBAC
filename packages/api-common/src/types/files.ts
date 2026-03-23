@@ -79,6 +79,7 @@ export interface MediaAssetListQuery extends QueryParams {
   q?: string;
   kind?: string;
   uploadStatus?: MediaAssetUploadStatus;
+  mimePrefix?: string;
   tag1?: string;
   tag2?: string;
 }

@@ -302,6 +302,11 @@ export const createApiFactory = (options: ClientOptions) => {
     },
     attachments: {
       ...attachmentCrud,
+      images: createOptionSearch<
+        MediaAssetRecord,
+        PaginatedMediaAssets,
+        MediaAssetListQuery
+      >('/attachments/options/images'),
     },
     live: {
       history: (params?: Record<string, string | number | boolean | undefined>) =>

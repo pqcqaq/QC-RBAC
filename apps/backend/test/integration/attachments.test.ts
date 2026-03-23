@@ -131,4 +131,56 @@ describe('Attachment integration', () => {
     assert.equal(remainingAttachment.body.data.meta.total, 1);
     assert.equal(remainingAttachment.body.data.items[0].id, secondaryUpload.fileId);
   });
+
+  it('supports image option search and resolve for image selectors', async () => {
+    const { app } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const imageUpload = await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'brand-cover.png',
+      contentType: 'image/png',
+      content: 'png-image-content',
+      kind: 'attachment',
+      tag1: 'brand',
+      tag2: 'cover',
+    });
+
+    await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'readme.pdf',
+      contentType: 'application/pdf',
+      content: 'pdf-content',
+      kind: 'attachment',
+      tag1: 'brand',
+      tag2: 'document',
+    });
+
+    const imageOptions = await request(app)
+      .post('/api/attachments/options/images')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        page: 1,
+        pageSize: 10,
+        q: 'brand',
+        tag1: 'brand',
+      })
+      .expect(200);
+
+    assert.equal(imageOptions.body.data.meta.total, 1);
+    assert.equal(imageOptions.body.data.items[0].id, imageUpload.fileId);
+    assert.equal(imageOptions.body.data.items[0].mimeType, 'image/png');
+
+    const resolved = await request(app)
+      .post('/api/attachments/options/images/resolve')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        ids: [imageUpload.fileId],
+      })
+      .expect(200);
+
+    assert.equal(resolved.body.data.length, 1);
+    assert.equal(resolved.body.data[0].id, imageUpload.fileId);
+    assert.equal(resolved.body.data[0].originalName, 'brand-cover.png');
+  });
 });

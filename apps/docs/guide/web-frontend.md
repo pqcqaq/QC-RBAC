@@ -234,6 +234,7 @@ pages/console/<module>
 - `useResourceDetail`：统一处理详情抽屉
 - `useResourceRemoval`：统一处理删除确认和错误反馈
 - `RelationSelectFormItem`：统一处理表单里的外键 / 关联选择
+- `ImageSelectFormItem`：统一处理图片外键选择与上传回填
 - `PermissionEditorDialog`：统一处理权限新增 / 编辑弹窗
 - `ListExportButton`：统一处理导出按钮
 - `useDownload`：处理流式下载、文件名解析和错误处理
@@ -255,6 +256,18 @@ pages/console/<module>
 - 角色编辑里的权限分配
 - OAuth 应用里的权限 scope 分配
 - 菜单编辑里的权限绑定
+
+### `ImageSelectFormItem` 的约定
+
+- 专门用于图片外键字段
+- 复用 `RelationSelectFormItem` 的分页、回显、搜索插槽和行插槽能力
+- 图片列表走 `/api/attachments/options/images`
+- 编辑态回显走 `/api/attachments/options/images/resolve`
+- 上传复用现有分步上传链路：`/api/files/presign -> 上传分片/单文件 -> /api/files/callback`
+- 上传成功后直接回填新的图片 id，不需要业务页面再手动刷新表单
+- 上传区不塞进搜索栏，而是通过 `RelationSelectFormItem` 的 `#extra` 区域挂载
+
+这个组件适合替换所有“图片 id + 预览 + 从附件库里选 + 允许顺手上传”的表单字段。
 
 ### 菜单结构管理的行为编辑
 

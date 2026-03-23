@@ -194,6 +194,23 @@ type RelationSelectRequest = {
 | `reset` | `() => void` | 重置到 `searchDefaults` 并重新查询 |
 | `loading` | `boolean` | 当前是否请求中 |
 
+### `extra`
+
+放在工具栏下面、选项列表上面的扩展区域，适合承载不属于搜索栏的附加面板，例如：
+
+- 图片选择器里的上传区
+- 表单里的说明区
+- 额外筛选摘要或提示
+
+插槽参数和 `search` 一致：
+
+| 参数 | 类型 | 说明 |
+| --- | --- | --- |
+| `params` | `Record<string, string \| number \| null \| undefined>` | 当前搜索参数对象 |
+| `search` | `() => void` | 触发查询并回到第一页 |
+| `reset` | `() => void` | 重置到 `searchDefaults` 并重新查询 |
+| `loading` | `boolean` | 当前是否请求中 |
+
 ### `row`
 
 自定义每一行如何显示。

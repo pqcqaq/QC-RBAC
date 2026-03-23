@@ -16,6 +16,7 @@ description: QC-RBAC 当前已经沉淀出来的可复用组件文档。
 ### Web
 
 - [RelationSelectFormItem](/components/web/relation-select-form-item)
+- [ImageSelectFormItem](/components/web/image-select-form-item)
 
 ## 使用约定
 

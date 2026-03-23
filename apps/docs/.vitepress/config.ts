@@ -73,6 +73,10 @@ export default defineConfig({
               text: 'RelationSelectFormItem',
               link: '/components/web/relation-select-form-item',
             },
+            {
+              text: 'ImageSelectFormItem',
+              link: '/components/web/image-select-form-item',
+            },
           ],
         },
       ],

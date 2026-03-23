@@ -1,15 +1,24 @@
 import path from 'node:path';
-import type { Prisma } from '../lib/prisma-generated';
-import { Router, type Request } from 'express';
+import type { MediaAssetSearchFilters } from '../services/media-asset-options';
+import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
+import type { Prisma } from '../lib/prisma-generated';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
 import { deleteStoredUpload, normalizeMediaAssetTag } from '../services/file-upload';
+import {
+  buildMediaAssetWhere,
+  listMediaAssets,
+  parseMediaAssetSearchFilters,
+  parseMediaAssetSearchPayload,
+  resolveMediaAssetsByIds,
+} from '../services/media-asset-options';
+import { parseOptionResolvePayload } from '../services/rbac-options';
 import { logActivity } from '../utils/audit';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 import { badRequest, notFound } from '../utils/errors';
-import { ok, asyncHandler, parsePagination } from '../utils/http';
+import { ok, asyncHandler } from '../utils/http';
 import {
   mediaAssetWithOwnerInclude,
   toMediaAssetRecord,
@@ -23,76 +32,6 @@ const attachmentUpdateSchema = z.object({
   tag1: z.string().trim().max(64).nullable().optional(),
   tag2: z.string().trim().max(64).nullable().optional(),
 });
-
-type AttachmentListQuery = {
-  q: string;
-  kind: string;
-  uploadStatus: '' | 'PENDING' | 'COMPLETED' | 'FAILED';
-  tag1: string;
-  tag2: string;
-};
-
-const parseAttachmentListQuery = (query: Request['query']): AttachmentListQuery => {
-  const uploadStatus = String(query.uploadStatus ?? '').trim();
-
-  return {
-    q: String(query.q ?? '').trim(),
-    kind: String(query.kind ?? '').trim(),
-    uploadStatus: ['PENDING', 'COMPLETED', 'FAILED'].includes(uploadStatus)
-      ? (uploadStatus as AttachmentListQuery['uploadStatus'])
-      : '',
-    tag1: String(query.tag1 ?? '').trim(),
-    tag2: String(query.tag2 ?? '').trim(),
-  };
-};
-
-const buildAttachmentWhere = ({
-  q,
-  kind,
-  uploadStatus,
-  tag1,
-  tag2,
-}: AttachmentListQuery): Prisma.MediaAssetWhereInput => {
-  const where: Record<string, unknown> = {};
-
-  if (q) {
-    where.OR = [
-      { originalName: { contains: q, mode: 'insensitive' } },
-      { mimeType: { contains: q, mode: 'insensitive' } },
-      { objectKey: { contains: q, mode: 'insensitive' } },
-      { tag1: { contains: q, mode: 'insensitive' } },
-      { tag2: { contains: q, mode: 'insensitive' } },
-      {
-        user: {
-          is: {
-            OR: [
-              { username: { contains: q, mode: 'insensitive' } },
-              { nickname: { contains: q, mode: 'insensitive' } },
-            ],
-          },
-        },
-      },
-    ];
-  }
-
-  if (kind) {
-    where.kind = kind;
-  }
-
-  if (uploadStatus) {
-    where.uploadStatus = uploadStatus;
-  }
-
-  if (tag1) {
-    where.tag1 = tag1;
-  }
-
-  if (tag2) {
-    where.tag2 = tag2;
-  }
-
-  return where as Prisma.MediaAssetWhereInput;
-};
 
 const normalizeOriginalName = (value: string) => {
   const nextValue = path.basename(value).trim().slice(0, 255);
@@ -109,41 +48,21 @@ attachmentsRouter.get(
   '/',
   requirePermission('file.read'),
   asyncHandler(async (req, res) => {
-    const { page, pageSize, skip } = parsePagination(req.query);
-    const where = buildAttachmentWhere(parseAttachmentListQuery(req.query));
-
-    const [total, assets] = await prisma.$transaction([
-      prisma.mediaAsset.count({ where }),
-      prisma.mediaAsset.findMany({
-        where,
-        skip,
-        take: pageSize,
-        include: mediaAssetWithOwnerInclude,
-        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      }),
-    ]);
-
-    return ok(
-      res,
-      {
-        items: assets.map(toMediaAssetRecord),
-        meta: { page, pageSize, total },
-      },
-      'Attachment list',
-    );
+    const result = await listMediaAssets(parseMediaAssetSearchPayload(req));
+    return ok(res, result, 'Attachment list');
   }),
 );
 
 attachmentsRouter.get(
   '/export',
   requirePermission('file.read'),
-  createExcelExportHandler<AttachmentListQuery, MediaAssetWithOwnerRecord>({
+  createExcelExportHandler<MediaAssetSearchFilters, MediaAssetWithOwnerRecord>({
     fileName: () => createTimestampedExcelFileName('attachments'),
     sheetName: 'Attachments',
-    parseQuery: parseAttachmentListQuery,
+    parseQuery: parseMediaAssetSearchFilters,
     queryRows: async (query) =>
       prisma.mediaAsset.findMany({
-        where: buildAttachmentWhere(query),
+        where: buildMediaAssetWhere(query),
         include: mediaAssetWithOwnerInclude,
         orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
       }) as Promise<MediaAssetWithOwnerRecord[]>,
@@ -161,6 +80,48 @@ attachmentsRouter.get(
       { header: '完成时间', width: 22, value: (row) => row.completedAt ?? '' },
       { header: '访问地址', width: 50, value: (row) => row.url ?? '' },
     ],
+  }),
+);
+
+const handleImageOptions = asyncHandler(async (req, res) => {
+  const result = await listMediaAssets(
+    parseMediaAssetSearchPayload(req, {
+      defaults: {
+        uploadStatus: 'COMPLETED',
+        kind: 'attachment',
+      },
+      fixed: {
+        mimePrefix: 'image/',
+      },
+    }),
+  );
+
+  return ok(res, result, 'Attachment image options');
+});
+
+attachmentsRouter.get(
+  '/options/images',
+  requirePermission('file.read'),
+  handleImageOptions,
+);
+
+attachmentsRouter.post(
+  '/options/images',
+  requirePermission('file.read'),
+  handleImageOptions,
+);
+
+attachmentsRouter.post(
+  '/options/images/resolve',
+  requirePermission('file.read'),
+  asyncHandler(async (req, res) => {
+    const rows = await resolveMediaAssetsByIds(parseOptionResolvePayload(req).ids, {
+      uploadStatus: 'COMPLETED',
+      kind: 'attachment',
+      mimePrefix: 'image/',
+    });
+
+    return ok(res, rows, 'Attachment image options resolved');
   }),
 );
 
