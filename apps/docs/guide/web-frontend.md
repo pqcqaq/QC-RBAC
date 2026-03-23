@@ -71,6 +71,10 @@ Web 端 realtime 预配置也在 `src/api/client.ts`：
 - `wsClient`
 - `realtimeWsUrl`
 
+控制台级全局同步不放在具体页面里，而是单独放在：
+
+- `src/realtime/admin-sync.ts`
+
 页面层不要再直接 `new WebSocket(...)`，而是优先用：
 
 - `src/composables/use-ws-topic.ts`
@@ -85,6 +89,30 @@ Web 端 realtime 预配置也在 `src/api/client.ts`：
 - 服务端 topic 同步
 
 完整说明和 API 清单见 [实时通信](/guide/realtime)。
+
+### 控制台级实时同步
+
+`src/realtime/admin-sync.ts` 会在登录态下自动监听当前用户自己的：
+
+```ts
+REALTIME_TOPICS.userRbacUpdated(userId)
+```
+
+它不是简单地“收到一条消息就立刻全量重载”，而是做了两层收敛：
+
+- 服务端只向受影响的在线用户推送
+- 前端把连续的多条 `rbac-updated` 推送合并成一次同步
+
+收到推送后的行为取决于 payload 里的 `targets`：
+
+- `['user']`
+  只刷新 `auth.me()`，同步当前用户资料、角色和权限
+- `['menus']`
+  只刷新 `menus.current()`，同步动态路由和导航
+- `['user', 'menus']`
+  同时刷新两者
+
+这样菜单改动、角色改动、权限收缩后，控制台能在当前会话里实时收敛，而不会造成明显的重复请求放大。
 
 ### 登录态时序
 

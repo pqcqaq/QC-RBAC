@@ -249,11 +249,12 @@ rolesRouter.put(
       select: { permissionId: true },
     });
     const nextPermissionIds = [...new Set(payload.permissionIds)];
+    const permissionChanged = !sameStringSet(
+      currentPermissionIds.map((item) => item.permissionId),
+      nextPermissionIds,
+    );
     if (
-      !sameStringSet(
-        currentPermissionIds.map((item) => item.permissionId),
-        nextPermissionIds,
-      ) &&
+      permissionChanged &&
       !actor.permissions.includes('role.assign-permission')
     ) {
       throw badRequest('Missing permission: role.assign-permission');
@@ -285,6 +286,7 @@ rolesRouter.put(
       detail: { permissionIds: nextPermissionIds },
       affectedUserIds,
       reason: `Role changed: ${role.name}`,
+      syncTargets: permissionChanged ? ['user', 'menus'] : ['user'],
     });
 
     return ok(res, toRoleRecord(hydratedRole), 'Role updated');
@@ -306,11 +308,15 @@ rolesRouter.delete(
       throw badRequest('System role cannot be deleted');
     }
 
+    const affectedUserIds = await findAffectedUserIdsByRoleIds([roleId]);
     await softDeleteRole(roleId);
     await publishRbacMutation({
       actor,
       action: 'role.delete',
       target: role.name,
+      affectedUserIds,
+      reason: `Role removed: ${role.name}`,
+      syncTargets: ['user', 'menus'],
     });
 
     return ok(res, { ok: true }, 'Role deleted');

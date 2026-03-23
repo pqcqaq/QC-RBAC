@@ -231,6 +231,8 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - `tracks the same user across multiple realtime client groups`
 - `acknowledges subscriptions and unsubscriptions and dispatches wildcard topic messages`
+- `pushes permission updates only to affected online users and includes full sync targets`
+- `pushes menu updates only to online users whose menu tree is affected`
 
 覆盖点：
 
@@ -239,6 +241,9 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 同一用户下不同客户端连接分组索引
 - `sub` / `sub:ack` / `unsub` / `unsub:ack` 协议同步
 - wildcard topic 推送分发
+- 权限更新事件只推给受影响在线用户
+- 菜单结构变更只推给菜单树受影响在线用户
+- `RbacUpdatedPayload.targets` 用于区分 `user` / `menus` 刷新范围
 - 无订阅 topic 时服务端主动关闭连接
 
 ## 新增测试时怎么判断放哪里

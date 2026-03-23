@@ -6,6 +6,7 @@ import App from './App.vue';
 import { preloadIconNames } from './components/common/iconify-runtime';
 import { menuIconPrefetchList } from './components/common/uno-icons';
 import { registerAccessDirectives } from './directives/access';
+import { installAdminRealtimeSync } from './realtime/admin-sync';
 import { pinia } from './stores';
 import { router } from './router';
 import { beginBootProgress, markAppReady } from './utils/app-progress';
@@ -17,6 +18,7 @@ preloadIconNames(menuIconPrefetchList);
 const app = createApp(App);
 
 registerAccessDirectives(app);
+installAdminRealtimeSync(router);
 
 app.use(pinia).use(router).mount('#app');
 

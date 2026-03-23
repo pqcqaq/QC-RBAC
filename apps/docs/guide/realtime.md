@@ -145,6 +145,15 @@ REALTIME_TOPICS.userRbacUpdated(userId)
 | `/system/presence/changed` | `PresenceChangedPayload` |
 | `/system/users/<userId>/rbac-updated` | `RbacUpdatedPayload` |
 
+`RbacUpdatedPayload` 现在除了 `reason`、`at` 之外，还会声明本次前端需要刷新的范围：
+
+- `targets: ['user']`
+  只需要重新拉取 `auth.me()`，同步当前用户角色、权限、昵称、头像等会话信息
+- `targets: ['menus']`
+  只需要重新拉取 `menus.current()`，同步动态路由、导航树和工作台标签
+- `targets: ['user', 'menus']`
+  两者都需要刷新
+
 ## 协议消息
 
 共享协议定义在：
@@ -266,13 +275,24 @@ apps/backend/src/lib/socket.ts
 /chat/global/message
 ```
 
-#### `emitRbacUpdated(userIds, reason)`
+#### `emitRbacUpdated(userIds, reason | options)`
 
 按用户维度发布到：
 
 ```text
 /system/users/<userId>/rbac-updated
 ```
+
+除了直接传 `reason`，也可以传：
+
+- `reason`
+- `targets`
+
+这让业务侧可以明确告诉前端，这次推送只需要同步：
+
+- 当前用户信息
+- 菜单和动态路由
+- 或两者一起同步
 
 #### `getRealtimeConnectionSnapshot()`
 
@@ -406,6 +426,12 @@ apps/web-frontend/src/api/client.ts
 - `realtimeWsUrl`
 - `wsClient`
 
+控制台登录态下的全局同步器在：
+
+```text
+apps/web-frontend/src/realtime/admin-sync.ts
+```
+
 组件级封装在：
 
 ```text
@@ -434,6 +460,26 @@ Web 实际接入示例可以直接看：
 ```text
 apps/web-frontend/src/pages/console/live/LiveView.vue
 ```
+
+### 控制台登录后的自动同步
+
+Web 控制台现在会在登录态下自动订阅：
+
+```ts
+REALTIME_TOPICS.userRbacUpdated(currentUserId)
+```
+
+`apps/web-frontend/src/realtime/admin-sync.ts` 负责：
+
+- 监听当前用户自己的 `rbac-updated` topic
+- 根据 payload 里的 `targets` 判断刷新 `auth.me()`、`menus.current()`，还是两者一起刷新
+- 把短时间内多条推送合并成一次同步，避免连续发起多轮重复请求
+- 菜单或权限收缩后，把当前页面重定向到仍可访问的 `homePath`
+
+当前服务端推送策略：
+
+- 权限 / 角色变更：`targets: ['user', 'menus']`
+- 菜单结构变更：`targets: ['menus']`
 
 ## Uni 如何使用
 

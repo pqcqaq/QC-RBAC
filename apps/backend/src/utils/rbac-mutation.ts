@@ -1,5 +1,6 @@
 import type { CurrentUser } from '@rbac/api-common';
-import { emitAuditEvent, emitRbacUpdated } from '../lib/socket';
+import type { RealtimeSyncTarget } from '@rbac/api-common';
+import { emitAuditEvent, emitRbacUpdated, getConnectedRealtimeUserIds } from '../lib/socket';
 import { logActivity } from './audit';
 import { invalidatePermissionCache } from './rbac';
 
@@ -11,8 +12,10 @@ type RbacMutationPayload = {
   target: string;
   detail?: unknown;
   affectedUserIds?: string[];
+  notifiedUserIds?: string[];
   reason?: string;
   invalidateCache?: boolean;
+  syncTargets?: RealtimeSyncTarget[];
 };
 
 export const publishRbacMutation = async ({
@@ -21,10 +24,15 @@ export const publishRbacMutation = async ({
   target,
   detail,
   affectedUserIds = [],
+  notifiedUserIds,
   reason,
   invalidateCache = true,
+  syncTargets,
 }: RbacMutationPayload) => {
   const uniqueUserIds = [...new Set(affectedUserIds)];
+  const connectedUserIds = new Set(getConnectedRealtimeUserIds());
+  const resolvedNotifiedUserIds = [...new Set(notifiedUserIds ?? uniqueUserIds)]
+    .filter((userId) => connectedUserIds.has(userId));
 
   if (invalidateCache && uniqueUserIds.length) {
     await invalidatePermissionCache(uniqueUserIds);
@@ -44,7 +52,10 @@ export const publishRbacMutation = async ({
     target,
   });
 
-  if (reason && uniqueUserIds.length) {
-    emitRbacUpdated(uniqueUserIds, reason);
+  if (reason && resolvedNotifiedUserIds.length) {
+    emitRbacUpdated(resolvedNotifiedUserIds, {
+      reason,
+      targets: syncTargets,
+    });
   }
 };

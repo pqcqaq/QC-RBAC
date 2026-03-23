@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import type { MenuNodeFormPayload } from '@rbac/api-common';
 import { z } from 'zod';
+import { getConnectedRealtimeUserIds } from '../lib/socket';
 import { authMiddleware } from '../middlewares/auth';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
 import {
@@ -19,7 +20,7 @@ import {
 } from '../services/menu-tree';
 import { ok, asyncHandler } from '../utils/http';
 import { badRequest } from '../utils/errors';
-import { findAllUserIds } from '../utils/rbac';
+import { findMenuAffectedUserIds } from '../utils/menu-realtime';
 import { publishRbacMutation } from '../utils/rbac-mutation';
 
 const menuPayloadSchema = z.object({
@@ -104,7 +105,9 @@ menusRouter.post(
     }
 
     const created = await createMenuNode(payload);
-    const affectedUserIds = await findAllUserIds();
+    const notifiedUserIds = await findMenuAffectedUserIds([created], {
+      candidateUserIds: getConnectedRealtimeUserIds(),
+    });
 
     await publishRbacMutation({
       actor,
@@ -116,8 +119,10 @@ menusRouter.post(
         path: created.path,
         permissionCode: created.permission?.code,
       },
-      affectedUserIds,
+      invalidateCache: false,
+      notifiedUserIds,
       reason: `Menu created: ${created.title}`,
+      syncTargets: ['menus'],
     });
 
     return ok(res, created, 'Menu node created');
@@ -141,7 +146,9 @@ menusRouter.put(
     }
 
     const updated = await updateMenuNode(menuId, payload);
-    const affectedUserIds = await findAllUserIds();
+    const notifiedUserIds = await findMenuAffectedUserIds([current, updated], {
+      candidateUserIds: getConnectedRealtimeUserIds(),
+    });
 
     await publishRbacMutation({
       actor,
@@ -153,8 +160,10 @@ menusRouter.put(
         path: updated.path,
         permissionCode: updated.permission?.code,
       },
-      affectedUserIds,
+      invalidateCache: false,
+      notifiedUserIds,
       reason: `Menu updated: ${updated.title}`,
+      syncTargets: ['menus'],
     });
 
     return ok(res, updated, 'Menu node updated');
@@ -169,7 +178,9 @@ menusRouter.delete(
     const menuId = String(req.params.id);
     const current = await getMenuNodeOrThrow(menuId);
     const removedIds = await deleteMenuNode(menuId);
-    const affectedUserIds = await findAllUserIds();
+    const notifiedUserIds = await findMenuAffectedUserIds([current], {
+      candidateUserIds: getConnectedRealtimeUserIds(),
+    });
 
     await publishRbacMutation({
       actor,
@@ -178,8 +189,10 @@ menusRouter.delete(
       detail: {
         removedNodeIds: removedIds,
       },
-      affectedUserIds,
+      invalidateCache: false,
+      notifiedUserIds,
       reason: `Menu removed: ${current.title}`,
+      syncTargets: ['menus'],
     });
 
     return ok(res, { ok: true }, 'Menu node deleted');

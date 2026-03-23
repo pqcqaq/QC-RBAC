@@ -207,6 +207,7 @@ permissionsRouter.put(
       target: permission.code,
       affectedUserIds,
       reason: `Permission changed: ${permission.code}`,
+      syncTargets: ['user', 'menus'],
     });
 
     return ok(res, toPermissionRecord(permission), 'Permission updated');
@@ -238,6 +239,7 @@ permissionsRouter.delete(
       target: permission.code,
       affectedUserIds,
       reason: `Permission removed: ${permission.code}`,
+      syncTargets: ['user', 'menus'],
     });
 
     return ok(res, { ok: true }, 'Permission deleted');

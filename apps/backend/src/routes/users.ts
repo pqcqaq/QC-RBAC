@@ -301,11 +301,13 @@ usersRouter.put(
       select: { roleId: true },
     });
     const nextRoleIds = [...new Set(payload.roleIds)];
+    const roleChanged = !sameStringSet(
+      currentRoleIds.map((item) => item.roleId),
+      nextRoleIds,
+    );
+    const statusChanged = existed.status !== payload.status;
     if (
-      !sameStringSet(
-        currentRoleIds.map((item) => item.roleId),
-        nextRoleIds,
-      ) &&
+      roleChanged &&
       !actor.permissions.includes('user.assign-role')
     ) {
       throw badRequest('Missing permission: user.assign-role');
@@ -347,6 +349,7 @@ usersRouter.put(
       detail: { roleIds: nextRoleIds },
       affectedUserIds: [user.id],
       reason: 'User profile updated',
+      syncTargets: roleChanged || statusChanged ? ['user', 'menus'] : ['user'],
     });
 
     return ok(res, toUserRecord(hydratedUser), 'User updated');
@@ -375,6 +378,7 @@ usersRouter.delete(
       target: resolveUserTarget(existed),
       affectedUserIds: [userId],
       reason: 'User deleted',
+      syncTargets: ['user'],
     });
 
     return ok(res, { ok: true }, 'User deleted');

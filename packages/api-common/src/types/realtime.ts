@@ -8,6 +8,9 @@ export const REALTIME_TOPICS = {
   userRbacUpdated: (userId: string) => `/system/users/${userId}/rbac-updated`,
 } as const;
 
+export const REALTIME_SYNC_TARGETS = ['menus', 'user'] as const;
+export type RealtimeSyncTarget = (typeof REALTIME_SYNC_TARGETS)[number];
+
 export interface PresenceChangedPayload {
   userId: string;
   nickname: string;
@@ -25,6 +28,7 @@ export interface AuditEventPayload {
 export interface RbacUpdatedPayload {
   reason: string;
   at: string;
+  targets: RealtimeSyncTarget[];
 }
 
 export interface RealtimeConnectionSnapshot {

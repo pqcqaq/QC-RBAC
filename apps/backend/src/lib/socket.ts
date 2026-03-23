@@ -8,10 +8,12 @@ import {
   matchWsTopic,
   normalizeWsPublishTopic,
   normalizeWsSubscriptionTopic,
+  REALTIME_SYNC_TARGETS,
   type AuditEventPayload,
   type LiveMessage,
   type PresenceChangedPayload,
   type RbacUpdatedPayload,
+  type RealtimeSyncTarget,
   type RealtimeClientMessage,
   type RealtimeErrorMessage,
   type RealtimeReadyMessage,
@@ -328,6 +330,9 @@ export const getRealtimeConnectionSnapshot = () => ({
     .sort((left, right) => left.userId.localeCompare(right.userId, 'en')),
 });
 
+export const getConnectedRealtimeUserIds = () =>
+  [...connectionIdsByUserId.keys()].sort((left, right) => left.localeCompare(right, 'en'));
+
 const authenticateRealtimeRequest = async (request: IncomingMessage, url: URL) => {
   assertAllowedOrigin(request);
 
@@ -565,11 +570,28 @@ export const emitAuditEvent = (payload: {
   return publishRealtimeTopic(REALTIME_TOPICS.auditEvent, normalizedPayload);
 };
 
-export const emitRbacUpdated = (userIds: string[], reason: string) => {
+export const emitRbacUpdated = (
+  userIds: string[],
+  input: string | {
+    reason: string;
+    targets?: RealtimeSyncTarget[];
+  },
+) => {
+  const normalizedInput = typeof input === 'string'
+    ? {
+        reason: input,
+        targets: [...REALTIME_SYNC_TARGETS],
+      }
+    : {
+        reason: input.reason,
+        targets: input.targets?.length ? [...new Set(input.targets)] : [...REALTIME_SYNC_TARGETS],
+      };
+
   userIds.forEach((userId) => {
     const payload: RbacUpdatedPayload = {
       at: new Date().toISOString(),
-      reason,
+      reason: normalizedInput.reason,
+      targets: normalizedInput.targets,
     };
     publishRealtimeTopic(REALTIME_TOPICS.userRbacUpdated(userId), payload);
   });

@@ -2,7 +2,12 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { setTimeout as delay } from 'node:timers/promises';
 import { after, before, beforeEach, describe, it } from 'node:test';
-import { REALTIME_TOPICS, type RealtimeServerMessage } from '@rbac/api-common';
+import {
+  REALTIME_TOPICS,
+  type RbacUpdatedPayload,
+  type RealtimeServerMessage,
+} from '@rbac/api-common';
+import request from 'supertest';
 import { WebSocket } from 'ws';
 import {
   closeSocketServer,
@@ -68,6 +73,19 @@ const connectRealtimeClient = async (port: number, accessToken: string) => {
   } satisfies RealtimeTestClient;
 };
 
+const subscribeUserTopic = async (client: RealtimeTestClient, userId: string, requestId: string) => {
+  client.socket.send(JSON.stringify({
+    requestId,
+    topics: [REALTIME_TOPICS.userRbacUpdated(userId)],
+    type: 'sub',
+  }));
+
+  return takeMessage(
+    client,
+    (message): message is Extract<RealtimeServerMessage, { type: 'sub:ack' }> => message.type === 'sub:ack',
+  );
+};
+
 const takeMessage = async <T extends RealtimeServerMessage>(
   client: RealtimeTestClient,
   matcher: (message: RealtimeServerMessage) => message is T,
@@ -95,6 +113,14 @@ const closeRealtimeClient = async (client: RealtimeTestClient) => {
   }
 
   await waitFor(() => client.socket.readyState === WebSocket.CLOSED ? true : undefined);
+};
+
+const assertNoTopicMessage = async (
+  client: RealtimeTestClient,
+  timeoutMs = 250,
+) => {
+  await delay(timeoutMs);
+  assert.equal(client.messages.some((message) => message.type === 'message'), false);
 };
 
 let context: BackendTestContext;
@@ -202,6 +228,7 @@ describe('Realtime integration', () => {
     const deliveredCount = publishRealtimeMessage(REALTIME_TOPICS.userRbacUpdated(ready.userId), {
       at: '2026-03-23T10:00:00.000Z',
       reason: 'integration-test',
+      targets: ['user', 'menus'],
     });
 
     assert.equal(deliveredCount, 1);
@@ -215,6 +242,7 @@ describe('Realtime integration', () => {
     assert.deepEqual(pushedMessage.payload, {
       at: '2026-03-23T10:00:00.000Z',
       reason: 'integration-test',
+      targets: ['user', 'menus'],
     });
 
     realtime.socket.send(JSON.stringify({
@@ -238,5 +266,207 @@ describe('Realtime integration', () => {
       reason: 'No subscriptions',
     });
     await waitFor(() => getRealtimeConnectionSnapshot().totalConnections === 0 ? true : undefined);
+  });
+
+  it('pushes permission updates only to affected online users and includes full sync targets', async () => {
+    const adminSession = await loginAs(context.app, 'admin@example.com', 'Admin123!', webClient);
+
+    const permissionResponse = await request(context.app)
+      .post('/api/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        action: 'read',
+        code: 'realtime.permission.target',
+        description: 'Realtime permission target',
+        module: 'realtime',
+        name: 'Realtime Permission Target',
+      })
+      .expect(200);
+
+    const permission = permissionResponse.body.data as {
+      action: string;
+      code: string;
+      description?: string;
+      id: string;
+      module: string;
+      name: string;
+    };
+
+    const roleResponse = await request(context.app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'realtime-permission-role',
+        description: 'Realtime permission role',
+        name: 'Realtime Permission Role',
+        permissionIds: [permission.id],
+      })
+      .expect(200);
+
+    const role = roleResponse.body.data as { id: string };
+
+    await request(context.app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        email: 'realtime-permission-user@example.com',
+        nickname: '权限实时用户',
+        password: 'Target123!',
+        roleIds: [role.id],
+        status: 'ACTIVE',
+        username: 'realtime-permission-user',
+      })
+      .expect(200);
+
+    const affectedSession = await loginAs(context.app, 'realtime-permission-user@example.com', 'Target123!', webClient);
+    const unaffectedSession = await loginAs(context.app, 'user@example.com', 'User123!', webClient);
+    const affectedRealtime = await connectRealtimeClient(port, affectedSession.tokens.accessToken);
+    const unaffectedRealtime = await connectRealtimeClient(port, unaffectedSession.tokens.accessToken);
+
+    const affectedReady = await takeMessage(
+      affectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'ready' }> => message.type === 'ready',
+    );
+    const unaffectedReady = await takeMessage(
+      unaffectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'ready' }> => message.type === 'ready',
+    );
+
+    await subscribeUserTopic(affectedRealtime, affectedReady.userId, 'perm-sub-affected');
+    await subscribeUserTopic(unaffectedRealtime, unaffectedReady.userId, 'perm-sub-unaffected');
+
+    await request(context.app)
+      .put(`/api/permissions/${permission.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        action: permission.action,
+        code: permission.code,
+        description: 'Realtime permission target updated',
+        module: permission.module,
+        name: 'Realtime Permission Updated',
+      })
+      .expect(200);
+
+    const affectedMessage = await takeMessage(
+      affectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'message' }> => message.type === 'message',
+    );
+    const payload = affectedMessage.payload as RbacUpdatedPayload;
+
+    assert.equal(affectedMessage.topic, REALTIME_TOPICS.userRbacUpdated(affectedReady.userId));
+    assert.deepEqual(affectedMessage.payload, {
+      at: payload.at,
+      reason: `Permission changed: ${permission.code}`,
+      targets: ['user', 'menus'],
+    });
+
+    await assertNoTopicMessage(unaffectedRealtime);
+    await closeRealtimeClient(affectedRealtime);
+    await closeRealtimeClient(unaffectedRealtime);
+  });
+
+  it('pushes menu updates only to online users whose menu tree is affected', async () => {
+    const adminSession = await loginAs(context.app, 'admin@example.com', 'Admin123!', webClient);
+
+    const permissionResponse = await request(context.app)
+      .post('/api/permissions')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        action: 'read',
+        code: 'realtime.menu.target',
+        description: 'Realtime menu target',
+        module: 'realtime',
+        name: 'Realtime Menu Target',
+      })
+      .expect(200);
+
+    const permission = permissionResponse.body.data as { id: string };
+
+    const roleResponse = await request(context.app)
+      .post('/api/roles')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        code: 'realtime-menu-role',
+        description: 'Realtime menu role',
+        name: 'Realtime Menu Role',
+        permissionIds: [permission.id],
+      })
+      .expect(200);
+
+    const role = roleResponse.body.data as { id: string };
+
+    await request(context.app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        email: 'realtime-menu-user@example.com',
+        nickname: '菜单实时用户',
+        password: 'Target123!',
+        roleIds: [role.id],
+        status: 'ACTIVE',
+        username: 'realtime-menu-user',
+      })
+      .expect(200);
+
+    const affectedSession = await loginAs(context.app, 'realtime-menu-user@example.com', 'Target123!', webClient);
+    const unaffectedSession = await loginAs(context.app, 'user@example.com', 'User123!', webClient);
+    const affectedRealtime = await connectRealtimeClient(port, affectedSession.tokens.accessToken);
+    const unaffectedRealtime = await connectRealtimeClient(port, unaffectedSession.tokens.accessToken);
+
+    const affectedReady = await takeMessage(
+      affectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'ready' }> => message.type === 'ready',
+    );
+    const unaffectedReady = await takeMessage(
+      unaffectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'ready' }> => message.type === 'ready',
+    );
+
+    await subscribeUserTopic(affectedRealtime, affectedReady.userId, 'menu-sub-affected');
+    await subscribeUserTopic(unaffectedRealtime, unaffectedReady.userId, 'menu-sub-unaffected');
+
+    const parentPage = await context.prisma.menuNode.findFirst({
+      where: {
+        type: 'PAGE',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    assert.ok(parentPage);
+
+    await request(context.app)
+      .post('/api/menus')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        caption: 'realtime menu',
+        code: 'realtime-menu-action',
+        description: 'Realtime menu action',
+        icon: 'i-carbon-home',
+        parentId: parentPage.id,
+        permissionId: permission.id,
+        sortOrder: 9_999,
+        title: 'Realtime Menu Action',
+        type: 'ACTION',
+      })
+      .expect(200);
+
+    const affectedMessage = await takeMessage(
+      affectedRealtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'message' }> => message.type === 'message',
+    );
+    const payload = affectedMessage.payload as RbacUpdatedPayload;
+
+    assert.equal(affectedMessage.topic, REALTIME_TOPICS.userRbacUpdated(affectedReady.userId));
+    assert.deepEqual(affectedMessage.payload, {
+      at: payload.at,
+      reason: 'Menu created: Realtime Menu Action',
+      targets: ['menus'],
+    });
+
+    await assertNoTopicMessage(unaffectedRealtime);
+    await closeRealtimeClient(affectedRealtime);
+    await closeRealtimeClient(unaffectedRealtime);
   });
 });

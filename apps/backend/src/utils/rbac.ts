@@ -117,6 +117,60 @@ export const findAffectedUserIdsByRoleIds = async (roleIds: string[]) => {
   return [...new Set(rows.map((item) => item.userId))];
 };
 
+export const findAffectedUserIdsByPermissionIds = async (
+  permissionIds: string[],
+  options: {
+    restrictToUserIds?: string[];
+  } = {},
+) => {
+  if (!permissionIds.length) {
+    return [];
+  }
+
+  const normalizedPermissionIds = [...new Set(permissionIds)];
+  const restrictToUserIds = options.restrictToUserIds?.length
+    ? [...new Set(options.restrictToUserIds)]
+    : null;
+
+  const roleRows = await prisma.rolePermission.findMany({
+    where: {
+      deleteAt: null,
+      permissionId: {
+        in: normalizedPermissionIds,
+      },
+    },
+    select: {
+      roleId: true,
+    },
+  });
+
+  const roleIds = [...new Set(roleRows.map((item) => item.roleId))];
+  if (!roleIds.length) {
+    return [];
+  }
+
+  const userRows = await prisma.userRole.findMany({
+    where: {
+      deleteAt: null,
+      roleId: {
+        in: roleIds,
+      },
+      ...(restrictToUserIds
+        ? {
+            userId: {
+              in: restrictToUserIds,
+            },
+          }
+        : {}),
+    },
+    select: {
+      userId: true,
+    },
+  });
+
+  return [...new Set(userRows.map((item) => item.userId))];
+};
+
 export const findAllUserIds = async () => {
   const rows = await prisma.user.findMany({
     select: {
