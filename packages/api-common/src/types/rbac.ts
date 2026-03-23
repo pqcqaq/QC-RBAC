@@ -1,13 +1,16 @@
 import type { PermissionSummary, RoleSummary, UserStatus } from './auth';
 import type { AuthClientConfigByType, AuthClientIdentity, AuthClientType } from './auth-client';
 import type { PaginatedResult } from './common';
+import type { MediaAssetRecord } from './files';
 
 export interface UserRecord {
   id: string;
   username: string;
   email: string | null;
   nickname: string;
-  avatar?: string | null;
+  avatarFileId: string | null;
+  avatarUrl: string | null;
+  avatarFile: MediaAssetRecord | null;
   status: UserStatus;
   createdAt: string;
   updatedAt: string;
@@ -18,6 +21,7 @@ export interface UserFormPayload {
   username: string;
   email: string;
   nickname: string;
+  avatarFileId?: string | null;
   password?: string;
   status: UserStatus;
   roleIds: string[];

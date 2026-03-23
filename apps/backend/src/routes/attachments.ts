@@ -2,7 +2,7 @@ import path from 'node:path';
 import type { MediaAssetSearchFilters } from '../services/media-asset-options';
 import { Router } from 'express';
 import { z } from 'zod';
-import { prisma } from '../lib/prisma';
+import { assertPrismaDeleteAllowed, prisma } from '../lib/prisma';
 import type { Prisma } from '../lib/prisma-generated';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
@@ -88,7 +88,6 @@ const handleImageOptions = asyncHandler(async (req, res) => {
     parseMediaAssetSearchPayload(req, {
       defaults: {
         uploadStatus: 'COMPLETED',
-        kind: 'attachment',
       },
       fixed: {
         mimePrefix: 'image/',
@@ -117,7 +116,6 @@ attachmentsRouter.post(
   asyncHandler(async (req, res) => {
     const rows = await resolveMediaAssetsByIds(parseOptionResolvePayload(req).ids, {
       uploadStatus: 'COMPLETED',
-      kind: 'attachment',
       mimePrefix: 'image/',
     });
 
@@ -202,6 +200,10 @@ attachmentsRouter.delete(
       throw notFound('Attachment not found');
     }
 
+    await assertPrismaDeleteAllowed('MediaAsset', 'delete', {
+      where: { id: asset.id },
+    });
+
     await deleteStoredUpload({
       fileId: asset.id,
       objectKey: asset.objectKey,
@@ -210,18 +212,6 @@ attachmentsRouter.delete(
       uploadStrategy: asset.uploadStrategy,
       chunkCount: asset.chunkCount,
     });
-
-    if (asset.kind === 'avatar' && asset.url) {
-      await prisma.user.updateMany({
-        where: {
-          id: asset.userId,
-          avatar: asset.url,
-        },
-        data: {
-          avatar: null,
-        },
-      });
-    }
 
     await prisma.mediaAsset.delete({
       where: { id: asset.id },

@@ -10,6 +10,7 @@ import {
   reseedBackendTestContext,
   teardownBackendTestContext,
   uploadManagedFileForTest,
+  withClientAuth,
 } from '../support/backend-testkit';
 
 let context: BackendTestContext;
@@ -146,6 +147,16 @@ describe('Attachment integration', () => {
       tag2: 'cover',
     });
 
+    const avatarUpload = await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'brand-avatar.png',
+      contentType: 'image/png',
+      content: 'avatar-image-content',
+      kind: 'avatar',
+      tag1: 'brand',
+      tag2: 'avatar',
+    });
+
     await uploadManagedFileForTest(app, {
       accessToken: adminSession.tokens.accessToken,
       fileName: 'readme.pdf',
@@ -163,24 +174,74 @@ describe('Attachment integration', () => {
         page: 1,
         pageSize: 10,
         q: 'brand',
-        tag1: 'brand',
       })
       .expect(200);
 
-    assert.equal(imageOptions.body.data.meta.total, 1);
-    assert.equal(imageOptions.body.data.items[0].id, imageUpload.fileId);
-    assert.equal(imageOptions.body.data.items[0].mimeType, 'image/png');
+    assert.equal(imageOptions.body.data.meta.total, 2);
+    assert.deepEqual(
+      imageOptions.body.data.items.map((item: { id: string }) => item.id).sort(),
+      [avatarUpload.fileId, imageUpload.fileId].sort(),
+    );
+    assert.ok(
+      imageOptions.body.data.items.every((item: { mimeType: string }) => item.mimeType === 'image/png'),
+    );
 
     const resolved = await request(app)
       .post('/api/attachments/options/images/resolve')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .send({
-        ids: [imageUpload.fileId],
+        ids: [avatarUpload.fileId, imageUpload.fileId],
       })
       .expect(200);
 
-    assert.equal(resolved.body.data.length, 1);
-    assert.equal(resolved.body.data[0].id, imageUpload.fileId);
-    assert.equal(resolved.body.data[0].originalName, 'brand-cover.png');
+    assert.equal(resolved.body.data.length, 2);
+    assert.deepEqual(
+      resolved.body.data.map((item: { id: string }) => item.id),
+      [avatarUpload.fileId, imageUpload.fileId],
+    );
+  });
+
+  it('blocks deleting avatar images that are still referenced by users', async () => {
+    const { app } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const avatarUpload = await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'guarded-avatar.png',
+      contentType: 'image/png',
+      content: 'guarded-avatar-content',
+      kind: 'avatar',
+    });
+
+    await withClientAuth(
+      request(app)
+        .put('/api/auth/avatar')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+        .send({ avatarFileId: avatarUpload.fileId }),
+    ).expect(200);
+
+    const blockedDelete = await request(app)
+      .delete(`/api/attachments/${avatarUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(400);
+
+    assert.match(blockedDelete.body.message, /User\.avatarFile/);
+
+    await request(app)
+      .get(`/api/attachments/${avatarUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    await withClientAuth(
+      request(app)
+        .put('/api/auth/avatar')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+        .send({ avatarFileId: null }),
+    ).expect(200);
+
+    await request(app)
+      .delete(`/api/attachments/${avatarUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
   });
 });

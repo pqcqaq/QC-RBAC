@@ -18,6 +18,29 @@
       <el-form-item label="密码" class="page-form-grid__full">
         <el-input v-model="form.password" show-password placeholder="编辑时留空表示不修改" />
       </el-form-item>
+      <ImageSelectFormItem
+        v-model="form.avatarFileId"
+        class="page-form-grid__full"
+        label="头像"
+        dialog-title="选择头像"
+        trigger-text="选择头像"
+        upload-kind="avatar"
+        :upload-enabled="canUploadImages"
+        :allow-clear="true"
+      >
+        <template #search="{ params, search, reset }">
+          <div class="relation-search-bar">
+            <el-input
+              v-model="params.q"
+              clearable
+              placeholder="搜索图片名称、标签或上传者"
+              @keyup.enter="search"
+            />
+            <el-button @click="search">搜索</el-button>
+            <el-button @click="reset">重置</el-button>
+          </div>
+        </template>
+      </ImageSelectFormItem>
       <el-form-item label="状态">
         <el-select v-model="form.status">
           <el-option label="启用" value="ACTIVE" />
@@ -74,10 +97,15 @@
 </template>
 
 <script setup lang="ts">
+import { computed } from 'vue';
 import { api } from '@/api/client';
+import ImageSelectFormItem from '@/components/form/ImageSelectFormItem.vue';
 import RelationSelectFormItem from '@/components/form/RelationSelectFormItem.vue';
+import { useAuthStore } from '@/stores/auth';
 
 const loadRoleOptions = api.users.roles;
+const auth = useAuthStore();
+const canUploadImages = computed(() => auth.hasPermission('file.upload'));
 
 defineProps<{
   visible: boolean;
@@ -87,6 +115,7 @@ defineProps<{
     username: string;
     email: string;
     nickname: string;
+    avatarFileId: string | null;
     password: string;
     status: 'ACTIVE' | 'DISABLED';
     roleIds: string[];

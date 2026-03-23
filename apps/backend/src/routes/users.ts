@@ -24,6 +24,7 @@ const userPayloadSchema = z.object({
   username: z.string().min(3).max(24),
   email: z.string().email(),
   nickname: z.string().min(2).max(24),
+  avatarFileId: z.string().trim().min(1).nullable().optional(),
   password: z.string().min(8).max(32).optional(),
   status: z.enum(['ACTIVE', 'DISABLED']),
   roleIds: z.array(z.string()).min(1),
@@ -43,6 +44,37 @@ const usersRouter = Router();
 
 const resolveUserTarget = (user: { username: string; email?: string | null }) =>
   user.email ?? user.username;
+
+const normalizeAvatarFileId = (value: string | null | undefined) => {
+  const normalized = value?.trim() ?? '';
+  return normalized || null;
+};
+
+const assertSelectableAvatarFile = async (avatarFileId: string | null) => {
+  if (!avatarFileId) {
+    return null;
+  }
+
+  const asset = await prisma.mediaAsset.findFirst({
+    where: {
+      id: avatarFileId,
+      uploadStatus: 'COMPLETED',
+      mimeType: {
+        startsWith: 'image/',
+        mode: 'insensitive',
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!asset) {
+    throw badRequest('Avatar image not found');
+  }
+
+  return asset.id;
+};
 
 type UserListQuery = {
   q: string;
@@ -213,11 +245,13 @@ usersRouter.post(
     }
 
     const nextRoleIds = [...new Set(payload.roleIds)];
+    const avatarFileId = await assertSelectableAvatarFile(normalizeAvatarFileId(payload.avatarFileId));
     const user = await prisma.user.create({
       data: withSnowflakeId({
         username: payload.username,
         email: payload.email,
         nickname: payload.nickname,
+        avatarFileId,
         status: payload.status,
       }),
     });
@@ -277,12 +311,17 @@ usersRouter.put(
       throw badRequest('Missing permission: user.assign-role');
     }
 
+    const avatarFileId = Object.prototype.hasOwnProperty.call(payload, 'avatarFileId')
+      ? await assertSelectableAvatarFile(normalizeAvatarFileId(payload.avatarFileId))
+      : undefined;
+
     const user = await prisma.user.update({
       where: { id: userId },
       data: {
         username: payload.username,
         email: payload.email,
         nickname: payload.nickname,
+        ...(avatarFileId !== undefined ? { avatarFileId } : {}),
         status: payload.status,
       },
     });

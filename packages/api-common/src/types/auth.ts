@@ -1,6 +1,7 @@
 import type { PermissionCode } from '../constants/permissions';
 import type { PaginatedResult } from './common';
 import type { AuthClientSummary } from './auth-client';
+import type { MediaAssetRecord } from './files';
 import type { OAuthProviderPublicSummary } from './oauth';
 
 export * from './auth-client';
@@ -150,7 +151,9 @@ export interface CurrentUser {
   username: string;
   email: string | null;
   nickname: string;
-  avatar?: string | null;
+  avatarFileId: string | null;
+  avatarUrl: string | null;
+  avatarFile: MediaAssetRecord | null;
   status: UserStatus;
   roles: RoleSummary[];
   permissions: string[];

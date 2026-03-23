@@ -217,6 +217,12 @@ export const createApiFactory = (options: ClientOptions) => {
       register: (payload: RegisterPayload) =>
         client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
       me: () => client.request<CurrentUser>({ url: '/auth/me' }),
+      updateAvatar: (avatarFileId: string | null) =>
+        client.request<CurrentUser>({
+          url: '/auth/avatar',
+          method: 'PUT',
+          data: { avatarFileId },
+        }),
       updatePreferences: (payload: UserPreferences) =>
         client.request<UserPreferences>({ url: '/auth/preferences', method: 'PUT', data: payload }),
       refresh: (refreshToken: string) =>

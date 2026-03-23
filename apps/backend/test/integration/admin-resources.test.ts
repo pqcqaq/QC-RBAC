@@ -7,6 +7,7 @@ import {
   loginAs,
   reseedBackendTestContext,
   teardownBackendTestContext,
+  uploadManagedFileForTest,
   withClientAuth,
 } from '../support/backend-testkit';
 
@@ -264,7 +265,7 @@ describe('Admin resource integration', () => {
     assert.match(lockedRole.body.message, /System role code cannot be changed/);
   });
 
-  it('supports full admin CRUD lifecycle and avatar upload', async () => {
+  it('supports full admin CRUD lifecycle and avatar relations', async () => {
     const { app } = context;
     const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
 
@@ -360,6 +361,7 @@ describe('Admin resource integration', () => {
         username: 'cataloger',
         email: 'cataloger@example.com',
         nickname: '目录负责人',
+        avatarFileId: null,
         status: 'ACTIVE',
         roleIds: [createdRole.body.data.id],
       })
@@ -367,34 +369,41 @@ describe('Admin resource integration', () => {
 
     assert.equal(updatedUser.body.data.nickname, '目录负责人');
 
-    const prepareResponse = await request(app)
-      .post('/api/files/presign')
+    const uploadedAvatar = await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'avatar.png',
+      contentType: 'image/png',
+      content: 'avatar-image-content',
+      kind: 'avatar',
+    });
+
+    assert.match(uploadedAvatar.url, /avatars\//);
+
+    const updatedUserWithAvatar = await request(app)
+      .put(`/api/users/${createdUser.body.data.id}`)
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .send({
-        kind: 'avatar',
-        fileName: 'avatar.png',
-        contentType: 'image/png',
-        size: Buffer.byteLength('avatar-image-content'),
+        username: 'cataloger',
+        email: 'cataloger@example.com',
+        nickname: '目录负责人',
+        avatarFileId: uploadedAvatar.fileId,
+        status: 'ACTIVE',
+        roleIds: [createdRole.body.data.id],
       })
       .expect(200);
 
-    assert.equal(prepareResponse.body.data.strategy, 'single');
-    assert.equal(prepareResponse.body.data.provider, 'local');
+    assert.equal(updatedUserWithAvatar.body.data.avatarFileId, uploadedAvatar.fileId);
+    assert.match(updatedUserWithAvatar.body.data.avatarUrl, /avatars\//);
 
-    const localUploadTarget = new URL(prepareResponse.body.data.parts[0].url);
-    await request(app)
-      .post(localUploadTarget.pathname)
-      .field('token', prepareResponse.body.data.parts[0].fields.token)
-      .attach('file', Buffer.from('avatar-image-content'), 'avatar.png')
-      .expect(204);
+    const currentAdminAfterAvatarUpdate = await withClientAuth(
+      request(app)
+        .put('/api/auth/avatar')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+        .send({ avatarFileId: uploadedAvatar.fileId }),
+    ).expect(200);
 
-    const uploadResponse = await request(app)
-      .post('/api/files/callback')
-      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
-      .send({ fileId: prepareResponse.body.data.fileId })
-      .expect(200);
-
-    assert.match(uploadResponse.body.data.url, /avatars\//);
+    assert.equal(currentAdminAfterAvatarUpdate.body.data.avatarFileId, uploadedAvatar.fileId);
+    assert.match(currentAdminAfterAvatarUpdate.body.data.avatarUrl, /avatars\//);
 
     const currentAdmin = await withClientAuth(
       request(app)
@@ -402,7 +411,8 @@ describe('Admin resource integration', () => {
         .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`),
     ).expect(200);
 
-    assert.match(currentAdmin.body.data.avatar, /avatars\//);
+    assert.equal(currentAdmin.body.data.avatarFileId, uploadedAvatar.fileId);
+    assert.match(currentAdmin.body.data.avatarUrl, /avatars\//);
 
     await request(app)
       .delete(`/api/users/${createdUser.body.data.id}`)

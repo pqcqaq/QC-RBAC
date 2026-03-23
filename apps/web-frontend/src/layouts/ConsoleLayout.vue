@@ -102,8 +102,8 @@
               >
                 <button class="header-user" :class="{ 'is-open': userDropdownVisible }" type="button">
                   <span class="header-user__avatar">
-                    <div v-if="auth.user?.avatar" class="user-avatar-frame">
-                      <img :src="auth.user.avatar" alt="avatar" class="user-avatar" />
+                    <div v-if="auth.user?.avatarUrl" class="user-avatar-frame">
+                      <img :src="auth.user.avatarUrl" alt="avatar" class="user-avatar" />
                     </div>
                     <div v-else class="user-avatar-fallback">
                       {{ userInitial }}
@@ -226,6 +226,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { ElMessage } from 'element-plus';
 import { useRoute, useRouter, type RouteLocationNormalizedLoaded } from 'vue-router';
+import { api } from '@/api/client';
 import UnoIcon from '@/components/common/UnoIcon.vue';
 import { resolveMenuNodeIcon } from '@/components/common/uno-icons';
 import MenuTreeNav from '@/components/workbench/MenuTreeNav.vue';
@@ -395,8 +396,9 @@ const handleAvatarInputChange = async (event: Event) => {
 
   try {
     avatarUploading.value = true;
-    await uploadAvatarFile(file);
-    await auth.syncCurrentUser();
+    const uploaded = await uploadAvatarFile(file);
+    const currentUser = await api.auth.updateAvatar(uploaded.fileId);
+    auth.setUser(currentUser, { syncWorkbench: false });
     ElMessage.success('头像已更新');
   } catch (error: unknown) {
     ElMessage.error(getErrorMessage(error, '头像上传失败'));

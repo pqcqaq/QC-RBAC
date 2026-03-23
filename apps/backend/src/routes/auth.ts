@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 import { cacheDel, cacheSet } from '../lib/redis';
 import { authMiddleware } from '../middlewares/auth';
 import { authClientMiddleware } from '../middlewares/auth-client';
-import { forbidden, HttpError, unauthorized } from '../utils/errors';
+import { badRequest, forbidden, HttpError, unauthorized } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
 import { logActivity } from '../utils/audit';
 import { withSnowflakeId } from '../utils/persistence';
@@ -79,6 +79,10 @@ const refreshSchema = z.object({
 
 const oauthTicketExchangeSchema = z.object({
   ticket: z.string().min(12),
+});
+
+const avatarUpdateSchema = z.object({
+  avatarFileId: z.string().trim().min(1).nullable(),
 });
 
 const authRouter = Router();
@@ -339,6 +343,50 @@ authRouter.get(
       },
       'Current user',
     );
+  }),
+);
+
+authRouter.put(
+  '/avatar',
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (req.authMode === 'oauth') {
+      throw forbidden('OAuth access token cannot access this endpoint');
+    }
+
+    const auth = req.auth!;
+    const payload = avatarUpdateSchema.parse(req.body);
+    const avatarFileId = payload.avatarFileId?.trim() || null;
+
+    if (avatarFileId) {
+      const asset = await prisma.mediaAsset.findFirst({
+        where: {
+          id: avatarFileId,
+          userId: auth.id,
+          uploadStatus: 'COMPLETED',
+          mimeType: {
+            startsWith: 'image/',
+            mode: 'insensitive',
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (!asset) {
+        throw badRequest('Avatar image not found');
+      }
+    }
+
+    await prisma.user.update({
+      where: { id: auth.id },
+      data: {
+        avatarFileId,
+      },
+    });
+
+    return ok(res, await buildCurrentUser(auth.id), 'Avatar updated');
   }),
 );
 

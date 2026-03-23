@@ -109,7 +109,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - `returns 400 instead of 500 for duplicate unique values`
 - `paginates roles, permissions, selector options and realtime message history`
 - `protects audit logs and immutable seed identifiers`
-- `supports full admin CRUD lifecycle and avatar upload`
+- `supports full admin CRUD lifecycle and avatar relations`
 
 覆盖点：
 
@@ -118,11 +118,14 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 选择器分页接口
 - 实时消息分页
 - 种子权限 / 角色保护
-- 头像上传链路
+- 用户头像图片外键回填
+- `/api/auth/avatar` 当前用户头像绑定链路
 
 ### `integration/attachments.test.ts`
 
 - `supports attachment management CRUD, tag filters and xlsx export`
+- `supports image option search and resolve for image selectors`
+- `blocks deleting avatar images that are still referenced by users`
 
 覆盖点：
 
@@ -131,6 +134,8 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 附件列表 / 详情 / 编辑 / 删除
 - `tag1`、`tag2` 筛选
 - 导出结果正确性
+- 图片选择器 options / resolve
+- 被用户头像引用时的删除保护
 
 ### `integration/auth.test.ts`
 

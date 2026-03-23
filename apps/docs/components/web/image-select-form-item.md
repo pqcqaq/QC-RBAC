@@ -33,6 +33,8 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 
 因此业务页面只需要关心 `v-model` 里的图片 id，不需要自己拼上传细节。
 
+图片选项接口会返回所有已完成图片记录，不再只限制 `attachment` 类型。这样用户头像、封面图、横幅图这类字段都可以共用同一个选择器。
+
 ## 基本示例
 
 ```vue
@@ -75,6 +77,31 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 </ImageSelectFormItem>
 ```
 
+用户头像场景：
+
+```vue
+<ImageSelectFormItem
+  v-model="form.avatarFileId"
+  label="头像"
+  dialog-title="选择头像"
+  trigger-text="选择头像"
+  upload-kind="avatar"
+>
+  <template #search="{ params, search, reset }">
+    <div class="relation-search-bar">
+      <el-input
+        v-model="params.q"
+        clearable
+        placeholder="搜索图片名称、标签或上传者"
+        @keyup.enter="search"
+      />
+      <el-button @click="search">搜索</el-button>
+      <el-button @click="reset">重置</el-button>
+    </div>
+  </template>
+</ImageSelectFormItem>
+```
+
 ## Props
 
 | 参数 | 类型 | 默认值 | 说明 |
@@ -96,6 +123,7 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 | `dragUpload` | `boolean` | `true` | 是否允许拖拽上传 |
 | `clickUpload` | `boolean` | `true` | 是否允许点击选择文件 |
 | `closeOnUpload` | `boolean` | `true` | 上传成功后是否关闭弹窗 |
+| `uploadKind` | `'attachment' \| 'avatar'` | `'attachment'` | 上传时使用的图片 kind |
 | `uploadTag1` | `string \| null` | `null` | 上传时写入附件 `tag1` |
 | `uploadTag2` | `string \| null` | `null` | 上传时写入附件 `tag2` |
 
@@ -151,10 +179,10 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 ## 使用约定
 
 1. 当前组件面向“单图片外键”，不是多图管理器。
-2. 图片列表接口已经固定过滤为附件里的图片文件，不会混进 PDF、Word 之类的普通附件。
+2. 图片列表接口已经固定过滤为“上传完成且 MIME 以 `image/` 开头”的记录，不会混进 PDF、Word 之类的普通附件。
 3. 编辑态如果已有图片 id，组件会自动调用 `/resolve` 获取回显，不需要用户先打开弹窗。
 4. 上传成功后会直接回填新的图片 id；如果 `closeOnUpload = false`，组件还会刷新当前列表。
-5. 如果业务要限制图片来源，优先通过 `requestParams.tag1 / tag2` 做业务过滤。
+5. 如果业务要限制图片来源，优先通过 `requestParams.tag1 / tag2 / kind` 做业务过滤。
 
 ## 后端搜索参数
 
@@ -170,8 +198,7 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 
 这个 endpoint 已经固定了：
 
-- `kind = attachment`
 - `uploadStatus = COMPLETED`
 - `mimePrefix = image/`
 
-也就是说，它只返回已经上传完成、可直接预览的图片附件。
+也就是说，它只返回已经上传完成、可直接预览的图片记录；如果业务还要限定 `attachment / avatar`，应当在 `requestParams.kind` 里继续收窄。

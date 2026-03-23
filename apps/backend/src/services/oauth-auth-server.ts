@@ -320,7 +320,7 @@ const issueOauthTokenSet = async (input: {
         nonce: input.nonce ?? undefined,
         username: user.username,
         nickname: user.nickname,
-        avatarUrl: user.avatar,
+        avatarUrl: user.avatarUrl,
         email: user.email,
       })
     : undefined;
@@ -676,7 +676,6 @@ const resolveOAuthIdentity = async (input: {
         ]),
         email: typeof email === 'string' && email.trim() ? email.trim().toLowerCase() : null,
         nickname: nicknameValue.slice(0, 24),
-        avatar: typeof avatarUrl === 'string' ? avatarUrl : null,
       }),
     });
     await syncUserRoles(user.id, [await ensureMemberRoleId()]);
@@ -1265,7 +1264,7 @@ export const getOAuthUserInfo = async (accessToken: string) => {
     userInfo.preferred_username = context.user.username;
     userInfo.name = context.user.nickname;
     userInfo.nickname = context.user.nickname;
-    userInfo.picture = context.user.avatar ?? undefined;
+    userInfo.picture = context.user.avatarUrl ?? undefined;
   }
 
   if (context.scopes.includes('email')) {

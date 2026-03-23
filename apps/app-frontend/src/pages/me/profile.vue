@@ -41,7 +41,7 @@ onShow(() => {
     <view class="app-hero">
       <AppAvatar
         class="app-hero__avatar"
-        :src="userInfo.avatar || '/static/images/default-avatar.png'"
+        :src="userInfo.avatarUrl || '/static/images/default-avatar.png'"
         :text="userInfo.nickname || userInfo.username"
         size="large"
         shape="square"

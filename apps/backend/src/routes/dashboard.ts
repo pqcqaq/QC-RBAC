@@ -3,6 +3,7 @@ import { prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
 import { ok, asyncHandler } from '../utils/http';
+import { toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records';
 
 const dashboardRouter = Router();
 
@@ -32,14 +33,7 @@ dashboardRouter.get(
         prisma.user.findMany({
           take: 5,
           orderBy: { createdAt: 'desc' },
-          include: {
-            roles: {
-              where: {
-                deleteAt: null,
-              },
-              include: { role: true },
-            },
-          },
+          include: userRoleSummaryInclude,
         }),
         prisma.activityLog.findMany({
           take: 8,
@@ -65,22 +59,7 @@ dashboardRouter.get(
         ],
         roleDistribution: roles.map((role) => ({ roleName: role.name, count: role.users.length })),
         moduleCoverage,
-        latestUsers: latestUsers.map((user) => ({
-          id: user.id,
-          username: user.username,
-          email: user.email,
-          nickname: user.nickname,
-          avatar: user.avatar,
-          status: user.status,
-          createdAt: user.createdAt.toISOString(),
-          updatedAt: user.updatedAt.toISOString(),
-          roles: user.roles.map(({ role }) => ({
-            id: role.id,
-            code: role.code,
-            name: role.name,
-            description: role.description,
-          })),
-        })),
+        latestUsers: latestUsers.map(toUserRecord),
         auditFeed: logs.map((item) => ({
           id: item.id,
           actor: item.actorName,

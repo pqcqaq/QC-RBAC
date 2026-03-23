@@ -1,5 +1,4 @@
 import { HeadObjectCommand } from '@aws-sdk/client-s3';
-import { Prisma } from '../../lib/prisma-generated';
 import { env } from '../../config/env';
 import { prisma } from '../../lib/prisma';
 import {
@@ -37,35 +36,20 @@ const shouldMarkFailed = (createdAt: Date, now: Date) =>
 
 const markAssetCompleted = async (asset: {
   id: string;
-  userId: string;
-  kind: string;
   objectKey: string;
   storageBucket: string;
 }, etag: string | null) => {
   const url = getUploadPublicUrl('S3', asset.objectKey, asset.storageBucket);
 
-  const operations: Prisma.PrismaPromise<unknown>[] = [
-    prisma.mediaAsset.update({
-      where: { id: asset.id },
-      data: {
-        uploadStatus: 'COMPLETED',
-        url,
-        etag,
-        completedAt: new Date(),
-      },
-    }),
-  ];
-
-  if (asset.kind === 'avatar') {
-    operations.push(
-      prisma.user.update({
-        where: { id: asset.userId },
-        data: { avatar: url },
-      }),
-    );
-  }
-
-  await prisma.$transaction(operations);
+  await prisma.mediaAsset.update({
+    where: { id: asset.id },
+    data: {
+      uploadStatus: 'COMPLETED',
+      url,
+      etag,
+      completedAt: new Date(),
+    },
+  });
 };
 
 const markAssetFailed = async (assetId: string) =>
@@ -80,8 +64,6 @@ const reconcileAsset = async (
   client: ReturnType<typeof createS3Client>,
   asset: {
     id: string;
-    userId: string;
-    kind: string;
     objectKey: string;
     storageBucket: string;
     createdAt: Date;
@@ -128,8 +110,6 @@ export const reconcilePendingUploads = async () => {
     take: env.UPLOAD_RECONCILE_BATCH_SIZE,
     select: {
       id: true,
-      userId: true,
-      kind: true,
       objectKey: true,
       storageBucket: true,
       createdAt: true,

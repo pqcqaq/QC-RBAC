@@ -264,10 +264,16 @@ pages/console/<module>
 - 图片列表走 `/api/attachments/options/images`
 - 编辑态回显走 `/api/attachments/options/images/resolve`
 - 上传复用现有分步上传链路：`/api/files/presign -> 上传分片/单文件 -> /api/files/callback`
+- 可以通过 `uploadKind` 指定上传为 `attachment` 或 `avatar`
 - 上传成功后直接回填新的图片 id，不需要业务页面再手动刷新表单
 - 上传区不塞进搜索栏，而是通过 `RelationSelectFormItem` 的 `#extra` 区域挂载
+- 图片选项接口会返回所有已完成图片，因此封面图、用户头像这类场景都可以共用这个组件
 
 这个组件适合替换所有“图片 id + 预览 + 从附件库里选 + 允许顺手上传”的表单字段。
+
+当前已接入：
+
+- 用户管理里的头像选择 / 上传
 
 ### 菜单结构管理的行为编辑
 

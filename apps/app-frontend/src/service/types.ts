@@ -25,5 +25,5 @@ export type UserItem = {
   userId: number;
   username: string;
   nickname: string;
-  avatar: string;
+  avatarUrl?: string | null;
 };

@@ -24,8 +24,8 @@
           <el-table-column label="用户" min-width="240">
             <template #default="{ row }">
               <div class="table-user">
-                <div v-if="row.avatar" class="table-user__avatar table-user__avatar--image">
-                  <img :src="row.avatar" :alt="row.nickname" />
+                <div v-if="row.avatarUrl" class="table-user__avatar table-user__avatar--image">
+                  <img :src="row.avatarUrl" :alt="row.nickname" />
                 </div>
                 <div v-else class="table-user__avatar">
                   {{ row.nickname.slice(0, 1).toUpperCase() }}

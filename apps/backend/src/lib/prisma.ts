@@ -140,6 +140,25 @@ const resolveActiveRecordId = async (
 
 const prismaRaw = createPrismaClient();
 
+export const assertPrismaDeleteAllowed = async (
+  model: string,
+  operation: 'delete' | 'deleteMany' | 'update' | 'updateMany',
+  args: {
+    where?: unknown;
+    data?: unknown;
+  },
+  internalParams?: unknown,
+) => {
+  await assertNoDeleteReferenceBlocks({
+    client: prismaRaw,
+    model,
+    operation,
+    args,
+    softDeleteModelNames,
+    internalParams,
+  });
+};
+
 export const prisma: PrismaClient = prismaRaw.$extends({
   query: {
     $allModels: {

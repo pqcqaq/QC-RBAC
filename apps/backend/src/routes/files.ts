@@ -190,13 +190,6 @@ filesRouter.post(
       },
     });
 
-    if (asset.kind === 'avatar') {
-      await prisma.user.update({
-        where: { id: actor.id },
-        data: { avatar: finalized.url },
-      });
-    }
-
     await logActivity({
       actorId: actor.id,
       actorName: actor.nickname,

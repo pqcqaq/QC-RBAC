@@ -98,12 +98,13 @@ model User {
   username        String               @unique
   email           String?              @unique
   nickname        String
-  avatar          String?
+  avatarFileId    String?
   preferences     Json?
   status          UserStatus           @default(ACTIVE)
   createdAt       DateTime             @default(now())
   updatedAt       DateTime             @updatedAt
   deleteAt        DateTime?
+  avatarFile      MediaAsset?          @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: Restrict)
   roles           UserRole[]
   authentications UserAuthentication[]
   refreshTokens   RefreshToken[]
@@ -368,6 +369,7 @@ model MediaAsset {
   updatedAt       DateTime                  @updatedAt
   deleteAt        DateTime?
   user            User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  avatarUsers     User[]                    @relation("UserAvatar")
 
   @@index([userId, kind])
   @@index([tag1])

@@ -250,6 +250,13 @@ apps/backend
 - Web 工作台在登录、刷新、重新进入时都会从这里恢复配置
 - 当前持久化字段已包含 `themePresetId`、`themeMode(light/dark/auto)`、侧栏风格、布局、切换动画、缓存标签和页面状态
 
+### 当前用户头像
+
+- `User` 不再直接存头像 URL，改为 `avatarFileId -> MediaAsset.id`
+- `/api/auth/me`、用户列表、用户详情统一返回 `avatarFileId`、`avatarUrl`、`avatarFile`
+- `PUT /api/auth/avatar` 用来把当前登录用户绑定到自己上传的图片记录
+- 用户管理里的头像字段和控制台右上角头像上传都走同一套图片记录模型
+
 ## RBAC 与菜单
 
 RBAC 初始化在 `src/services/system-rbac.ts`。
@@ -384,7 +391,9 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 
 - `src/routes/attachments.ts` 提供列表、详情、编辑、删除、导出
 - `MediaAsset` 支持 `tag1`、`tag2` 作为业务筛选字段
-- 删除附件前先删存储对象，再软删除数据库记录
+- 用户头像等图片引用关系也落在 `MediaAsset` 上，删除时会先经过统一删除引用检查
+- `/api/attachments/options/images` 和 `/resolve` 返回所有已完成的图片记录，`attachment` 和 `avatar` 两种 kind 都可作为图片选择器数据源
+- 删除附件前会先做引用检查，确认可删后再删存储对象并软删除数据库记录
 
 补偿任务：
 

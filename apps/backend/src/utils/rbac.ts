@@ -3,10 +3,14 @@ import type { Prisma } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
 import { cacheDel, cacheGet, cacheSet } from '../lib/redis';
 import { notFound } from './errors';
+import { mediaAssetWithOwnerInclude } from './file-records';
 import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records';
 import { normalizeUserPreferences } from './user-preferences';
 
 const userInclude = {
+  avatarFile: {
+    include: mediaAssetWithOwnerInclude,
+  },
   roles: {
     where: {
       deleteAt: null,

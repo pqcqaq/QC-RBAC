@@ -112,6 +112,7 @@ type UserEditorForm = {
   username: string;
   email: string;
   nickname: string;
+  avatarFileId: string | null;
   password: string;
   status: 'ACTIVE' | 'DISABLED';
   roleIds: string[];
@@ -121,6 +122,7 @@ const createEmptyForm = (): UserEditorForm => ({
   username: '',
   email: '',
   nickname: '',
+  avatarFileId: null,
   password: '',
   status: 'ACTIVE',
   roleIds: [],
@@ -213,6 +215,7 @@ const {
     currentForm.username = row.username;
     currentForm.email = row.email ?? '';
     currentForm.nickname = row.nickname;
+    currentForm.avatarFileId = row.avatarFileId;
     currentForm.password = '';
     currentForm.status = row.status;
     currentForm.roleIds = row.roles.map((role) => role.id);
@@ -221,6 +224,7 @@ const {
     username: currentForm.username,
     email: currentForm.email,
     nickname: currentForm.nickname,
+    avatarFileId: currentForm.avatarFileId,
     password: currentForm.password || undefined,
     status: currentForm.status,
     roleIds: currentForm.roleIds,

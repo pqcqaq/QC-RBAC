@@ -9,8 +9,12 @@ import type {
 import { AuthClientType } from '@rbac/api-common';
 import type { AuthClient, Permission, Prisma, Role } from '../lib/prisma-generated';
 import { parseAuthClientConfig } from '../config/auth-clients';
+import { mediaAssetWithOwnerInclude, toMediaAssetRecord } from './file-records';
 
 export const userRoleSummaryInclude = {
+  avatarFile: {
+    include: mediaAssetWithOwnerInclude,
+  },
   roles: {
     where: {
       deleteAt: null,
@@ -85,7 +89,9 @@ export const toUserRecord = (user: UserWithRoleSummaryRelations): UserRecord => 
   username: user.username,
   email: user.email,
   nickname: user.nickname,
-  avatar: user.avatar,
+  avatarFileId: user.avatarFileId,
+  avatarUrl: user.avatarFile?.url ?? null,
+  avatarFile: user.avatarFile ? toMediaAssetRecord(user.avatarFile) : null,
   status: user.status,
   createdAt: user.createdAt.toISOString(),
   updatedAt: user.updatedAt.toISOString(),

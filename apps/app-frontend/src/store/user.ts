@@ -8,7 +8,9 @@ const userInfoState: CurrentUser = {
   username: '',
   nickname: '',
   email: null,
-  avatar: '/static/images/default-avatar.png',
+  avatarFileId: null,
+  avatarUrl: null,
+  avatarFile: null,
   status: 'ACTIVE',
   roles: [],
   permissions: [],
@@ -23,12 +25,7 @@ export const useUserStore = defineStore(
     const setUserInfo = (val: CurrentUser) => {
       userInfo.value = {
         ...val,
-        avatar: val.avatar || userInfoState.avatar,
       }
-    }
-
-    const setUserAvatar = (avatar: string) => {
-      userInfo.value.avatar = avatar
     }
 
     const clearUserInfo = () => {
@@ -47,7 +44,6 @@ export const useUserStore = defineStore(
       clearUserInfo,
       fetchUserInfo,
       setUserInfo,
-      setUserAvatar,
     }
   },
   {

@@ -195,9 +195,9 @@
 <script setup lang="ts">
 import { computed, nextTick, ref, useAttrs, useSlots } from 'vue';
 import { ElMessage } from 'element-plus';
-import type { MediaAssetListQuery, MediaAssetRecord } from '@rbac/api-common';
+import type { MediaAssetListQuery, MediaAssetRecord, UploadKind } from '@rbac/api-common';
 import { api } from '@/api/client';
-import { uploadAttachmentFile } from '@/utils/direct-upload';
+import { uploadManagedFile } from '@/utils/direct-upload';
 import { getErrorMessage } from '@/utils/errors';
 import type { RelationSelectRequest, RelationSelectRow } from './relation-select';
 import {
@@ -240,6 +240,7 @@ const props = withDefaults(
     dragUpload?: boolean;
     clickUpload?: boolean;
     closeOnUpload?: boolean;
+    uploadKind?: UploadKind;
     uploadTag1?: string | null;
     uploadTag2?: string | null;
   }>(),
@@ -259,6 +260,7 @@ const props = withDefaults(
     dragUpload: true,
     clickUpload: true,
     closeOnUpload: true,
+    uploadKind: 'attachment',
     uploadTag1: null,
     uploadTag2: null,
   },
@@ -385,9 +387,10 @@ const uploadFile = async (file: File) => {
     uploading.value = true;
     uploadProgress.value = 0;
 
-    const uploaded = await uploadAttachmentFile(
-      file,
+    const uploaded = await uploadManagedFile(
       {
+        kind: props.uploadKind,
+        file,
         tag1: normalizeTag(props.uploadTag1),
         tag2: normalizeTag(props.uploadTag2),
       },
