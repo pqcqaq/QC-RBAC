@@ -121,6 +121,8 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
   验证已写出错误响应的协议型接口只要调用 `rollbackHandledResponse()` 也会回滚，并且服务层显式事务会复用当前请求事务而不是独立提交
 - `redacts sensitive request and database fields in persisted audit records`
   验证请求体和数据库前后镜像里的敏感字段会统一脱敏
+- `captures managed and raw read/write operations in sequence with accurate effects`
+  验证同一请求里的 `prisma / prismaRaw` 读写、软删除改写、操作顺序、字段 diff 和 `RequestRecord.readCount/writeCount` 能正确落库
 
 ### `framework/request-audit-retention.test.ts`
 
