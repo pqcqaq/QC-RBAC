@@ -1,11 +1,20 @@
-import { computed, reactive, watch } from 'vue';
+import { computed, reactive, toRaw, watch } from 'vue';
 import { useWorkbenchStore } from '@/stores/workbench';
 
 const cloneValue = <T>(value: T): T => {
+  const source = typeof value === 'object' && value !== null
+    ? toRaw(value)
+    : value;
+
   if (typeof structuredClone === 'function') {
-    return structuredClone(value);
+    try {
+      return structuredClone(source);
+    } catch {
+      // Fall back to JSON serialization for plain page state payloads.
+    }
   }
-  return JSON.parse(JSON.stringify(value)) as T;
+
+  return JSON.parse(JSON.stringify(source)) as T;
 };
 
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>

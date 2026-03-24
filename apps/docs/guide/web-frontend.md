@@ -336,6 +336,31 @@ pages/console/<module>
 
 实时页面也遵守同样规则：页面只消费 topic，不承担底层 websocket 管理职责。
 
+### 审计页工作台
+
+`pages/console/audit` 现在不是“筛选表单 + 一张表 + 两块原始 JSON”。
+
+当前结构是：
+
+- `AuditToolbar.vue`
+  负责请求 / 模型 / 操作 / 结果筛选，以及当前过滤条件的聚合展示
+- `AuditTable.vue`
+  左侧请求流，按请求聚合展示 method、path、状态码、主操作、读写次数、耗时和操作摘要
+- `AuditWorkbenchSidebar.vue`
+  右侧只聚焦当前选中的请求，显示当前上下文和本页热点模型、失败/回滚信号
+- `AuditDetailDrawer.vue`
+  抽屉里按 `Request -> Operations` 的顺序展开，请求载荷、操作时间线、字段变更、before/after 快照、query/mutation/result 快照都在这里看
+- `audit-display.ts`
+  审计页自己的展示层 helper，统一处理 `authMode`、操作标签、时间/耗时格式化，以及 `effect` 结构的读取
+
+这页的核心约束：
+
+- 页面层只做状态编排、数据加载和选中态同步
+- 详情抽屉必须直接消费 `RequestAuditRecord.operations[].effect`
+- 读操作展示 `preview + summary`
+- 写操作展示 `records + changes + committed`
+- 如果后端改了审计 effect 结构，`packages/api-common/src/types/rbac.ts`、`apps/docs/guide/backend.md` 和这里要一起同步，不能退回成直接渲染原始 JSON
+
 ### 订阅授权页面
 
 Web 控制台现在新增了：
