@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import {
+  coversWsSubscriptionTopic,
   matchWsTopic,
   normalizeWsPublishTopic,
   normalizeWsSubscriptionTopic,
@@ -14,6 +15,14 @@ describe('realtime topic matcher', () => {
     assert.equal(matchWsTopic('/system/users/123/rbac-updated', '/system/users/+/detail'), false);
     assert.equal(matchWsTopic('/chat/global/message', '/chat/+/message'), true);
     assert.equal(matchWsTopic('/chat/global/message', '/chat/+'), false);
+  });
+
+  it('determines whether an authorized subscription pattern covers a requested topic', () => {
+    assert.equal(coversWsSubscriptionTopic('/system/users/+/rbac-updated', '/system/users/123/rbac-updated'), true);
+    assert.equal(coversWsSubscriptionTopic('/system/users/+/rbac-updated', '/system/users/+/rbac-updated'), true);
+    assert.equal(coversWsSubscriptionTopic('/system/#', '/system/users/+/rbac-updated'), true);
+    assert.equal(coversWsSubscriptionTopic('/system/users/+/rbac-updated', '/system/users/#'), false);
+    assert.equal(coversWsSubscriptionTopic('/system/users/123/rbac-updated', '/system/users/+/rbac-updated'), false);
   });
 
   it('normalizes legal topics and rejects invalid wildcard placement', () => {

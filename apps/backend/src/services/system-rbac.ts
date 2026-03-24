@@ -1,6 +1,8 @@
 import type { PrismaClient, Permission, Role } from '../lib/prisma-generated';
 import { systemPermissionCatalog } from '../constants/system-permissions';
 import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
+import { systemRealtimeTopicCatalog } from '../topics';
+import { invalidateRealtimeTopicRegistryCache } from './realtime-topic-auth';
 
 type SystemRoleSeed = {
   code: string;
@@ -40,7 +42,11 @@ const buildSystemRoleSeeds = (permissions: Permission[]): SystemRoleSeed[] => {
     .filter((item) => !managerExcludedPermissions.has(item.code))
     .map((item) => item.code);
   const memberPermissionCodes = permissions
-    .filter((item) => item.code === 'dashboard.view')
+    .filter((item) => [
+      'dashboard.view',
+      'realtime.topic.chat-global.subscribe',
+      'realtime.topic.user-rbac.subscribe-self',
+    ].includes(item.code))
     .map((item) => item.code);
 
   return [
@@ -366,6 +372,34 @@ const ensureSystemRoles = async (prisma: PrismaClient, permissionByCode: Map<str
   return roleByCode;
 };
 
+const ensureSystemRealtimeTopics = async (prisma: PrismaClient, permissionByCode: Map<string, Permission>) => {
+  for (const topic of systemRealtimeTopicCatalog) {
+    const permissionId = permissionByCode.get(topic.permissionCode)?.id;
+    if (!permissionId) {
+      throw new Error(`Missing permission for realtime topic: ${topic.permissionCode}`);
+    }
+
+    await prisma.realtimeTopic.upsert({
+      where: { code: topic.code },
+      update: {
+        name: topic.name,
+        description: topic.description,
+        topicPattern: topic.topicPattern,
+        isSystem: true,
+        permissionId,
+      },
+      create: withSnowflakeId({
+        code: topic.code,
+        name: topic.name,
+        description: topic.description,
+        topicPattern: topic.topicPattern,
+        isSystem: true,
+        permissionId,
+      }),
+    });
+  }
+};
+
 const ensureMenuTree = async (
   prisma: PrismaClient,
   nodes: SystemMenuSeedNode[],
@@ -417,7 +451,9 @@ const ensureDefaultMenuTree = async (prisma: PrismaClient, permissionByCode: Map
 export const bootstrapSystemRbac = async (prisma: PrismaClient) => {
   const permissionByCode = await ensureSeedPermissions(prisma);
   const roleByCode = await ensureSystemRoles(prisma, permissionByCode);
+  await ensureSystemRealtimeTopics(prisma, permissionByCode);
   await ensureDefaultMenuTree(prisma, permissionByCode);
+  await invalidateRealtimeTopicRegistryCache();
 
   return {
     permissionByCode,

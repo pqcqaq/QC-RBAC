@@ -107,3 +107,43 @@ export const matchWsTopic = (topic: string, subscriptionTopic: string) => {
 
   return concreteSegments.length === patternSegments.length;
 };
+
+export const coversWsSubscriptionTopic = (
+  coveringSubscriptionTopic: string,
+  requestedSubscriptionTopic: string,
+) => {
+  const coveringSegments = toSegments(normalizeWsSubscriptionTopic(coveringSubscriptionTopic));
+  const requestedSegments = toSegments(normalizeWsSubscriptionTopic(requestedSubscriptionTopic));
+  const maxLength = Math.max(coveringSegments.length, requestedSegments.length);
+
+  for (let index = 0; index < maxLength; index += 1) {
+    const coveringSegment = coveringSegments[index];
+    const requestedSegment = requestedSegments[index];
+
+    if (coveringSegment === '#') {
+      return true;
+    }
+
+    if (requestedSegment === '#') {
+      return false;
+    }
+
+    if (coveringSegment === undefined || requestedSegment === undefined) {
+      return false;
+    }
+
+    if (coveringSegment === '+') {
+      continue;
+    }
+
+    if (requestedSegment === '+') {
+      return false;
+    }
+
+    if (coveringSegment !== requestedSegment) {
+      return false;
+    }
+  }
+
+  return true;
+};

@@ -240,6 +240,7 @@ model Permission {
   roles       RolePermission[]
   menuNode    MenuNode?
   oauthApps   OAuthApplicationPermission[]
+  realtimeTopics RealtimeTopic[]
 
   @@index([deleteAt])
 }
@@ -268,6 +269,26 @@ model MenuNode {
 
   @@index([parentId, sortOrder])
   @@index([type])
+  @@index([deleteAt])
+}
+
+model RealtimeTopic {
+  id           String     @id
+  createId     String?
+  updateId     String?
+  code         String     @unique
+  name         String
+  description  String?
+  topicPattern String
+  isSystem     Boolean    @default(false)
+  permissionId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deleteAt     DateTime?
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@index([topicPattern])
+  @@index([permissionId, deleteAt])
   @@index([deleteAt])
 }
 
@@ -580,4 +601,3 @@ model OAuthToken {
   @@index([refreshAt])
   @@index([deleteAt])
 }
-

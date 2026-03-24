@@ -46,4 +46,9 @@ export const systemPermissionCatalog: readonly SystemPermissionSeed[] = [
   { module: 'file', code: 'file.delete', name: '删除附件', action: 'delete' },
   { module: 'realtime', code: 'realtime.read', name: '查看实时频道', action: 'read' },
   { module: 'realtime', code: 'realtime.send', name: '发送实时消息', action: 'create' },
+  { module: 'realtime-topic', code: 'realtime.topic.audit.subscribe', name: '订阅审计广播', action: 'subscribe' },
+  { module: 'realtime-topic', code: 'realtime.topic.chat-global.subscribe', name: '订阅全局聊天消息', action: 'subscribe' },
+  { module: 'realtime-topic', code: 'realtime.topic.presence.subscribe', name: '订阅在线状态广播', action: 'subscribe' },
+  { module: 'realtime-topic', code: 'realtime.topic.user-rbac.subscribe-any', name: '订阅任意用户权限变更', action: 'subscribe' },
+  { module: 'realtime-topic', code: 'realtime.topic.user-rbac.subscribe-self', name: '订阅当前用户权限变更', action: 'subscribe' },
 ] as const;

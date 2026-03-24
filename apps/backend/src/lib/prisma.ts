@@ -15,6 +15,7 @@ const auditedModelNames = new Set([
   'VerificationCode',
   'Role',
   'Permission',
+  'RealtimeTopic',
   'MenuNode',
   'UserRole',
   'RolePermission',

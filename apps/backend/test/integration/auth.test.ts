@@ -140,7 +140,14 @@ describe('Auth integration', () => {
     ).expect(200);
 
     assert.equal(meResponse.body.data.email, 'newmember@example.com');
-    assert.deepEqual(meResponse.body.data.permissions, ['dashboard.view']);
+    assert.deepEqual(
+      [...meResponse.body.data.permissions].sort(),
+      [
+        'dashboard.view',
+        'realtime.topic.chat-global.subscribe',
+        'realtime.topic.user-rbac.subscribe-self',
+      ].sort(),
+    );
 
     const refreshResponse = await withClientAuth(request(app).post('/api/auth/refresh'))
       .send({ refreshToken })

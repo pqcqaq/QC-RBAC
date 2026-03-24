@@ -27,6 +27,7 @@ export async function seedDatabase(prisma: PrismaClient) {
       "ActivityLog",
       "ChatMessage",
       "MediaAsset",
+      "RealtimeTopic",
       "Permission",
       "Role",
       "User"

@@ -10,12 +10,6 @@ import {
 import request from 'supertest';
 import { WebSocket } from 'ws';
 import {
-  closeSocketServer,
-  getRealtimeConnectionSnapshot,
-  initSocket,
-  publishRealtimeMessage,
-} from '../../src/lib/socket';
-import {
   bootstrapBackendTestContext,
   type BackendTestContext,
   loginAs,
@@ -24,6 +18,13 @@ import {
   webClient,
   webH5Client,
 } from '../support/backend-testkit';
+import {
+  closeSocketServer,
+  getRealtimeConnectionSnapshot,
+  initSocket,
+  publishRealtimeMessage,
+} from '../../src/lib/socket';
+
 
 type RealtimeTestClient = {
   closeEvents: Array<{ code: number; reason: string }>;
@@ -268,6 +269,61 @@ describe('Realtime integration', () => {
     await waitFor(() => getRealtimeConnectionSnapshot().totalConnections === 0 ? true : undefined);
   });
 
+  it('rejects topic subscriptions that are not covered by the current user permissions', async () => {
+    const session = await loginAs(context.app, 'user@example.com', 'User123!', webClient);
+    const realtime = await connectRealtimeClient(port, session.tokens.accessToken);
+
+    const ready = await takeMessage(
+      realtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'ready' }> => message.type === 'ready',
+    );
+
+    realtime.socket.send(JSON.stringify({
+      requestId: 'req-sub-denied-rbac',
+      topics: ['/system/users/+/rbac-updated'],
+      type: 'sub',
+    }));
+
+    const rbacError = await takeMessage(
+      realtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'error' }> => message.type === 'error',
+    );
+
+    assert.equal(rbacError.code, 'SUBSCRIBE_REJECTED');
+    assert.match(rbacError.message, /other users rbac topic/i);
+
+    realtime.socket.send(JSON.stringify({
+      requestId: 'req-sub-denied-audit',
+      topics: [REALTIME_TOPICS.auditEvent],
+      type: 'sub',
+    }));
+
+    const auditError = await takeMessage(
+      realtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'error' }> => message.type === 'error',
+    );
+
+    assert.equal(auditError.code, 'SUBSCRIBE_REJECTED');
+    assert.match(auditError.message, /Missing topic subscription permission/i);
+
+    realtime.socket.send(JSON.stringify({
+      requestId: 'req-sub-self',
+      topics: [REALTIME_TOPICS.userRbacUpdated(ready.userId)],
+      type: 'sub',
+    }));
+
+    const selfAck = await takeMessage(
+      realtime,
+      (message): message is Extract<RealtimeServerMessage, { type: 'sub:ack' }> => message.type === 'sub:ack',
+    );
+
+    assert.equal(selfAck.requestId, 'req-sub-self');
+    assert.deepEqual(selfAck.subscribedTopics, [REALTIME_TOPICS.userRbacUpdated(ready.userId)]);
+    assert.deepEqual(selfAck.topics, [REALTIME_TOPICS.userRbacUpdated(ready.userId)]);
+
+    await closeRealtimeClient(realtime);
+  });
+
   it('pushes permission updates only to affected online users and includes full sync targets', async () => {
     const adminSession = await loginAs(context.app, 'admin@example.com', 'Admin123!', webClient);
 
@@ -292,6 +348,16 @@ describe('Realtime integration', () => {
       name: string;
     };
 
+    const selfTopicPermission = await context.prisma.permission.findUnique({
+      where: {
+        code: 'realtime.topic.user-rbac.subscribe-self',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    assert.ok(selfTopicPermission);
     const roleResponse = await request(context.app)
       .post('/api/roles')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
@@ -299,7 +365,7 @@ describe('Realtime integration', () => {
         code: 'realtime-permission-role',
         description: 'Realtime permission role',
         name: 'Realtime Permission Role',
-        permissionIds: [permission.id],
+        permissionIds: [permission.id, selfTopicPermission.id],
       })
       .expect(200);
 
@@ -382,6 +448,16 @@ describe('Realtime integration', () => {
 
     const permission = permissionResponse.body.data as { id: string };
 
+    const selfTopicPermission = await context.prisma.permission.findUnique({
+      where: {
+        code: 'realtime.topic.user-rbac.subscribe-self',
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    assert.ok(selfTopicPermission);
     const roleResponse = await request(context.app)
       .post('/api/roles')
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
@@ -389,7 +465,7 @@ describe('Realtime integration', () => {
         code: 'realtime-menu-role',
         description: 'Realtime menu role',
         name: 'Realtime Menu Role',
-        permissionIds: [permission.id],
+        permissionIds: [permission.id, selfTopicPermission.id],
       })
       .expect(200);
 

@@ -24,6 +24,13 @@ import {
   authenticateOptionalHeadersClient,
   resolveAuthClientSummary,
 } from '../services/auth-clients';
+import {
+  authorizeRealtimeTopicSubscriptions,
+  handleRealtimeTopicsSubscribed,
+  handleRealtimeTopicsUnsubscribed,
+  type AuthorizedRealtimeTopicSubscription,
+} from '../services/realtime-topic-auth';
+import { notifyRealtimeTopicPublished } from '../topics';
 import { getBrowserSessionCookieName } from '../utils/browser-session';
 import { buildCurrentUser } from '../utils/rbac';
 import { verifyAccessToken } from '../utils/token';
@@ -37,6 +44,7 @@ type RealtimeConnectionContext = {
   lastSeenAt: number;
   socket: WebSocket;
   subscriptions: Set<string>;
+  subscriptionRegistrations: Map<string, AuthorizedRealtimeTopicSubscription>;
   user: RealtimeUser;
 };
 
@@ -167,29 +175,53 @@ const syncTopicReference = (
   detachIndexedReference(map, topic, connectionId);
 };
 
-const subscribeTopics = (context: RealtimeConnectionContext, topics: string[]) => {
+const subscribeTopics = async (context: RealtimeConnectionContext, topics: string[]) => {
   const normalizedTopics = dedupeWsSubscriptionTopics(topics);
-  normalizedTopics.forEach((topic) => {
-    if (context.subscriptions.has(topic)) {
-      return;
-    }
+  const pendingTopics = normalizedTopics.filter((topic) => !context.subscriptions.has(topic));
+  if (!pendingTopics.length) {
+    return normalizedTopics;
+  }
 
-    context.subscriptions.add(topic);
-    syncTopicReference(connectionIdsBySubscriptionTopic, topic, context.id, 'add');
+  const authorizedSubscriptions = await authorizeRealtimeTopicSubscriptions({
+    client: context.client,
+    requestedTopic: '',
+    user: context.user,
+  }, pendingTopics);
+
+  await handleRealtimeTopicsSubscribed({
+    client: context.client,
+    requestedTopic: '',
+    user: context.user,
+  }, authorizedSubscriptions);
+
+  authorizedSubscriptions.forEach((subscription) => {
+    context.subscriptions.add(subscription.requestedTopic);
+    context.subscriptionRegistrations.set(subscription.requestedTopic, subscription);
+    syncTopicReference(connectionIdsBySubscriptionTopic, subscription.requestedTopic, context.id, 'add');
   });
 
   return normalizedTopics;
 };
 
-const unsubscribeTopics = (context: RealtimeConnectionContext, topics: string[]) => {
+const unsubscribeTopics = async (context: RealtimeConnectionContext, topics: string[]) => {
   const normalizedTopics = dedupeWsSubscriptionTopics(topics);
-  normalizedTopics.forEach((topic) => {
-    if (!context.subscriptions.has(topic)) {
-      return;
-    }
+  const existingSubscriptions = normalizedTopics
+    .filter((topic) => context.subscriptions.has(topic))
+    .map((topic) => context.subscriptionRegistrations.get(topic) ?? {
+      registration: null,
+      requestedTopic: topic,
+    });
 
-    context.subscriptions.delete(topic);
-    syncTopicReference(connectionIdsBySubscriptionTopic, topic, context.id, 'delete');
+  await handleRealtimeTopicsUnsubscribed({
+    client: context.client,
+    requestedTopic: '',
+    user: context.user,
+  }, existingSubscriptions);
+
+  existingSubscriptions.forEach((subscription) => {
+    context.subscriptions.delete(subscription.requestedTopic);
+    context.subscriptionRegistrations.delete(subscription.requestedTopic);
+    syncTopicReference(connectionIdsBySubscriptionTopic, subscription.requestedTopic, context.id, 'delete');
   });
 
   return normalizedTopics;
@@ -200,6 +232,7 @@ const clearConnectionTopics = (context: RealtimeConnectionContext) => {
     syncTopicReference(connectionIdsBySubscriptionTopic, topic, context.id, 'delete');
   });
   context.subscriptions.clear();
+  context.subscriptionRegistrations.clear();
 };
 
 const countUserConnections = (userId: string) => connectionIdsByUserId.get(userId)?.size ?? 0;
@@ -231,6 +264,13 @@ const publishRealtimeTopic = <TPayload = unknown>(topic: string, payload: TPaylo
       publishedAt,
       topic: normalizedTopic,
     });
+  });
+
+  notifyRealtimeTopicPublished({
+    deliveredConnectionCount: targetConnectionIds.size,
+    payload,
+    publishedAt,
+    topic: normalizedTopic,
   });
 
   return targetConnectionIds.size;
@@ -396,7 +436,7 @@ const stopHeartbeat = () => {
   heartbeatTimer = null;
 };
 
-const handleRealtimeMessage = (context: RealtimeConnectionContext, data: RawData) => {
+const handleRealtimeMessage = async (context: RealtimeConnectionContext, data: RawData) => {
   context.lastSeenAt = Date.now();
 
   let message: RealtimeClientMessage;
@@ -418,7 +458,7 @@ const handleRealtimeMessage = (context: RealtimeConnectionContext, data: RawData
 
   if (message.type === 'sub') {
     try {
-      const subscribedTopics = subscribeTopics(context, message.topics.map((topic) => normalizeWsSubscriptionTopic(topic)));
+      const subscribedTopics = await subscribeTopics(context, message.topics.map((topic) => normalizeWsSubscriptionTopic(topic)));
       sendRealtimeMessage(context.socket, {
         requestId: message.requestId,
         subscribedTopics,
@@ -438,7 +478,7 @@ const handleRealtimeMessage = (context: RealtimeConnectionContext, data: RawData
 
   if (message.type === 'unsub') {
     try {
-      const unsubscribedTopics = unsubscribeTopics(context, message.topics.map((topic) => normalizeWsSubscriptionTopic(topic)));
+      const unsubscribedTopics = await unsubscribeTopics(context, message.topics.map((topic) => normalizeWsSubscriptionTopic(topic)));
       sendRealtimeMessage(context.socket, {
         requestId: message.requestId,
         topics: [...context.subscriptions].sort((left, right) => left.localeCompare(right, 'en')),
@@ -486,6 +526,7 @@ export const initSocket = (server: HttpServer) => {
             lastSeenAt: Date.now(),
             socket: websocket,
             subscriptions: new Set<string>(),
+            subscriptionRegistrations: new Map<string, AuthorizedRealtimeTopicSubscription>(),
             user,
           };
 
@@ -493,7 +534,7 @@ export const initSocket = (server: HttpServer) => {
           indexConnection(context);
 
           websocket.on('message', (data) => {
-            handleRealtimeMessage(context, data);
+            void handleRealtimeMessage(context, data);
           });
 
           websocket.on('close', () => {

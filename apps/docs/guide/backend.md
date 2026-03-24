@@ -30,6 +30,7 @@ apps/backend
    ├─ middlewares
    ├─ routes
    ├─ services
+   ├─ topics
    ├─ timers
    └─ utils
 ```
@@ -62,6 +63,11 @@ apps/backend/src/lib/socket.ts
 - topic 分发工具 `publishRealtimeMessage(...)`
 - 心跳 `ping / pong`
 - 心跳超时断开和客户端重连协作
+
+围绕订阅授权，后端现在又补了两层：
+
+- `src/topics/*.ts` 负责注册 topic 目录、订阅权限码和生命周期回调，新增 topic 时不再把逻辑散落在 `socket.ts`。
+- `src/services/realtime-topic-auth.ts` 负责把 `RealtimeTopic` 表、用户权限、topic 通配覆盖判断和 Redis 缓存组合起来，统一处理 `sub` 请求授权。
 
 现有事件已经映射成 topic：
 
@@ -290,9 +296,15 @@ apps/backend/src/lib/socket.ts
 
 RBAC 初始化在 `src/services/system-rbac.ts`。
 
-- 权限目录来自 `packages/api-common/src/constants/permissions.ts`
-- `bootstrapSystemRbac` 会写入权限、系统角色、默认菜单树
+- 权限种子来自 `src/constants/system-permissions.ts`
+- `bootstrapSystemRbac` 会写入权限、系统角色、`RealtimeTopic` 和默认菜单树
 - 菜单树分为目录、页面、行为三类节点，对应 `MenuNodeType`
+
+这部分现在有一个重要边界：
+
+- `system-permissions.ts` 只负责初始化种子。
+- 运行时权限检查仍然来自数据库里的 `Permission / RolePermission / UserRole`。
+- realtime 订阅授权来自数据库里的 `RealtimeTopic` 绑定和 `src/topics` 注册表，不直接读取共享常量文件。
 
 ### 运行时约束
 
@@ -518,5 +530,6 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 3. 在 `packages/api-common` 增加共享类型和 API 工厂方法。
 4. 在 `src/routes` 新增路由，在 `src/services` 放核心逻辑。
 5. 如果是后台可见模块，补权限码并更新 `system-rbac.ts` 菜单种子。
-6. 如果是列表页，直接接 `createExcelExportHandler`。
-7. 在对应的 `framework` 或 `integration` 测试补用例，并同步更新 docs。
+6. 如果模块需要 websocket topic，补 `src/topics` 注册项、订阅权限和 `RealtimeTopic` seed。
+7. 如果是列表页，直接接 `createExcelExportHandler`。
+8. 在对应的 `framework` 或 `integration` 测试补用例，并同步更新 docs。

@@ -109,6 +109,8 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - `matches exact, single-level, and multi-level subscriptions`
   验证 realtime topic matcher 支持精确匹配、`+` 单层通配和 `#` 多层通配
+- `determines whether an authorized subscription pattern covers a requested topic`
+  验证 `coversWsSubscriptionTopic(...)` 能正确判断数据库授权 pattern 是否覆盖客户端请求的订阅 topic
 - `normalizes legal topics and rejects invalid wildcard placement`
   验证发布 topic / 订阅 topic 会被标准化，并拒绝非法通配符位置
 
@@ -231,6 +233,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - `tracks the same user across multiple realtime client groups`
 - `acknowledges subscriptions and unsubscriptions and dispatches wildcard topic messages`
+- `rejects topic subscriptions that are not covered by the current user permissions`
 - `pushes permission updates only to affected online users and includes full sync targets`
 - `pushes menu updates only to online users whose menu tree is affected`
 
@@ -241,6 +244,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 同一用户下不同客户端连接分组索引
 - `sub` / `sub:ack` / `unsub` / `unsub:ack` 协议同步
 - wildcard topic 推送分发
+- `sub` 请求会校验 `RealtimeTopic` 与用户 permission 的覆盖关系，并继续执行 topic 注册项的业务授权
 - 权限更新事件只推给受影响在线用户
 - 菜单结构变更只推给菜单树受影响在线用户
 - `RbacUpdatedPayload.targets` 用于区分 `user` / `menus` 刷新范围

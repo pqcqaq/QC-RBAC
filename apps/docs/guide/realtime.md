@@ -19,6 +19,7 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 - 用户和客户端维度的连接关联
 - topic 订阅与分发
 - `+`、`#` 通配匹配
+- 基于数据库和权限的订阅授权
 - `sub` / `unsub` 与服务端 ack 同步
 - 自动连接和自动断开
 - 组件级自动订阅
@@ -53,31 +54,39 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 - 支持精确匹配、`+` 单层通配和 `#` 多层通配
 - 这样后续要做按用户、按业务域、按资源层级推送时，不需要每次重新设计协议
 
-### 5. 心跳、断线恢复和资源回收内建
+### 5. topic 订阅授权改成数据库绑定 + 注册表
+
+- 订阅权限不再由一份共享常量在运行时直接决定
+- 后端把 topic 和 permission 的绑定持久化到 `RealtimeTopic`
+- `apps/backend/src/topics/*.ts` 负责注册 topic 语义和订阅回调
+- `sub` 请求会先检查数据库里是否存在覆盖当前请求 topic 的授权 pattern，再检查用户是否拥有对应 permission
+- 这个检查支持 `/a/+` 覆盖 `/a/1`、`/system/#` 覆盖子路径，不需要每次把全部 topic 拉到业务层手动比对
+
+### 6. 心跳、断线恢复和资源回收内建
 
 - 后端定时 `ping`，超时无活动连接会主动关闭
 - 客户端自动 `pong`，并在超时或非致命断开后走指数退避重连
 - 当本地已经没有任何期望 topic 时，客户端会主动断开，避免无意义长连占用
 
-### 6. 前端使用方式收敛到 hook 和全局同步器
+### 7. 前端使用方式收敛到 hook 和全局同步器
 
 - 组件级监听统一走 `useWsTopic(...)`
 - 页面不再直接管理 websocket 生命周期，也不再自己写心跳和重连
 - Web 控制台额外接入了 `admin-sync`，登录后自动监听当前用户自己的权限更新 topic
 
-### 7. 管理后台的权限 / 菜单实时同步已经落地
+### 8. 管理后台的权限 / 菜单实时同步已经落地
 
 - 权限、角色、用户、菜单相关写操作现在都会在后端触发 realtime 推送
 - 推送 payload 带 `RbacUpdatedPayload.targets`，用于声明本次前端到底该刷新 `auth.me()`、`menus.current()`，还是两者都刷新
 - Web admin 收到连续多条消息时会先做短暂合并，再执行一次收敛刷新，避免请求风暴
 
-### 8. 推送算法做了在线用户筛选，避免粗暴广播
+### 9. 推送算法做了在线用户筛选，避免粗暴广播
 
 - 权限变更只通知真正受影响且当前在线的用户
 - 菜单变更会根据菜单树和权限受众推导受影响用户，再和当前在线连接求交集
 - 菜单改动不会顺手做不必要的权限缓存失效，权限改动才会触发对应的 cache invalidate
 
-### 9. 测试和文档同步补齐
+### 10. 测试和文档同步补齐
 
 - framework 测试覆盖 topic matcher、shared client、心跳和重连
 - integration 测试覆盖同用户多客户端归组、订阅 ack、定向 RBAC 推送、菜单受众推送
@@ -111,6 +120,27 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 - `wsClient` 负责连接管理、订阅同步、重连和状态监听。
 - `api-common` 负责 topic 规则、协议类型、平台 adaptor、客户端管理器。
 - 后端 hub 负责鉴权、连接索引、订阅索引、消息分发和心跳。
+- `src/topics` 负责 topic 注册、订阅生命周期和发布回调。
+- `realtime-topic-auth.ts` 负责 topic 权限绑定、通配覆盖判断和 Redis 缓存。
+
+## 订阅授权模型
+
+运行时订阅授权现在拆成三层：
+
+- `packages/api-common/src/types/realtime.ts`
+  只定义共享 topic helper、payload 类型和协议，不保存运行时授权数据。
+- `apps/backend/src/topics/*.ts`
+  注册 topic 的 `code`、`topicPattern`、`permissionCode` 以及可选的 `authorizeSubscription / onSubscribed / onUnsubscribed / onPublished`。
+- `apps/backend/prisma/schema.prisma` 的 `RealtimeTopic`
+  把 topic pattern 和 permission 的关系持久化到数据库，便于以后做后台配置、扩展和查询。
+
+`apps/backend/src/services/realtime-topic-auth.ts` 的授权流程是：
+
+1. 读取用户权限码并用 Redis 缓存。
+2. 读取已持久化的 `RealtimeTopic` 绑定并用版本号缓存。
+3. 用 `coversWsSubscriptionTopic(...)` 判断数据库中的 pattern 是否覆盖当前请求的订阅 topic。
+4. 对命中的 topic 注册项继续执行 `authorizeSubscription(...)`，处理“只能订阅自己”这类业务规则。
+5. 授权成功后，把 topic 注册信息挂到连接上下文里，供后续订阅/取消订阅生命周期回调复用。
 
 ## 握手与连接地址
 
@@ -183,6 +213,12 @@ packages/api-common/src/realtime/topic.ts
 
 ```text
 packages/api-common/src/types/realtime.ts
+```
+
+后端注册表在：
+
+```text
+apps/backend/src/topics
 ```
 
 当前已经定义：
@@ -300,6 +336,7 @@ apps/backend/src/lib/socket.ts
 - 创建连接上下文
 - 维护索引
 - 发送 `ready`
+- 处理 `sub` / `unsub` 时的 topic 权限校验和注册回调
 
 #### `closeSocketServer()`
 
@@ -378,6 +415,12 @@ apps/backend/src/lib/socket.ts
 - 排查某个 topic 为什么没推到
 
 都不需要重新设计底层索引。
+
+连接上下文里现在还会额外记录：
+
+- `subscriptionRegistrations`
+
+这样 `unsub` 时可以直接拿到这个 topic 对应的注册项和生命周期上下文，不需要重新查一遍。
 
 ## 前端共享层如何使用
 
@@ -598,7 +641,16 @@ interface WsAdaptor {
 packages/api-common/src/types/realtime.ts
 ```
 
-### 2. 后端业务里发布消息
+### 2. 在后端注册 topic 与权限绑定
+
+至少补两处：
+
+- `apps/backend/src/constants/system-permissions.ts`
+- `apps/backend/src/topics/*.ts`
+
+如果这个 topic 需要作为系统内置能力存在，再让 `system-rbac.ts` 把它 seed 到 `RealtimeTopic`。
+
+### 3. 后端业务里发布消息
 
 优先调用：
 
@@ -612,7 +664,7 @@ publishRealtimeMessage(topic, payload)
 emitOrderStatusChanged(...)
 ```
 
-### 3. 前端页面只订阅 topic
+### 4. 前端页面只订阅 topic
 
 优先使用：
 
@@ -632,6 +684,7 @@ emitOrderStatusChanged(...)
 - 非组件上下文优先用 `wsClient.onTopic(...)`
 - 后端优先用 `publishRealtimeMessage(...)`
 - topic 常量和 payload 类型优先收敛到 `api-common`
+- topic 的运行时权限绑定优先收敛到 `RealtimeTopic + src/topics`
 - 不要把业务语义写死成零散字符串
 - 不要在页面里重复写心跳和重连
 

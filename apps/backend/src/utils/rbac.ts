@@ -2,6 +2,7 @@ import type { PermissionRecord, UserPermissionSource } from '@rbac/api-common';
 import type { Prisma } from '../lib/prisma-generated';
 import { prisma } from '../lib/prisma';
 import { cacheDel, cacheGet, cacheSet } from '../lib/redis';
+import { invalidateRealtimeTopicAccessCache } from '../services/realtime-topic-auth';
 import { notFound } from './errors';
 import { mediaAssetWithOwnerInclude } from './file-records';
 import { toPermissionRecord, toRoleSummary, toUserRecord } from './rbac-records';
@@ -74,7 +75,10 @@ export const getUserPermissionCodes = async (userId: string) => {
 
 export const invalidatePermissionCache = async (userIds: string[]) => {
   const keys = userIds.map((userId) => `permission-codes:${userId}`);
-  await cacheDel(...keys);
+  await Promise.all([
+    cacheDel(...keys),
+    invalidateRealtimeTopicAccessCache(userIds),
+  ]);
 };
 
 export const buildCurrentUser = async (userId: string) => {

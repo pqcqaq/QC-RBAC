@@ -1,6 +1,7 @@
 import { prisma, prismaRaw } from '../lib/prisma';
 import { withSnowflakeIds } from '../utils/persistence';
 import { getRequestActorId } from '../utils/request-context';
+import { invalidateRealtimeTopicRegistryCache } from './realtime-topic-auth';
 
 const unique = (values: string[]) => [...new Set(values)];
 
@@ -140,6 +141,9 @@ export const softDeletePermission = async (permissionId: string) => {
       where: { permissionId },
       data: { permissionId: null },
     });
+    await tx.realtimeTopic.deleteMany({
+      where: { permissionId },
+    });
     await tx.rolePermission.deleteMany({
       where: { permissionId },
     });
@@ -147,6 +151,7 @@ export const softDeletePermission = async (permissionId: string) => {
       where: { id: permissionId },
     });
   });
+  await invalidateRealtimeTopicRegistryCache();
 };
 
 export const softDeleteAuthClient = async (clientId: string) => {

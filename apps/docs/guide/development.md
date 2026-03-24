@@ -42,17 +42,18 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 | [实时通信](/guide/realtime) | WebSocket 协议、topic 规则、心跳、重连、前后端用法 | `apps/backend/src/lib/socket.ts` + `packages/api-common/src/realtime/**` |
 | [Web 前端](/guide/web-frontend) | 登录、动态菜单路由、工作台状态、分页列表、导出 | `apps/web-frontend/src/**` |
 | [Uni 前端](/guide/uni-frontend) | 登录注册、门户、个人页、设置页、自定义 Header / Tabbar / Safe Area | `apps/app-frontend/src/**` |
-| [共享抽象](/guide/shared) | 权限常量、客户端枚举、请求客户端、适配器、API 工厂 | `packages/api-common/src/**` |
+| [共享抽象](/guide/shared) | RBAC 类型、客户端枚举、请求客户端、realtime 适配器、API 工厂 | `packages/api-common/src/**` |
 | [内置组件](/components/) | 当前已经稳定复用的组件、参数、插槽和使用示例 | `apps/web-frontend/src/components/**` |
 | [测试用例](/guide/testing) | framework / integration 测试文件、覆盖点、运行方式 | `apps/backend/test/**` |
 | [扩展指南](/guide/extension) | 新增模块、新增客户端类型、新增列表页与测试的具体步骤 | 跨端操作说明 |
 
 ## 当前统一约定
 
-- 权限码由 `packages/api-common/src/constants/permissions.ts` 统一维护，后端 seed 和前端权限判断都依赖它。
+- 权限种子由 `apps/backend/src/constants/system-permissions.ts` 维护；前端运行时权限来自 `/api/auth/me` 和 `/api/menus/current`，不要在 shared 包里维护运行时权限目录。
 - 后端列表接口统一使用分页，前端列表页统一通过 `page` / `pageSize` 请求并保留筛选状态。
 - 列表导出统一走后端 `createExcelExportHandler` 和前端 `useDownload` / `ListExportButton`。
 - WebSocket 实时层统一走 `packages/api-common/src/realtime/**` 和后端 `src/lib/socket.ts`，页面优先使用组件级 `useWsTopic(...)`。
+- realtime 订阅授权统一由 `apps/backend/src/topics`、`RealtimeTopic` 表和 `realtime-topic-auth.ts` 处理，运行时不直接依赖共享权限常量。
 - 表单里的关联选择统一使用 `RelationSelectFormItem`，搜索区走插槽，选项接口统一走 `POST + body`，并且后端必须同时提供 `resolve(ids)` 回显接口。
 - Web 控制台页面默认采用 `View.vue + components/ + *-management.ts` 的结构。
 - Uni 页面统一使用自定义组件和 `navigationStyle: 'custom'`，不显示原生 Header。
