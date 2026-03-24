@@ -184,6 +184,7 @@ packages/api-common/src/api/factory.ts
 - `attachments`
 - `audit`
 - `live`
+- `realtimeTopics`
 
 ### API 工厂的组织方式
 
@@ -225,6 +226,8 @@ packages/api-common/src/api/factory.ts
 - `api.users.roles()`
 - `api.roles.permissions()`
 - `api.menus.permissions()`
+- `api.realtimeTopics.*`
+- `api.realtimeTopics.permissions()`
 
 这些接口已经覆盖：
 
@@ -258,8 +261,9 @@ packages/api-common/src/api/factory.ts
 1. 在 `packages/api-common/src/types/realtime.ts` 增加 topic helper 和 payload 类型
 2. 在 `apps/backend/src/constants/system-permissions.ts` 增加对应的订阅权限
 3. 在 `apps/backend/src/topics/*.ts` 注册 `topicPattern`、`permissionCode` 和订阅生命周期回调
-4. 让 `apps/backend/src/services/system-rbac.ts` 把 topic 注册项 seed 到 `RealtimeTopic`
-5. 前端继续只订阅 topic，不直接维护权限覆盖规则
+4. 如需后台配置或前端 CRUD，再复用 `api.realtimeTopics.*` 和 `RealtimeTopicRecord / RealtimeTopicFormPayload`
+5. 让 `apps/backend/src/services/system-rbac.ts` 把 topic 注册项 seed 到 `RealtimeTopic`
+6. 前端继续只订阅 topic，不直接维护权限覆盖规则
 
 ### 新增接口
 
@@ -274,3 +278,5 @@ packages/api-common/src/api/factory.ts
 3. 后端补 schema 和运行时校验
 4. Web / Uni 的客户端构造逻辑同步跟进
 5. 更新 docs
+
+

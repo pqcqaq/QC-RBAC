@@ -43,9 +43,12 @@ import type {
   PaginatedAuthClients,
   PaginatedLiveMessages,
   PaginatedPermissions,
+  PaginatedRealtimeTopics,
   PaginatedRoles,
   PermissionFormPayload,
   PermissionRecord,
+  RealtimeTopicFormPayload,
+  RealtimeTopicRecord,
   RoleFormPayload,
   RoleRecord,
   UserFormPayload,
@@ -152,6 +155,14 @@ export const createApiFactory = (options: ClientOptions) => {
   >(client, {
     resource: '/permissions',
     exportFileName: 'permissions.xlsx',
+  });
+  const realtimeTopicCrud = createCrudEndpoints<
+    RealtimeTopicRecord,
+    RealtimeTopicFormPayload,
+    PaginatedRealtimeTopics
+  >(client, {
+    resource: '/realtime-topics',
+    exportFileName: 'realtime-topics.xlsx',
   });
   const clientCrud = createCrudEndpoints<
     AuthClientRecord,
@@ -266,6 +277,13 @@ export const createApiFactory = (options: ClientOptions) => {
       ...permissionCrud,
       modules: () => client.request<string[]>({ url: '/permissions/options/modules' }),
     },
+    realtimeTopics: {
+      ...realtimeTopicCrud,
+      permissions: createOptionSearch<
+        PaginatedPermissionSummaries['items'][number],
+        PaginatedPermissionSummaries
+      >('/realtime-topics/options/permissions'),
+    },
     clients: {
       ...clientCrud,
     },
@@ -327,3 +345,4 @@ export const createApiFactory = (options: ClientOptions) => {
     },
   };
 };
+

@@ -78,6 +78,21 @@ apps/backend/src/lib/socket.ts
 
 具体协议、后端导出方法和前端接入方式，统一看 [实时通信](/guide/realtime)。
 
+### 订阅授权管理
+
+运行时订阅授权的后台 CRUD 入口是：
+
+- `apps/backend/src/routes/realtime-topics.ts`
+- `apps/backend/src/services/system-rbac.ts`
+- `apps/backend/src/utils/rbac-records.ts`
+
+这层现在负责：
+
+- 把 `RealtimeTopic` 暴露成独立管理资源，而不是把 topic 绑定写死在前端或 shared 常量里。
+- 通过 `/api/realtime-topics/options/permissions` 复用权限选择器协议。
+- 保护系统注册 topic：系统 topic 由 `src/topics/*.ts` 和 `system-rbac.ts` seed，同步到数据库后只允许查看，不允许在后台直接改写或删除。
+- 自定义 topic 绑定允许完整 CRUD，用于后续扩展业务订阅面。
+
 ## 应用入口与请求链路
 
 `src/app.ts` 负责把所有基础设施接起来：
@@ -533,3 +548,4 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 6. 如果模块需要 websocket topic，补 `src/topics` 注册项、订阅权限和 `RealtimeTopic` seed。
 7. 如果是列表页，直接接 `createExcelExportHandler`。
 8. 在对应的 `framework` 或 `integration` 测试补用例，并同步更新 docs。
+

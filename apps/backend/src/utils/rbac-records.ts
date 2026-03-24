@@ -2,12 +2,13 @@ import type {
   AuthClientRecord,
   PermissionRecord,
   PermissionSummary,
+  RealtimeTopicRecord,
   RoleRecord,
   RoleSummary,
   UserRecord,
 } from '@rbac/api-common';
 import { AuthClientType } from '@rbac/api-common';
-import type { AuthClient, Permission, Prisma, Role } from '../lib/prisma-generated';
+import type { AuthClient, Permission, Prisma, RealtimeTopic, Role } from '../lib/prisma-generated';
 import { parseAuthClientConfig } from '../config/auth-clients';
 import { mediaAssetWithOwnerInclude, toMediaAssetRecord } from './file-records';
 
@@ -42,6 +43,10 @@ export const roleWithPermissionSummaryInclude = {
   },
 } satisfies Prisma.RoleInclude;
 
+export const realtimeTopicWithPermissionSummaryInclude = {
+  permission: true,
+} satisfies Prisma.RealtimeTopicInclude;
+
 type PermissionSummaryInput = Pick<
   Permission,
   'id' | 'code' | 'name' | 'module' | 'action' | 'description' | 'isSystem'
@@ -49,6 +54,12 @@ type PermissionSummaryInput = Pick<
 
 type PermissionRecordInput = PermissionSummaryInput & Pick<Permission, 'createdAt' | 'updatedAt'>;
 type RoleSummaryInput = Pick<Role, 'id' | 'code' | 'name' | 'description'>;
+type RealtimeTopicRecordInput = Pick<
+  RealtimeTopic,
+  'id' | 'code' | 'name' | 'description' | 'topicPattern' | 'isSystem' | 'permissionId' | 'createdAt' | 'updatedAt'
+> & {
+  permission: PermissionSummaryInput;
+};
 type AuthClientRecordInput = Pick<
   AuthClient,
   'id' | 'code' | 'name' | 'description' | 'type' | 'config' | 'enabled' | 'createdAt' | 'updatedAt'
@@ -156,3 +167,19 @@ export const toRoleRecord = (role: RoleWithPermissionSummaryRelations): RoleReco
   createdAt: role.createdAt.toISOString(),
   updatedAt: role.updatedAt.toISOString(),
 });
+
+export const toRealtimeTopicRecord = (
+  topic: RealtimeTopicRecordInput,
+): RealtimeTopicRecord => ({
+  id: topic.id,
+  code: topic.code,
+  name: topic.name,
+  description: topic.description ?? undefined,
+  topicPattern: topic.topicPattern,
+  isSystem: topic.isSystem,
+  permissionId: topic.permissionId,
+  permission: toPermissionSummary(topic.permission),
+  createdAt: topic.createdAt.toISOString(),
+  updatedAt: topic.updatedAt.toISOString(),
+});
+

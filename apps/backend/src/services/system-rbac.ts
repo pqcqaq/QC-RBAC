@@ -294,6 +294,23 @@ const defaultMenuTree: SystemMenuSeedNode[] = [
           { code: 'oauth-applications-delete', type: 'ACTION', title: '删除 OAuth 应用', icon: 'i-carbon-trash-can', sortOrder: 30, permissionCode: 'oauth-application.delete' },
         ],
       },
+      {
+        code: 'realtime-topics',
+        type: 'PAGE',
+        title: '订阅授权',
+        caption: 'Realtime Topics',
+        description: '维护 topic pattern 与权限的绑定关系，控制 WebSocket 订阅授权。',
+        icon: 'i-carbon-connection-signal',
+        path: '/realtime-topics',
+        viewKey: 'realtimeTopics',
+        sortOrder: 50,
+        permissionCode: 'realtime-topic.read',
+        children: [
+          { code: 'realtime-topics-create', type: 'ACTION', title: '创建订阅授权', icon: 'i-carbon-add', sortOrder: 10, permissionCode: 'realtime-topic.create' },
+          { code: 'realtime-topics-update', type: 'ACTION', title: '编辑订阅授权', icon: 'i-carbon-edit', sortOrder: 20, permissionCode: 'realtime-topic.update' },
+          { code: 'realtime-topics-delete', type: 'ACTION', title: '删除订阅授权', icon: 'i-carbon-trash-can', sortOrder: 30, permissionCode: 'realtime-topic.delete' },
+        ],
+      },
     ],
   },
 ];
@@ -460,3 +477,5 @@ export const bootstrapSystemRbac = async (prisma: PrismaClient) => {
     roleByCode,
   };
 };
+
+

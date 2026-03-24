@@ -289,8 +289,24 @@ pages/console/<module>
 - `pages/console/attachments`
 - `pages/console/oauth-providers`
 - `pages/console/oauth-applications`
+- `pages/console/realtime-topics`
 
 实时页面也遵守同样规则：页面只消费 topic，不承担底层 websocket 管理职责。
+
+### 订阅授权页面
+
+Web 控制台现在新增了：
+
+- `pages/console/realtime-topics/RealtimeTopicsView.vue`
+- `pages/console/realtime-topics/realtime-topic-management.ts`
+- `pages/console/realtime-topics/components/*`
+
+这个页面专门管理 `topicPattern -> permission` 绑定，和运行时消息查看页 `live` 分开。页面约束：
+
+- 系统注册 topic 只允许查看，不允许编辑或删除。
+- 自定义绑定走标准 CRUD 流程。
+- 权限选择统一复用 `RelationSelectFormItem` + `/api/realtime-topics/options/permissions`。
+- 页面状态继续走 `usePageState('page:realtime-topics', ...)`，避免筛选和分页丢失。
 
 ## 列表页的通用抽象
 
@@ -391,3 +407,6 @@ pages/console/<module>
 5. 如果页面有筛选状态，使用 `usePageState(...)`
 6. 如果页面有外键 / 多对多选择，优先复用 `RelationSelectFormItem`
 7. 页面能力变化后同步更新 docs
+
+
+

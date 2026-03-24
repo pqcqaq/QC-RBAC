@@ -20,6 +20,7 @@ apps/backend/test
 │  ├─ exports.test.ts
 │  ├─ oauth.test.ts
 │  ├─ realtime.test.ts
+│  ├─ realtime-topics.test.ts
 │  └─ rbac.test.ts
 └─ support
    └─ backend-testkit.ts
@@ -213,6 +214,22 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 上游 refresh token 失效处理
 - OAuth 用户映射复用逻辑
 
+### `integration/realtime-topics.test.ts`
+
+- `lists seeded realtime topic bindings for admins`
+- `supports permission option search and resolve for topic bindings`
+- `supports custom realtime topic CRUD and rejects duplicate topic permission bindings`
+- `prevents editing or deleting seeded realtime topics`
+- `forbids ordinary members from reading realtime topic bindings`
+
+覆盖点：
+
+- `RealtimeTopic` 的后台 CRUD
+- topic pattern 和 permission 绑定的唯一性检查
+- 系统注册 topic 的只读保护
+- 订阅授权页面所依赖的权限选择器 options / resolve 接口
+- 普通成员无法访问订阅授权管理资源
+
 ### `integration/rbac.test.ts`
 
 - `prevents ordinary members from reading admin resources`
@@ -264,3 +281,4 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 先复用 `backend-testkit.ts`
 - 测试不要再堆到一个总文件里
 - 改动影响测试结构或覆盖范围时，同步更新这页文档
+

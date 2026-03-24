@@ -142,6 +142,24 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 4. 对命中的 topic 注册项继续执行 `authorizeSubscription(...)`，处理“只能订阅自己”这类业务规则。
 5. 授权成功后，把 topic 注册信息挂到连接上下文里，供后续订阅/取消订阅生命周期回调复用。
 
+### 订阅授权后台
+
+除了运行时注册表，现在还提供了独立的管理入口：
+
+- 后端接口：`/api/realtime-topics`
+- Web 页面：`/realtime-topics`
+
+用途：
+
+- 查看系统注册 topic 已经落库成了什么 pattern 和 permission。
+- 新增自定义 topic 绑定，扩展订阅面而不改 shared 常量。
+- 在运行时仍然保持 `topics/*.ts` 负责语义注册，`RealtimeTopic` 负责授权绑定。
+
+约束：
+
+- `isSystem = true` 的记录来自 `systemRealtimeTopicCatalog` seed，只允许查看。
+- 只有自定义绑定允许后台编辑或删除。
+
 ## 握手与连接地址
 
 后端 websocket 入口固定是：
@@ -703,3 +721,4 @@ emitOrderStatusChanged(...)
 - `apps/web-frontend/src/pages/console/live/LiveView.vue`
 - `apps/app-frontend/src/api/client.ts`
 - `apps/app-frontend/src/hooks/useWsTopic.ts`
+

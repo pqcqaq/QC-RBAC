@@ -34,6 +34,7 @@ export const menuIconCatalog = [
   { value: 'i-carbon-activity', label: '活动', group: '运行', keywords: ['activity', 'operations', 'runtime'] },
   { value: 'i-carbon-cloud-auditing', label: '审计', group: '运行', keywords: ['audit', 'history', 'log'] },
   { value: 'i-carbon-flash', label: '实时', group: '运行', keywords: ['live', 'realtime', 'flash'] },
+  { value: 'i-carbon-connection-signal', label: '订阅授权', group: '运行', keywords: ['realtime', 'topic', 'subscription', 'permission'] },
   { value: 'i-carbon-time', label: '时间', group: '运行', keywords: ['time', 'schedule', 'clock'] },
   { value: 'i-carbon-chart-column', label: '柱状图', group: '运行', keywords: ['chart', 'analytics', 'metrics'] },
   { value: 'i-carbon-chart-ring', label: '环形图', group: '运行', keywords: ['chart', 'ratio', 'metrics'] },
@@ -74,6 +75,7 @@ const menuCodeIconMap: Record<string, string> = {
   system: 'i-carbon-settings',
   menus: 'i-carbon-tree-view-alt',
   clients: 'i-carbon-app-connectivity',
+  'realtime-topics': 'i-carbon-connection-signal',
 };
 
 const legacyInvalidMenuIconMap: Record<string, string> = {
@@ -103,3 +105,5 @@ export const resolveMenuNodeIcon = (node: MenuIconLike) => {
 
   return menuCodeIconMap[node.code] ?? menuTypeFallbackIconMap[node.type];
 };
+
+

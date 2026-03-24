@@ -57,6 +57,27 @@ export interface PermissionFormPayload {
   description?: string;
 }
 
+export interface RealtimeTopicRecord {
+  id: string;
+  code: string;
+  name: string;
+  description?: string;
+  topicPattern: string;
+  isSystem: boolean;
+  permissionId: string;
+  permission: PermissionSummary;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface RealtimeTopicFormPayload {
+  code: string;
+  name: string;
+  description?: string | null;
+  topicPattern: string;
+  permissionId: string;
+}
+
 export interface PermissionSourceGroup {
   role: RoleSummary;
   permissions: PermissionSummary[];
@@ -177,6 +198,8 @@ export interface LiveMessage {
 export type PaginatedUsers = PaginatedResult<UserRecord>;
 export type PaginatedRoles = PaginatedResult<RoleRecord>;
 export type PaginatedPermissions = PaginatedResult<PermissionRecord>;
+export type PaginatedRealtimeTopics = PaginatedResult<RealtimeTopicRecord>;
 export type PaginatedAuthClients = PaginatedResult<AuthClientRecord>;
 export type PaginatedAuditLogs = PaginatedResult<ActivityLogRecord>;
 export type PaginatedLiveMessages = PaginatedResult<LiveMessage>;
+
