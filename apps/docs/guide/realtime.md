@@ -26,9 +26,9 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 - 心跳保活
 - 指数退避重连
 
-## 本次改造总览
+## 实现概览
 
-这次改造不是单纯把 `socket.io` 替换成 `WebSocket`，而是把项目后续会持续依赖的 realtime 基础设施一起补齐了。
+当前 realtime 实现不是只替换传输层，而是同时收敛了协议、授权、连接管理、重连和平台接入。
 
 ### 1. 协议层统一成标准 WebSocket
 
@@ -147,7 +147,7 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
 除了运行时注册表，现在还提供了独立的管理入口：
 
 - 后端接口：`/api/realtime-topics`
-- Web 页面：`/realtime-topics`
+- Web 页面：`/console/realtime-topics`
 
 用途：
 

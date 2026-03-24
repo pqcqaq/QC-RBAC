@@ -38,7 +38,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 
 | 页面 | 你会看到什么 | 核心文件 |
 | --- | --- | --- |
-| [后端实现](/guide/backend) | 路由、service、Prisma 扩展、OAuth、上传、导出、timer | `apps/backend/src/**` |
+| [后端实现](/guide/backend) | 路由、service、BackendRuntimeContext、自动事务、受管 Prisma、OAuth、上传、导出、timer | `apps/backend/src/**` |
 | [实时通信](/guide/realtime) | WebSocket 协议、topic 规则、心跳、重连、前后端用法 | `apps/backend/src/lib/socket.ts` + `packages/api-common/src/realtime/**` |
 | [Web 前端](/guide/web-frontend) | 登录、动态菜单路由、工作台状态、分页列表、导出 | `apps/web-frontend/src/**` |
 | [Uni 前端](/guide/uni-frontend) | 登录注册、门户、个人页、设置页、自定义 Header / Tabbar / Safe Area | `apps/app-frontend/src/**` |
@@ -50,6 +50,9 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 ## 当前统一约定
 
 - 权限种子由 `apps/backend/src/constants/system-permissions.ts` 维护；前端运行时权限来自 `/api/auth/me` 和 `/api/menus/current`，不要在 shared 包里维护运行时权限目录。
+- 后端异步接口统一通过 `asyncHandler(...)` 进入；服务层显式事务统一使用 `runInBackendRuntimeTransaction(...)`。
+- 后端默认数据库入口使用 `prisma`；只有需要原始表语义时才使用 `prismaRaw`。
+- 接口如果为了协议兼容需要自己写错误响应，响应写出后必须调用 `rollbackHandledResponse()`，否则事务会被当作成功提交。
 - 后端列表接口统一使用分页，前端列表页统一通过 `page` / `pageSize` 请求并保留筛选状态。
 - 列表导出统一走后端 `createExcelExportHandler` 和前端 `useDownload` / `ListExportButton`。
 - WebSocket 实时层统一走 `packages/api-common/src/realtime/**` 和后端 `src/lib/socket.ts`，页面优先使用组件级 `useWsTopic(...)`。

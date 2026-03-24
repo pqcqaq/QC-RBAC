@@ -3,9 +3,10 @@ import type {
   OAuthProviderFormPayload,
   OAuthProviderPublicSummary,
 } from '@rbac/api-common';
-import type { Prisma } from '../lib/prisma-generated';
+import type { Prisma, PrismaClient } from '../lib/prisma-generated';
 import { AuthClientType, type OAuthApplicationClientType } from '@rbac/api-common';
-import { prisma, prismaRaw } from '../lib/prisma';
+import { prisma } from '../lib/prisma';
+import { runInBackendRuntimeTransaction } from '../lib/runtime-transaction';
 import { badRequest, notFound, unauthorized } from '../utils/errors';
 import { encryptOAuthSecret } from '../utils/oauth-security';
 import {
@@ -59,7 +60,7 @@ const normalizeStringArray = (values: string[]) =>
   [...new Set(values.map(item => item.trim()).filter(Boolean))];
 
 const syncOAuthApplicationPermissions = async (
-  tx: Prisma.TransactionClient,
+  tx: Prisma.TransactionClient | PrismaClient,
   applicationId: string,
   permissionIds: string[],
 ) => {
@@ -383,7 +384,8 @@ export const getOAuthApplicationById = async (id: string) => {
 };
 
 export const createOAuthApplication = async (payload: OAuthApplicationFormPayload) => {
-  const application = await prismaRaw.$transaction(async (tx) => {
+  const application = await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.dbRaw;
     const created = await tx.oAuthApplication.create({
       data: withSnowflakeId(
         await buildOAuthApplicationInput(payload) as Prisma.OAuthApplicationCreateInput,
@@ -415,7 +417,8 @@ export const updateOAuthApplication = async (id: string, payload: OAuthApplicati
     throw notFound('OAuth application not found');
   }
 
-  const application = await prismaRaw.$transaction(async (tx) => {
+  const application = await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.dbRaw;
     await tx.oAuthApplication.update({
       where: { id },
       data: await buildOAuthApplicationInput(payload, current),

@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { env } from './config/env';
 import { createApp } from './app';
-import { prisma } from './lib/prisma';
+import { getRootPrismaClient, getRootPrismaRawClient } from './lib/prisma';
 import { closeRedisConnection, ensureRedisConnection } from './lib/redis';
 import { closeSocketServer, initSocket } from './lib/socket';
 import { bootstrapSystemRbac } from './services/system-rbac';
@@ -52,7 +52,7 @@ const shutdown = async (signal: string) => {
   await Promise.allSettled([
     closeSocketServer(),
     closeRedisConnection(),
-    prisma.$disconnect(),
+    getRootPrismaRawClient().$disconnect(),
   ]);
   process.exit(0);
 };
@@ -68,7 +68,7 @@ process.on('SIGTERM', () => {
   void shutdown('SIGTERM');
 });
 
-void bootstrapSystemRbac(prisma)
+void bootstrapSystemRbac(getRootPrismaClient())
   .then(() => {
     server.listen(env.PORT, () => {
       console.log(`[backend] http://localhost:${env.PORT}`);
@@ -81,7 +81,7 @@ void bootstrapSystemRbac(prisma)
     await Promise.allSettled([
       closeSocketServer(),
       closeRedisConnection(),
-      prisma.$disconnect(),
+      getRootPrismaRawClient().$disconnect(),
     ]);
     process.exit(1);
   });

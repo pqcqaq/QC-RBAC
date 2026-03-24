@@ -216,6 +216,8 @@ packages/api-common/src/api/factory.ts
   ].join('\n')"
 />
 
+共享包只负责把请求配置、类型和协议送到后端边界；进入 `apps/backend` 之后，请求上下文、自动事务、`prisma / prismaRaw` 选择全部由 `BackendRuntimeContext` 和后端运行时框架负责，不会放进 `packages/api-common`。
+
 ## 最近和当前实现强相关的共享接口
 
 - `api.clients.*`

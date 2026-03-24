@@ -164,16 +164,14 @@ export const listMediaAssets = async ({
   ...filters
 }: ReturnType<typeof parseMediaAssetSearchPayload>): Promise<PaginatedMediaAssets> => {
   const where = buildMediaAssetWhere(filters);
-  const [total, assets] = await prisma.$transaction([
-    prisma.mediaAsset.count({ where }),
-    prisma.mediaAsset.findMany({
-      where,
-      skip,
-      take: pageSize,
-      include: mediaAssetWithOwnerInclude,
-      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-    }),
-  ]);
+  const total = await prisma.mediaAsset.count({ where });
+  const assets = await prisma.mediaAsset.findMany({
+    where,
+    skip,
+    take: pageSize,
+    include: mediaAssetWithOwnerInclude,
+    orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+  });
 
   return {
     items: assets.map(toMediaAssetRecord),

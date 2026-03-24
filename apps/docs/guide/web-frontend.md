@@ -7,11 +7,12 @@ description: Web 控制台的认证、动态路由、工作台状态、列表页
 
 1. `apps/web-frontend/src/api/client.ts`
 2. `apps/web-frontend/src/stores/auth.ts`
-3. `apps/web-frontend/src/stores/menus.ts`
-4. `apps/web-frontend/src/stores/workbench.ts`
-5. `apps/web-frontend/src/meta/pages.ts`
+3. `apps/web-frontend/src/router/index.ts`
+4. `apps/web-frontend/src/stores/menus.ts`
+5. `apps/web-frontend/src/meta/page-definition.ts`
+6. `apps/web-frontend/src/stores/workbench.ts`
 
-这五个文件能解释 Web 端最核心的问题：请求怎么发、登录态怎么存、路由怎么生成、工作台配置怎么同步。
+这几处能解释 Web 端最核心的问题：请求怎么发、登录态怎么存、公共路由壳怎么定义、控制台页面如何注册，以及工作台配置怎么同步。
 
 ## 目录结构
 
@@ -55,12 +56,13 @@ apps/web-frontend/src
 
 ## API 客户端与登录态
 
-`src/api/client.ts` 做了四件关键事：
+`src/api/client.ts` 做了几件关键事：
 
 - 读取本地 access token / refresh token
 - 根据环境变量拼 Web 客户端请求头
 - 401 时自动调用 `/api/auth/refresh`
 - 刷新失败后跳回 `/login`
+- 在没有显式配置 `VITE_WS_URL` 时，根据 `VITE_API_BASE_URL` 推导 realtime 地址
 
 `api` 不是手写对象，而是基于 `createApiFactory(...)` 生成，所以 Web 和 Uni 能共享一套 API 面。
 
@@ -179,6 +181,7 @@ REALTIME_TOPICS.userRbacUpdated(userId)
 
 - `src/router/index.ts`
 - `src/stores/menus.ts`
+- `src/meta/page-definition.ts`
 - `src/meta/pages.ts`
 
 ### 菜单生成路由的过程
@@ -206,6 +209,38 @@ REALTIME_TOPICS.userRbacUpdated(userId)
 - 后端菜单树决定用户看到什么页面
 - 前端只维护 `viewKey -> component` 的注册表
 - 页面新增时，不需要再维护一份和后端菜单重复的静态路由表
+
+### 页面注册事实来源
+
+- `src/router/index.ts` 只维护公共前台、`/login` 和 `/console` 外壳这类静态路由。
+- 每个控制台页面在自己的 `*View.vue` 中通过 `definePage({ viewKey, ... })` 声明页面元信息。
+- `src/meta/page-definition.ts` 定义 `definePage(...)` 与页面注册类型。
+- `src/meta/pages.ts` 只是对 `virtual:page-registry` 的再导出；控制台页面注册表来自构建期扫描，不是一份手工维护的静态数组。
+
+## 当前已跟踪页面
+
+公共前台：
+
+- `frontend-home`
+- `frontend-architecture`
+- `frontend-authentication`
+- `frontend-not-found`
+
+控制台页面：
+
+- `dashboard`
+- `users`
+- `roles`
+- `permissions`
+- `menus`
+- `clients`
+- `attachments`
+- `audit`
+- `explorer`
+- `live`
+- `oauthProviders`
+- `oauthApplications`
+- `realtimeTopics`
 
 ## 工作台状态与用户偏好
 
@@ -283,10 +318,18 @@ pages/console/<module>
 - `components/`：工具栏、表格、详情抽屉、编辑弹窗
 - `*-management.ts`：表单初始值、校验、格式化、payload 构造
 
-典型目录：
+当前已落地的典型目录：
 
+- `pages/console/dashboard`
+- `pages/console/users`
+- `pages/console/roles`
+- `pages/console/permissions`
+- `pages/console/menus`
 - `pages/console/clients`
 - `pages/console/attachments`
+- `pages/console/audit`
+- `pages/console/explorer`
+- `pages/console/live`
 - `pages/console/oauth-providers`
 - `pages/console/oauth-applications`
 - `pages/console/realtime-topics`

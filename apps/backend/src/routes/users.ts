@@ -151,16 +151,14 @@ usersRouter.get(
     const { page, pageSize, skip } = parsePagination(req.query);
     const where = buildUserWhere(parseUserListQuery(req.query));
 
-    const [total, users] = await prisma.$transaction([
-      prisma.user.count({ where }),
-      prisma.user.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: userWithRolesInclude,
-      }),
-    ]);
+    const total = await prisma.user.count({ where });
+    const users = await prisma.user.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      include: userWithRolesInclude,
+    });
 
     return ok(
       res,

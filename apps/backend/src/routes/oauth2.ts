@@ -14,7 +14,7 @@ import {
   startAuthorizationRequest,
 } from '../services/oauth-auth-server';
 import { clearBrowserSessionCookie, getBrowserSessionCookieName } from '../utils/browser-session';
-import { asyncHandler } from '../utils/http';
+import { asyncHandler, rollbackHandledResponse } from '../utils/http';
 import { resolveOAuthApplicationByClientId } from '../services/oauth-admin';
 
 const oauth2Router = Router();
@@ -216,7 +216,7 @@ oauth2Router.get('/oauth2/jwks', (_req, res) => {
   res.json(getJwksDocument());
 });
 
-oauth2Router.get('/oauth2/authorize', async (req, res, next) => {
+oauth2Router.get('/oauth2/authorize', asyncHandler(async (req, res, next) => {
   try {
     const userId = resolveBrowserSessionUserId(req.cookies[getBrowserSessionCookieName()]);
     const currentUrl = new URL(req.originalUrl, `${req.protocol}://${req.get('host')}`).toString();
@@ -256,19 +256,19 @@ oauth2Router.get('/oauth2/authorize', async (req, res, next) => {
       res,
     });
     if (redirected) {
-      return;
+      throw rollbackHandledResponse();
     }
 
     if (error instanceof HttpError) {
       res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
-      return;
+      throw rollbackHandledResponse();
     }
 
-    next(error);
+    throw error;
   }
-});
+}));
 
-const handleAuthorizationDecision = async (req: Request, res: Response, next: (error?: unknown) => void) => {
+const handleAuthorizationDecision = async (req: Request, res: Response) => {
   try {
     const userId = resolveBrowserSessionUserId(req.cookies[getBrowserSessionCookieName()]);
     if (!userId) {
@@ -285,17 +285,27 @@ const handleAuthorizationDecision = async (req: Request, res: Response, next: (e
   } catch (error) {
     if (error instanceof HttpError) {
       res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
-      return;
+      throw rollbackHandledResponse();
     }
 
-    next(error);
+    throw error;
   }
 };
 
-oauth2Router.get('/oauth2/authorize/decision', handleAuthorizationDecision);
-oauth2Router.post('/oauth2/authorize/decision', handleAuthorizationDecision);
+oauth2Router.get(
+  '/oauth2/authorize/decision',
+  asyncHandler(async (req, res, next) => {
+    await handleAuthorizationDecision(req, res);
+  }),
+);
+oauth2Router.post(
+  '/oauth2/authorize/decision',
+  asyncHandler(async (req, res, next) => {
+    await handleAuthorizationDecision(req, res);
+  }),
+);
 
-oauth2Router.post('/oauth2/token', async (req, res, next) => {
+oauth2Router.post('/oauth2/token', asyncHandler(async (req, res) => {
   try {
     const result = await exchangeOAuthToken({
       grantType: String(req.body.grant_type ?? ''),
@@ -312,8 +322,9 @@ oauth2Router.post('/oauth2/token', async (req, res, next) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
+    throw rollbackHandledResponse();
   }
-});
+}));
 
 const handleUserInfo = async (req: Request, res: Response) => {
   const token = extractBearerToken(req.headers.authorization)
@@ -321,7 +332,7 @@ const handleUserInfo = async (req: Request, res: Response) => {
 
   if (!token) {
     sendOAuthJsonError(res, 401, 'invalid_token', 'missing access token');
-    return;
+    throw rollbackHandledResponse();
   }
 
   try {
@@ -329,7 +340,7 @@ const handleUserInfo = async (req: Request, res: Response) => {
   } catch (error) {
     if (error instanceof HttpError) {
       sendOAuthJsonError(res, 401, 'invalid_token', error.message);
-      return;
+      throw rollbackHandledResponse();
     }
 
     throw error;
@@ -339,7 +350,7 @@ const handleUserInfo = async (req: Request, res: Response) => {
 oauth2Router.get('/oauth2/userinfo', asyncHandler(handleUserInfo));
 oauth2Router.post('/oauth2/userinfo', asyncHandler(handleUserInfo));
 
-oauth2Router.post('/oauth2/introspect', async (req, res, next) => {
+oauth2Router.post('/oauth2/introspect', asyncHandler(async (req, res) => {
   try {
     const token = String(req.body.token ?? '');
     if (!token) {
@@ -355,10 +366,11 @@ oauth2Router.post('/oauth2/introspect', async (req, res, next) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
+    throw rollbackHandledResponse();
   }
-});
+}));
 
-oauth2Router.post('/oauth2/revoke', async (req, res, next) => {
+oauth2Router.post('/oauth2/revoke', asyncHandler(async (req, res) => {
   try {
     const token = String(req.body.token ?? '');
     if (!token) {
@@ -375,8 +387,9 @@ oauth2Router.post('/oauth2/revoke', async (req, res, next) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
+    throw rollbackHandledResponse();
   }
-});
+}));
 
 oauth2Router.get(
   '/oauth2/logout',

@@ -55,15 +55,13 @@ realtimeRouter.get(
   requirePermission('realtime.read'),
   asyncHandler(async (req, res) => {
     const { page, pageSize, skip } = parsePagination(req.query);
-    const [total, messages] = await prisma.$transaction([
-      prisma.chatMessage.count(),
-      prisma.chatMessage.findMany({
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-        include: liveMessageInclude,
-      }),
-    ]);
+    const total = await prisma.chatMessage.count();
+    const messages = await prisma.chatMessage.findMany({
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+      include: liveMessageInclude,
+    });
 
     return ok(
       res,

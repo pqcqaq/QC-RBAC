@@ -44,15 +44,13 @@ auditRouter.get(
     const { page, pageSize, skip } = parsePagination(req.query);
     const where = buildAuditWhere(parseAuditListQuery(req.query));
 
-    const [total, rows] = await prisma.$transaction([
-      prisma.activityLog.count({ where }),
-      prisma.activityLog.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: { createdAt: 'desc' },
-      }),
-    ]);
+    const total = await prisma.activityLog.count({ where });
+    const rows = await prisma.activityLog.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: 'desc' },
+    });
 
     return ok(
       res,

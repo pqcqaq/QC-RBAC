@@ -182,16 +182,14 @@ realtimeTopicsRouter.get(
     const { page, pageSize, skip } = parsePagination(req.query);
     const where = buildRealtimeTopicWhere(parseRealtimeTopicListQuery(req.query));
 
-    const [total, topics] = await prisma.$transaction([
-      prisma.realtimeTopic.count({ where }),
-      prisma.realtimeTopic.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: [{ isSystem: 'desc' }, { topicPattern: 'asc' }, { code: 'asc' }],
-        include: realtimeTopicWithPermissionSummaryInclude,
-      }),
-    ]);
+    const total = await prisma.realtimeTopic.count({ where });
+    const topics = await prisma.realtimeTopic.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: [{ isSystem: 'desc' }, { topicPattern: 'asc' }, { code: 'asc' }],
+      include: realtimeTopicWithPermissionSummaryInclude,
+    });
 
     return ok(
       res,

@@ -95,15 +95,13 @@ permissionsRouter.get(
     const query = parsePermissionListQuery(req.query);
     const where = buildPermissionWhere(query);
 
-    const [total, permissions] = await prisma.$transaction([
-      prisma.permission.count({ where }),
-      prisma.permission.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
-      }),
-    ]);
+    const total = await prisma.permission.count({ where });
+    const permissions = await prisma.permission.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+    });
 
     return ok(
       res,

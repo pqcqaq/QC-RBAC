@@ -40,6 +40,8 @@ apps/app-frontend/src
 - `pages/me/profile.vue`
 - `pages/settings/index.vue`
 
+`src/pages.json` 是实际路由与 tabbar 配置的事实来源。只有被注册到 `pages.json` 的页面，才会出现在运行时导航里。
+
 ## 平台适配层级
 
 <MermaidDiagram
@@ -76,6 +78,8 @@ Uni 端请求入口在 `src/api/client.ts`。
 - 通过 `createUniAdaptor()` 生成统一请求客户端
 - 通过 `createUniWsAdaptor()` 生成统一 realtime 客户端
 - 401 时自动 refresh，失败后清理本地状态
+- 未配置 `VITE_WS_URL` 时，会根据 `VITE_SERVER_BASEURL` 推导 realtime 地址
+- 支持通过 `VITE_AUTH_MINIAPP_CLIENT_CODE` / `VITE_AUTH_MINIAPP_CLIENT_SECRET`、`VITE_AUTH_APP_CLIENT_CODE` / `VITE_AUTH_APP_CLIENT_SECRET` 覆盖不同平台的默认客户端凭证
 
 ### 实时客户端
 

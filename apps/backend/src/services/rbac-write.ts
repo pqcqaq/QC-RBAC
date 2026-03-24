@@ -1,4 +1,5 @@
 import { prisma, prismaRaw } from '../lib/prisma';
+import { runInBackendRuntimeTransaction } from '../lib/runtime-transaction';
 import { withSnowflakeIds } from '../utils/persistence';
 import { getRequestActorId } from '../utils/request-context';
 import { invalidateRealtimeTopicRegistryCache } from './realtime-topic-auth';
@@ -22,7 +23,8 @@ export const syncUserRoles = async (userId: string, roleIds: string[]) => {
     .map((item) => item.id);
   const creatableRoleIds = nextRoleIds.filter((roleId) => !existingByRoleId.has(roleId));
 
-  await prismaRaw.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.dbRaw;
     if (removableIds.length) {
       await tx.userRole.updateMany({
         where: { id: { in: removableIds }, deleteAt: null },
@@ -73,7 +75,8 @@ export const syncRolePermissions = async (roleId: string, permissionIds: string[
     .map((item) => item.id);
   const creatablePermissionIds = nextPermissionIds.filter((permissionId) => !existingByPermissionId.has(permissionId));
 
-  await prismaRaw.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.dbRaw;
     if (removableIds.length) {
       await tx.rolePermission.updateMany({
         where: { id: { in: removableIds }, deleteAt: null },
@@ -108,7 +111,8 @@ export const syncRolePermissions = async (roleId: string, permissionIds: string[
 };
 
 export const softDeleteUser = async (userId: string) => {
-  await prisma.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.db;
     await tx.userRole.deleteMany({
       where: { userId },
     });
@@ -125,7 +129,8 @@ export const softDeleteUser = async (userId: string) => {
 };
 
 export const softDeleteRole = async (roleId: string) => {
-  await prisma.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.db;
     await tx.rolePermission.deleteMany({
       where: { roleId },
     });
@@ -136,7 +141,8 @@ export const softDeleteRole = async (roleId: string) => {
 };
 
 export const softDeletePermission = async (permissionId: string) => {
-  await prisma.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.db;
     await tx.menuNode.updateMany({
       where: { permissionId },
       data: { permissionId: null },
@@ -155,7 +161,8 @@ export const softDeletePermission = async (permissionId: string) => {
 };
 
 export const softDeleteAuthClient = async (clientId: string) => {
-  await prisma.$transaction(async (tx) => {
+  await runInBackendRuntimeTransaction(async (runtime) => {
+    const tx = runtime.db;
     await tx.refreshToken.deleteMany({
       where: { clientId },
     });

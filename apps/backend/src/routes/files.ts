@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import multer from 'multer';
-import { prisma } from '../lib/prisma';
+import { getRootPrismaRawClient, prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
 import {
@@ -173,9 +173,12 @@ filesRouter.post(
         chunkCount: asset.chunkCount,
       });
     } catch (error) {
-      await prisma.mediaAsset.update({
+      await getRootPrismaRawClient().mediaAsset.update({
         where: { id: asset.id },
-        data: { uploadStatus: 'FAILED' },
+        data: {
+          uploadStatus: 'FAILED',
+          updateId: actor.id,
+        },
       }).catch(() => undefined);
       throw error;
     }

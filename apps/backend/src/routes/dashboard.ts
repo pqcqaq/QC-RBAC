@@ -13,33 +13,30 @@ dashboardRouter.get(
   '/summary',
   requirePermission('dashboard.view'),
   asyncHandler(async (_req, res) => {
-    const [userCount, roleCount, permissionCount, liveMessageCount, roles, permissions, latestUsers, logs] =
-      await prisma.$transaction([
-        prisma.user.count(),
-        prisma.role.count(),
-        prisma.permission.count(),
-        prisma.chatMessage.count(),
-        prisma.role.findMany({
-          include: {
-            users: {
-              where: {
-                deleteAt: null,
-              },
-              select: { id: true },
-            },
+    const userCount = await prisma.user.count();
+    const roleCount = await prisma.role.count();
+    const permissionCount = await prisma.permission.count();
+    const liveMessageCount = await prisma.chatMessage.count();
+    const roles = await prisma.role.findMany({
+      include: {
+        users: {
+          where: {
+            deleteAt: null,
           },
-        }),
-        prisma.permission.findMany(),
-        prisma.user.findMany({
-          take: 5,
-          orderBy: { createdAt: 'desc' },
-          include: userRoleSummaryInclude,
-        }),
-        prisma.activityLog.findMany({
-          take: 8,
-          orderBy: { createdAt: 'desc' },
-        }),
-      ]);
+          select: { id: true },
+        },
+      },
+    });
+    const permissions = await prisma.permission.findMany();
+    const latestUsers = await prisma.user.findMany({
+      take: 5,
+      orderBy: { createdAt: 'desc' },
+      include: userRoleSummaryInclude,
+    });
+    const logs = await prisma.activityLog.findMany({
+      take: 8,
+      orderBy: { createdAt: 'desc' },
+    });
 
     const moduleCoverage = Object.entries(
       permissions.reduce<Record<string, number>>((acc, permission) => {

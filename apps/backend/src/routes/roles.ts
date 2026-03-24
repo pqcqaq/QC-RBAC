@@ -120,16 +120,14 @@ rolesRouter.get(
     const { page, pageSize, skip } = parsePagination(req.query);
     const where = buildRoleWhere(parseRoleListQuery(req.query));
 
-    const [total, roles] = await prisma.$transaction([
-      prisma.role.count({ where }),
-      prisma.role.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
-        include: roleWithRelationsInclude,
-      }),
-    ]);
+    const total = await prisma.role.count({ where });
+    const roles = await prisma.role.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+      include: roleWithRelationsInclude,
+    });
 
     return ok(
       res,

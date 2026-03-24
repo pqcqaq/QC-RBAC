@@ -70,15 +70,13 @@ clientsRouter.get(
     const { page, pageSize, skip } = parsePagination(req.query);
     const where = buildClientWhere(parseClientListQuery(req.query));
 
-    const [total, clients] = await prisma.$transaction([
-      prisma.authClient.count({ where }),
-      prisma.authClient.findMany({
-        where,
-        skip,
-        take: pageSize,
-        orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
-      }),
-    ]);
+    const total = await prisma.authClient.count({ where });
+    const clients = await prisma.authClient.findMany({
+      where,
+      skip,
+      take: pageSize,
+      orderBy: [{ updatedAt: 'desc' }, { createdAt: 'desc' }],
+    });
 
     return ok(
       res,

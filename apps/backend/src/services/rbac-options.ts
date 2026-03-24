@@ -160,16 +160,14 @@ export const listRoleSummaries = async ({
   ...filters
 }: RoleSummarySearchPayload): Promise<PaginatedRoleSummaries> => {
   const where = buildRoleSummarySearchWhere(filters);
-  const [total, roles] = await prisma.$transaction([
-    prisma.role.count({ where }),
-    prisma.role.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy: { name: 'asc' },
-      select: { id: true, code: true, name: true, description: true },
-    }),
-  ]);
+  const total = await prisma.role.count({ where });
+  const roles = await prisma.role.findMany({
+    where,
+    skip,
+    take: pageSize,
+    orderBy: { name: 'asc' },
+    select: { id: true, code: true, name: true, description: true },
+  });
 
   return {
     items: roles.map(toRoleSummary),
@@ -184,15 +182,13 @@ export const listPermissionSummaries = async ({
   ...filters
 }: PermissionSummarySearchPayload): Promise<PaginatedPermissionSummaries> => {
   const where = buildPermissionSummarySearchWhere(filters);
-  const [total, permissions] = await prisma.$transaction([
-    prisma.permission.count({ where }),
-    prisma.permission.findMany({
-      where,
-      skip,
-      take: pageSize,
-      orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
-    }),
-  ]);
+  const total = await prisma.permission.count({ where });
+  const permissions = await prisma.permission.findMany({
+    where,
+    skip,
+    take: pageSize,
+    orderBy: [{ module: 'asc' }, { action: 'asc' }, { code: 'asc' }],
+  });
 
   return {
     items: permissions.map(toPermissionSummary),

@@ -9,6 +9,7 @@ description: 后端 framework / integration 测试结构、运行方式，以及
 apps/backend/test
 ├─ framework
 │  ├─ delete-reference-checker.test.ts
+│  ├─ runtime-transaction.test.ts
 │  ├─ realtime-client.test.ts
 │  ├─ realtime-topic.test.ts
 │  └─ excel-export.test.ts
@@ -18,6 +19,7 @@ apps/backend/test
 │  ├─ auth.test.ts
 │  ├─ clients.test.ts
 │  ├─ exports.test.ts
+│  ├─ files.test.ts
 │  ├─ oauth.test.ts
 │  ├─ realtime.test.ts
 │  ├─ realtime-topics.test.ts
@@ -31,6 +33,7 @@ apps/backend/test
 - `framework`：验证可复用的底层抽象
 - `integration`：验证真实 API、权限、数据库、上传、OAuth、导出等业务链路
 - `support/backend-testkit.ts`：统一测试数据库、seed、登录、客户端请求头、二进制导出解析、上传辅助，以及 mock OAuth Provider
+- 集成测试默认直接启动 `createApp()`，所以 `requestContextMiddleware`、`asyncHandler(...)`、自动事务和错误处理中间件都在真实链路里生效
 
 ## 执行链路
 
@@ -105,6 +108,15 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
   验证时间戳文件名格式稳定
 - `supports resolving columns from exported rows for dynamic headers`
   验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐
+
+### `framework/runtime-transaction.test.ts`
+
+- `commits writes and preserves actor ids from request context`
+  验证请求上下文里的 `actorId` 能传递到受管 Prisma 写入，并在成功时提交
+- `rolls back writes when an async handler throws`
+  验证 `asyncHandler(...)` 包装的接口在抛错时会整体回滚
+- `rolls back handled error responses and reuses the same nested transaction`
+  验证已写出错误响应的协议型接口只要调用 `rollbackHandledResponse()` 也会回滚，并且服务层显式事务会复用当前请求事务而不是独立提交
 
 ### `framework/realtime-topic.test.ts`
 
@@ -196,6 +208,15 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 导出接口返回合法 xlsx
 - 导出结果应用筛选条件
 
+### `integration/files.test.ts`
+
+- `persists FAILED upload status when callback finalization errors`
+
+覆盖点：
+
+- 上传 finalize 失败时，`MediaAsset.uploadStatus` 会被持久化为 `FAILED`
+- 失败补偿不会被请求事务一起回滚掉
+
 ### `integration/oauth.test.ts`
 
 - `exposes oauth application permission options without depending on role management permissions`
@@ -271,7 +292,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 | 场景 | 放置位置 |
 | --- | --- |
-| 新增通用抽象，例如导出工厂、删除检查器、解析器 | `framework` |
+| 新增通用抽象，例如导出工厂、删除检查器、解析器、请求运行时、事务包装 | `framework` |
 | 新增业务接口、管理页面、权限链路、OAuth 链路 | `integration` |
 | 需要复用登录、种子、上传、导出解析、mock Provider | `support/backend-testkit.ts` |
 

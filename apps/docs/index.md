@@ -27,7 +27,7 @@ features:
   - title: Uni Frontend
     details: uni-app + 自定义组件。Header、Tabbar、安全区和登录态都由项目自己控制。
   - title: Shared Contract
-    details: packages/api-common 统一权限常量、客户端枚举、请求客户端、适配器和 API 工厂。
+    details: packages/api-common 统一客户端枚举、共享类型、请求客户端、实时协议适配器和 API 工厂。
   - title: Realtime
     details: 标准 WebSocket + topic 订阅协议。支持连接关联、心跳、自动重连和前后端 topic 同步。
   - title: Built-in Components
@@ -38,7 +38,7 @@ features:
     details: 后端测试已拆成 framework + integration 两层，分别覆盖删除保护、导出抽象、认证、OAuth、RBAC、附件、客户端和后台管理主链路。
 ---
 
-## 第一次接触建议这样看
+## 建议阅读顺序
 
 1. 先读 [快速开始](/guide/quick-start)，把数据库、后端、Web、Uni 跑起来。
 2. 再读 [开发指南](/guide/development)，建立仓库整体地图。
@@ -81,9 +81,9 @@ features:
   ].join('\n')"
 />
 
-这张图可以这样理解：
+图中各层职责如下：
 
-- `packages/api-common` 是多端共用协议层，负责权限常量、客户端头、请求客户端和 API 工厂。
+- `packages/api-common` 是多端共用协议层，负责共享类型、客户端头、请求客户端、实时协议和 API 工厂。
 - 实时链路也已经收敛到共享层和后端 hub，详见 [实时通信](/guide/realtime)。
 - `apps/backend /api` 提供后台管理、认证、文件、附件、客户端管理、OAuth 管理等业务接口。
 - `apps/backend /oauth2` 提供标准 OAuth2 / OIDC Provider 端点。
@@ -92,10 +92,10 @@ features:
 
 ## 文档覆盖什么
 
-- 后端实现：认证、RBAC、菜单、OAuth/OIDC、文件上传、附件管理、Excel 导出、Prisma 扩展、删除保护、定时任务。
+- 后端实现：认证、RBAC、菜单、OAuth/OIDC、文件上传、附件管理、Excel 导出、BackendRuntimeContext、自动事务、受管 Prisma、删除保护、定时任务。
 - Web 前端：登录页、动态菜单路由、工作台状态、分页列表、导出、页面结构和表单关系选择。
 - Uni 前端：登录注册、门户、个人中心、设置、自定义 Header / Tabbar / Safe Area、多端客户端识别。
-- 共享抽象：权限常量、客户端类型、请求核心、平台适配器、API 工厂、下载请求配置。
+- 共享抽象：客户端类型、共享类型、请求核心、平台适配器、实时协议、API 工厂、下载请求配置。
 - 测试体系：framework / integration 拆分、测试基建、mock OAuth Provider、各测试文件覆盖点。
 
 ## 仓库结构
@@ -110,7 +110,7 @@ simple-project-demo
 │  ├─ oauth-test-application   # OAuth Client 测试应用
 │  └─ docs                     # 当前文档站
 └─ packages
-   └─ api-common               # 共享类型、权限常量、请求抽象、API 工厂
+   └─ api-common               # 共享类型、请求抽象、实时协议、API 工厂
 ```
 
 ## 常见阅读入口

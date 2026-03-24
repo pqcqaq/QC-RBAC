@@ -60,11 +60,19 @@ Copy-Item apps/app-frontend/env/.env.example apps/app-frontend/env/.env
 | Backend | `JWT_ACCESS_SECRET` / `JWT_REFRESH_SECRET` | 会话签名密钥 |
 | Backend | `CLIENT_ORIGIN` | Web 允许来源，影响 CORS 和 Web Client 校验 |
 | Web | `VITE_API_BASE_URL` | Web API 地址 |
+| Web | `VITE_WS_URL` | WebSocket 地址；不填时会从 `VITE_API_BASE_URL` 推导 |
 | Web | `VITE_AUTH_CLIENT_CODE` / `VITE_AUTH_CLIENT_SECRET` | Web 客户端凭证 |
+| Web | `VITE_AUTH_WEB_PROTOCOL` / `VITE_AUTH_WEB_HOST` / `VITE_AUTH_WEB_PORT` | Web 客户端上下文；用于后端校验 `WEB` 类型客户端 |
 | App | `VITE_SERVER_BASEURL` | Uni API 地址 |
+| App | `VITE_WS_URL` | Uni realtime 地址；不填时会从 `VITE_SERVER_BASEURL` 推导 |
 | App | `VITE_AUTH_CLIENT_CODE` / `VITE_AUTH_CLIENT_SECRET` | Uni / App 客户端凭证 |
 | App | `VITE_AUTH_WEB_CLIENT_CODE` / `VITE_AUTH_WEB_CLIENT_SECRET` | Uni H5 调试时使用的 Web 客户端凭证 |
-| App | `VITE_AUTH_CLIENT_APP_ID` / `VITE_APP_PACKAGE_NAME` | 小程序 AppID 或 App 包名 |
+| App | `VITE_AUTH_CLIENT_APP_ID` / `VITE_APP_PACKAGE_NAME` / `VITE_APP_PLATFORM` | 小程序 AppID、App 包名和原生平台标识 |
+
+补充说明：
+
+- Backend 还支持 `OAUTH_*`、`OIDC_*`、`BROWSER_SESSION_COOKIE_NAME`、`S3_*`、`OSS_*`、`UPLOAD_*` 等高级变量；默认值与必填项以 `apps/backend/.env.example` 和 `apps/backend/src/config/env.ts` 为准。
+- Uni 端支持用 `VITE_AUTH_MINIAPP_CLIENT_CODE` / `VITE_AUTH_MINIAPP_CLIENT_SECRET`、`VITE_AUTH_APP_CLIENT_CODE` / `VITE_AUTH_APP_CLIENT_SECRET` 分别覆盖小程序与原生 App 的默认客户端凭证。
 
 ## 3. 启动数据库和缓存
 
@@ -86,7 +94,7 @@ pnpm --filter @rbac/backend prisma:seed
 
 - 默认客户端：`web-console`、`web-uni-h5`、`uni-wechat-miniapp`、`native-app`
 - 三种认证策略：用户名密码、邮箱验证码、手机号验证码
-- 默认角色、权限目录、菜单树
+- 默认角色、权限、菜单树
 - 演示账号
 - OAuth Provider / Application 测试数据
 
@@ -96,12 +104,17 @@ pnpm --filter @rbac/backend prisma:seed
 pnpm dev
 ```
 
-这个命令会启动：
+这个命令会先重新构建 `@rbac/api-common`，再启动：
 
-- `@rbac/api-common`
 - `@rbac/backend`
 - `@rbac/web-frontend`
 - `@rbac/app-frontend`
+
+如果你正在修改 `packages/api-common`，额外开一个终端执行：
+
+```bash
+pnpm --filter @rbac/api-common dev
+```
 
 文档站单独启动：
 
@@ -130,7 +143,7 @@ pnpm dev:docs
 | 运营经理 | `manager` | `Manager123!` |
 | 普通成员 | `user` | `User123!` |
 
-验证码 mock：
+本地联调固定验证码：
 
 - 邮箱验证码：`123456`
 - 手机验证码：`654321`
@@ -139,11 +152,12 @@ pnpm dev:docs
 
 按下面顺序检查，能最快确认环境是完整的：
 
-1. 打开 `http://localhost:5173/login`，确认登录页能正常加载。
-2. 登录一次 `admin / Admin123!`，确认能进入控制台且菜单正常出现。
-3. 打开 `http://localhost:9000`，确认 Uni H5 能拿到策略并正常登录。
-4. 打开 `http://localhost:3320`，测试本系统作为 OAuth Provider 的授权流程。
-5. 在控制台进入客户端管理页，确认 `web-console`、`web-uni-h5`、`uni-wechat-miniapp`、`native-app` 都存在。
+1. 打开 `http://localhost:3300/api/health`，确认后端健康检查返回 `ok`。
+2. 打开 `http://localhost:5173/login`，确认登录页能正常加载。
+3. 登录一次 `admin / Admin123!`，确认能进入控制台且菜单正常出现。
+4. 打开 `http://localhost:9000`，确认 Uni H5 能拿到策略并正常登录。
+5. 打开 `http://localhost:3320`，测试本系统作为 OAuth Provider 的授权流程。
+6. 在控制台进入客户端管理页，确认 `web-console`、`web-uni-h5`、`uni-wechat-miniapp`、`native-app` 都存在。
 
 ## 9. 常用命令
 

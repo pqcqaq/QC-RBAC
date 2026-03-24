@@ -1,6 +1,13 @@
 import type { NextFunction, Request, Response } from 'express';
+import { runInBackendRuntimeTransaction } from '../lib/runtime-transaction';
 
 type PaginationInput = Pick<Request, 'query'>['query'] | Record<string, unknown> | undefined | null;
+
+class HandledTransactionalResponseError extends Error {
+  constructor() {
+    super('Handled response requires transaction rollback');
+  }
+}
 
 export const ok = <T>(res: Response, data: T, message = 'OK') => {
   return res.json({
@@ -10,10 +17,25 @@ export const ok = <T>(res: Response, data: T, message = 'OK') => {
   });
 };
 
+export const rollbackHandledResponse = () => new HandledTransactionalResponseError();
+
 export const asyncHandler =
   (handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    void handler(req, res, next).catch(next);
+  async (req: Request, res: Response, next: NextFunction) => {
+    try {
+      await runInBackendRuntimeTransaction(async () => {
+        await handler(req, res, next);
+        return undefined;
+      });
+    } catch (error) {
+      if (
+        error instanceof HandledTransactionalResponseError
+        && (res.headersSent || res.writableEnded)
+      ) {
+        return;
+      }
+      next(error);
+    }
   };
 
 export const parsePaginationInput = (input: PaginationInput) => {
