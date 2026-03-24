@@ -2,6 +2,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { Prisma } from '../lib/prisma-generated';
 import { ZodError } from 'zod';
 import { HttpError } from '../utils/errors';
+import { markRequestFailure } from '../utils/request-context';
 
 export const errorHandler = (
   error: unknown,
@@ -10,11 +11,13 @@ export const errorHandler = (
   _next: NextFunction,
 ) => {
   if (res.headersSent) {
+    markRequestFailure(error);
     console.error(error);
     return;
   }
 
   if (error instanceof ZodError) {
+    markRequestFailure(error);
     res.status(400).json({
       success: false,
       message: 'Validation failed',
@@ -24,6 +27,7 @@ export const errorHandler = (
   }
 
   if (error instanceof HttpError) {
+    markRequestFailure(error);
     console.error(error);
     res.status(error.statusCode).json({
       success: false,
@@ -35,6 +39,7 @@ export const errorHandler = (
 
   if (error instanceof Prisma.PrismaClientKnownRequestError) {
     if (error.code === 'P2002') {
+      markRequestFailure(error);
       res.status(400).json({
         success: false,
         message: `Unique constraint failed: ${(error.meta?.target as string[] | undefined)?.join(', ') ?? 'duplicate value'}`,
@@ -44,6 +49,7 @@ export const errorHandler = (
     }
 
     if (error.code === 'P2003') {
+      markRequestFailure(error);
       res.status(400).json({
         success: false,
         message: 'Referenced resource does not exist',
@@ -53,6 +59,7 @@ export const errorHandler = (
     }
 
     if (error.code === 'P2025') {
+      markRequestFailure(error);
       res.status(404).json({
         success: false,
         message: 'Resource not found',
@@ -62,6 +69,7 @@ export const errorHandler = (
     }
   }
 
+  markRequestFailure(error);
   console.error(error);
   res.status(500).json({
     success: false,

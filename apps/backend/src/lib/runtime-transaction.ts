@@ -6,8 +6,10 @@ import {
 } from './backend-runtime-context';
 import {
   createManagedPrismaClient,
+  createRawPrismaClient,
   getRootPrismaClient,
   getRootPrismaRawClient,
+  getRootPrismaRawContextClient,
 } from './prisma';
 
 const defaultTransactionOptions = {
@@ -25,7 +27,9 @@ const resolveBaseRuntimeContext = () => {
   return new BackendRuntimeContext({
     actorId: null,
     db: getRootPrismaClient(),
-    dbRaw: getRootPrismaRawClient(),
+    dbRaw: getRootPrismaRawContextClient(),
+    dbRawDriver: getRootPrismaRawClient(),
+    requestId: 'runtime-without-request',
     inTransaction: false,
     request: null,
     response: null,
@@ -45,7 +49,8 @@ export const runInBackendRuntimeTransaction = async <T>(
   return getRootPrismaRawClient().$transaction(async (tx) => {
     const transactionContext = baseContext.fork({
       db: createManagedPrismaClient(tx),
-      dbRaw: tx,
+      dbRaw: createRawPrismaClient(tx),
+      dbRawDriver: tx,
       inTransaction: true,
     });
 

@@ -45,7 +45,7 @@ apps/backend
 - `middlewares/`：认证、客户端识别、权限校验、错误处理。
 - `lib/`：Prisma、Redis 等基础设施层。
 - `timers/`：正式注册的后台任务。
-- `utils/`：token、审计、持久化、文件、RBAC 映射等通用工具。
+- `utils/`：token、持久化、文件、RBAC 映射等通用工具。
 
 ## 实时网关
 
@@ -111,11 +111,12 @@ apps/backend/src/lib/socket.ts
 
 当前后端不是直接在路由里裸用 Prisma，而是先进入统一运行时：
 
-- `requestContextMiddleware` 先创建根 `BackendRuntimeContext`，把 `req`、`res`、`actorId`、根数据库客户端放进 `AsyncLocalStorage`
+- `requestContextMiddleware` 先创建根 `BackendRuntimeContext`，生成或透传 `x-request-id`，把 `req`、`res`、根数据库客户端和请求级审计状态放进 `AsyncLocalStorage`
 - 所有异步接口都要通过 `asyncHandler(...)` 进入，框架会在这里自动开启事务
 - `asyncHandler(...)` 内部调用 `runInBackendRuntimeTransaction(...)`，默认使用 `Serializable` 隔离级别
 - 接口执行成功时自动提交；抛错时自动回滚；错误继续交给 `errorHandler`
 - 服务层如果确实需要显式事务块，使用 `runInBackendRuntimeTransaction(...)`；如果当前请求已经在事务内，它不会重复开启嵌套事务
+- 请求结束后，框架会把这次请求聚合成一条 `RequestRecord`，并把每次 `select/create/update/delete/...` 聚合成多条 `Operation`
 
 这意味着“请求上下文读取”和“数据库连接选择”都不应该散落在业务代码里自己拼装，而是统一从运行时获取。
 
@@ -135,7 +136,7 @@ apps/backend/src/lib/socket.ts
 - 需要权限的路由用 `requirePermission(...)` 或 `requireAnyPermission(...)`
 - 默认数据库入口用 `prisma`
 - 只有在需要原始表访问、恢复软删除关系、批量同步中间表、或显式 transaction client 时才使用 `prismaRaw`
-- 只有框架初始化、进程启动、定时任务启动或请求失败后的持久化补偿这类请求外逻辑，才允许直接用 root Prisma client
+- 只有框架初始化、进程启动、定时任务启动或请求结束后的审计落库这类请求外逻辑，才允许直接用 root Prisma client
 
 典型写法：
 
@@ -185,7 +186,7 @@ await runInBackendRuntimeTransaction(async (runtime) => {
 | `/api/users` / `/api/roles` / `/api/permissions` / `/api/menus` / `/api/clients` | 对应资源路由 | 后台管理资源与选择器接口 |
 | `/api/oauth` | `src/routes/oauth.ts` | 外部 OAuth Provider 与 OAuth Application 管理 |
 | `/api/files` / `/api/attachments` | `src/routes/files.ts` / `src/routes/attachments.ts` | 上传计划、上传回调、附件管理 |
-| `/api/audit-logs` | `src/routes/audit.ts` | 审计日志查询与导出 |
+| `/api/audit-logs` | `src/routes/audit.ts` | 请求审计日志查询与导出 |
 | `/api/realtime` / `/api/realtime-topics` | `src/routes/realtime.ts` / `src/routes/realtime-topics.ts` | 实时消息历史、消息发送、订阅授权绑定管理 |
 
 <MermaidDiagram
@@ -579,8 +580,10 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - `db`：当前请求应该使用的受管 Prisma 客户端
 - `dbRaw`：当前请求对应的原始 Prisma / Transaction Client
 - `request` / `response`
+- `requestId`
 - `actorId`
 - `inTransaction`
+- 请求级审计状态：开始时间、失败信息、已捕获的 `Operation`、flush 状态
 
 `src/utils/request-context.ts` 现在只是兼容层。像 `getRequestActorId()`、`setRequestActorId()` 这种旧接口，底层也是在读写 `BackendRuntimeContext`。
 
@@ -599,6 +602,40 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 - 不要再在 `app.ts`、整组 router 包装层做事务控制
 - 新增异步接口时不要直接写裸 `async (req, res) => {}`，统一走 `asyncHandler(...)`
 - 业务代码不要直接调用 `getRootPrismaClient()` 绕过运行时，除非是在框架初始化或测试基础设施里
+
+### 请求审计
+
+请求审计不再走单独的手工 audit util。现在统一由运行时和 Prisma 代理自动采集，数据表是：
+
+- `RequestRecord`
+  - 一条请求一条记录
+  - 保存 `requestId`、操作者、认证来源、HTTP method/path、query/params/body、状态码、成功与否、错误信息、读写次数、总耗时
+- `Operation`
+  - 一条请求内每次数据库操作一条记录
+  - 通过 `requestRecordId + sequence` 关联到对应请求
+  - 保存 `model`、`operation`、`effectiveOperation`、`MANAGED/RAW`、`READ/WRITE`、`committed`、`softDelete`、主实体 ID、影响记录数、参数快照、结果快照、effect diff、错误信息、耗时
+
+`effect` 字段的结构是面向查询设计的：
+
+- 读操作：`preview + summary`
+  - `preview` 是最多 20 条的脱敏结果预览
+  - `summary` 包含结果类型、返回数量、返回 ID
+- 写操作：`records + summary`
+  - `records[]` 按实体 ID 记录 `before`、`after` 和字段级 `changes`
+  - `summary.changedRecordCount` 给列表和导出做聚合统计
+
+事务语义：
+
+- 只要写操作发生在请求事务里，最终是否真的落库，由 `Operation.committed` 表示
+- 请求成功提交时，事务内写操作的 `committed = true`
+- 请求回滚或 `rollbackHandledResponse()` 触发回滚时，事务内写操作的 `committed = false`
+- 这时 `effect.records[].after` 表示事务内观察到的修改结果，不代表最终数据库状态，最终是否生效必须看 `committed`
+
+安全边界：
+
+- 请求体、查询参数、数据库前后镜像都会统一经过脱敏
+- `password`、`token`、`secret`、`salt`、`*Hash` 这类字段不会明文进入审计表
+- 审计落库在请求结束后异步串行执行，不会和业务事务共用同一条事务链
 
 ### 受管 Prisma 客户端
 
@@ -627,14 +664,16 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
   - 自动绑定当前 `BackendRuntimeContext`
   - 自动补 Snowflake ID、`createId`、`updateId`
   - 自动处理软删除和 `deleteAt = null` 过滤
+  - 自动记录 `Operation`
   - 适合绝大多数读写接口
 - `prismaRaw`
   - 仍然绑定当前运行时事务，但不做受管模型改写
+  - 仍然自动记录 `Operation`
   - 适合中间表同步、恢复已软删除关系、读取原始记录、或直接使用 transaction client
   - 使用时需要你自己清楚 `deleteAt`、`createId`、`updateId` 应该怎么维护
 - `getRootPrismaClient()` / `getRootPrismaRawClient()`
   - 不跟请求运行时绑定
-  - 只用于 `main.ts`、timer、测试基建、请求失败后的持久化补偿等请求外场景
+  - 只用于 `main.ts`、timer、测试基建、请求结束后的审计落库等请求外场景
 
 判断不准时，先用 `prisma`，只有在受管行为不符合目标时再切到 `prismaRaw`。
 
@@ -657,9 +696,17 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 当前内置：
 
 - `oauth-upstream-refresh`
+- `request-audit-retention`
 - `upload-reconcile`
 
-新增后台任务时，沿着 `defineIntervalTimer -> createBackendTimerRegistry` 扩展，不要写成独立脚本。
+当前 timer registry 同时支持：
+
+- `defineIntervalTimer(...)`
+- `defineCronTimer(...)`
+
+`request-audit-retention` 会在每天 `0:00` 清理 30 天之前的 `RequestRecord / Operation` 记录，依赖 `Operation -> RequestRecord` 的级联删除保证不会留下孤儿数据。
+
+新增后台任务时，沿着 `defineIntervalTimer / defineCronTimer -> createBackendTimerRegistry` 扩展，不要写成独立脚本。
 
 ## 测试
 
@@ -673,18 +720,19 @@ RBAC 初始化在 `src/services/system-rbac.ts`。
 
 - `framework/delete-reference-checker.test.ts`
 - `framework/excel-export.test.ts`
+- `framework/request-audit-retention.test.ts`
 - `framework/runtime-transaction.test.ts`
 - `integration/auth.test.ts`
 - `integration/files.test.ts`
 - `integration/oauth.test.ts`
 - `integration/rbac.test.ts`
 
-它们基本覆盖了认证、授权、OAuth、自动事务、删除保护、导出、上传失败补偿和权限链路的主行为。
+它们基本覆盖了认证、授权、OAuth、自动事务、请求审计、删除保护、导出、上传失败补偿和权限链路的主行为。
 
 ## 新增后端模块的最短路径
 
 1. 在 `schema.prisma` 增加模型和关系。
-2. 如果模型需要统一审计 / 软删除，把模型名加入 `src/lib/prisma.ts` 的受管集合。
+2. 如果模型需要统一的 Snowflake ID / 操作者字段 / 软删除 / Operation 审计，把模型名加入 `src/lib/prisma.ts` 的受管集合。
 3. 在 `packages/api-common` 增加共享类型和 API 工厂方法。
 4. 在 `src/routes` 新增路由时，异步处理器统一走 `asyncHandler(...)`，核心逻辑放进 `src/services`。
 5. 如果服务层需要显式事务块，使用 `runInBackendRuntimeTransaction(...)`，不要自己在路由里直接开 Prisma 事务。

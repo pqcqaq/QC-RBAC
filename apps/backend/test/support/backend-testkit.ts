@@ -8,6 +8,7 @@ import { AuthClientType, buildAuthClientHeaders } from '@rbac/api-common';
 import ExcelJS from 'exceljs';
 import type { Express } from 'express';
 import type { PrismaClient } from '../../src/lib/prisma-generated';
+import { waitForPendingRequestAuditFlushes } from '../../src/lib/request-audit-flush-queue';
 import request from 'supertest';
 
 export type BackendTestContext = {
@@ -239,6 +240,7 @@ const syncMockOAuthProviderConfig = async (prisma: PrismaClient) => {
 
 export const bootstrapBackendTestContext = async (options?: { mockOAuthProvider?: boolean }) => {
   process.env.DATABASE_URL = testDatabaseUrl;
+  await waitForPendingRequestAuditFlushes();
   execPrisma('db', 'push', '--force-reset', '--accept-data-loss');
 
   const [{ createApp }, prismaModule, { seedDatabase }] = await Promise.all([
@@ -260,11 +262,13 @@ export const bootstrapBackendTestContext = async (options?: { mockOAuthProvider?
 };
 
 export const reseedBackendTestContext = async (context: BackendTestContext) => {
+  await waitForPendingRequestAuditFlushes();
   await context.seedDatabase(context.prisma);
   await syncMockOAuthProviderConfig(context.prisma);
 };
 
 export const teardownBackendTestContext = async (context?: BackendTestContext) => {
+  await waitForPendingRequestAuditFlushes();
   await stopMockOAuthProvider();
   if (!context) {
     return;

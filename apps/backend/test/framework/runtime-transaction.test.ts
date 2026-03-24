@@ -1,5 +1,6 @@
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 import express from 'express';
 import request from 'supertest';
 import { prisma } from '../../src/lib/prisma';
@@ -18,6 +19,27 @@ import {
 } from '../support/backend-testkit';
 
 let context: BackendTestContext;
+
+const waitForRequestAuditRecord = async (requestId: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const requestRecord = await context.prismaRaw.requestRecord.findUnique({
+      where: { id: requestId },
+      include: {
+        operations: {
+          orderBy: { sequence: 'asc' },
+        },
+      },
+    });
+
+    if (requestRecord) {
+      return requestRecord;
+    }
+
+    await delay(25);
+  }
+
+  return null;
+};
 
 const createRuntimeTestApp = () => {
   const app = express();
@@ -87,6 +109,29 @@ const createRuntimeTestApp = () => {
     }
   }));
 
+  app.post('/runtime/redaction', asyncHandler(async (req, res) => {
+    setRequestActorId('runtime-actor-redaction');
+    await prisma.authClient.create({
+      data: withSnowflakeId({
+        code: 'runtime-redaction-client',
+        name: 'Runtime Redaction Client',
+        type: 'WEB',
+        description: 'runtime redaction',
+        config: {
+          host: 'localhost',
+          port: 5173,
+          protocol: 'http',
+          requestSecret: req.body.clientSecret,
+        },
+        secretHash: 'runtime-secret-hash',
+        salt: 'runtime-secret-salt',
+        enabled: true,
+      }),
+    });
+
+    return ok(res, { ok: true }, 'Redacted');
+  }));
+
   app.use(errorHandler);
   return app;
 };
@@ -109,6 +154,7 @@ describe('Backend runtime transaction framework', () => {
     const response = await request(app)
       .post('/runtime/commit')
       .expect(200);
+    const requestId = String(response.headers['x-request-id'] ?? '');
 
     const role = await context.prismaRaw.role.findUnique({
       where: { id: String(response.body.data.id) },
@@ -126,13 +172,24 @@ describe('Backend runtime transaction framework', () => {
     assert.equal(role.createId, 'runtime-actor-commit');
     assert.equal(role.updateId, 'runtime-actor-commit');
     assert.equal(role.deleteAt, null);
+
+    const requestRecord = await waitForRequestAuditRecord(requestId);
+
+    assert.ok(requestRecord);
+    assert.equal(requestRecord.success, true);
+    assert.equal(requestRecord.actorName, 'runtime-actor-commit');
+    assert.equal(requestRecord.operationCount, 1);
+    assert.equal(requestRecord.operations[0]?.model, 'Role');
+    assert.equal(requestRecord.operations[0]?.operation, 'create');
+    assert.equal(requestRecord.operations[0]?.committed, true);
   });
 
   it('rolls back writes when an async handler throws', async () => {
     const app = createRuntimeTestApp();
-    await request(app)
+    const response = await request(app)
       .post('/runtime/rollback')
       .expect(400);
+    const requestId = String(response.headers['x-request-id'] ?? '');
 
     const role = await context.prismaRaw.role.findFirst({
       where: { code: 'runtime-tx-rollback' },
@@ -140,13 +197,22 @@ describe('Backend runtime transaction framework', () => {
     });
 
     assert.equal(role, null);
+
+    const requestRecord = await waitForRequestAuditRecord(requestId);
+
+    assert.ok(requestRecord);
+    assert.equal(requestRecord.success, false);
+    assert.equal(requestRecord.errorCode, 'HTTP_400');
+    assert.equal(requestRecord.operations[0]?.operation, 'create');
+    assert.equal(requestRecord.operations[0]?.committed, false);
   });
 
   it('rolls back handled error responses and reuses the same nested transaction', async () => {
     const app = createRuntimeTestApp();
-    await request(app)
+    const response = await request(app)
       .post('/runtime/handled-rollback')
       .expect(400);
+    const requestId = String(response.headers['x-request-id'] ?? '');
 
     const roles = await context.prismaRaw.role.findMany({
       where: {
@@ -158,5 +224,45 @@ describe('Backend runtime transaction framework', () => {
     });
 
     assert.deepEqual(roles, []);
+
+    const requestRecord = await waitForRequestAuditRecord(requestId);
+
+    assert.ok(requestRecord);
+    assert.equal(requestRecord.success, false);
+    assert.equal(requestRecord.operations.length, 2);
+    assert.ok(requestRecord.operations.every(operation => operation.committed === false));
+  });
+
+  it('redacts sensitive request and database fields in persisted audit records', async () => {
+    const app = createRuntimeTestApp();
+    const response = await request(app)
+      .post('/runtime/redaction')
+      .send({
+        clientSecret: 'plain-client-secret',
+        password: 'plain-password',
+      })
+      .expect(200);
+    const requestId = String(response.headers['x-request-id'] ?? '');
+
+    const requestRecord = await waitForRequestAuditRecord(requestId);
+
+    assert.ok(requestRecord);
+    assert.deepEqual(requestRecord.requestBody, {
+      clientSecret: '[REDACTED]',
+      password: '[REDACTED]',
+    });
+    assert.equal(requestRecord.operations[0]?.model, 'AuthClient');
+    const operationEffect = requestRecord.operations[0]?.effect as {
+      records?: Array<{
+        after?: {
+          config?: { requestSecret?: string };
+          salt?: string;
+          secretHash?: string;
+        };
+      }>;
+    } | null;
+    assert.equal(operationEffect?.records?.[0]?.after?.secretHash, '[REDACTED]');
+    assert.equal(operationEffect?.records?.[0]?.after?.salt, '[REDACTED]');
+    assert.equal(operationEffect?.records?.[0]?.after?.config?.requestSecret, '[REDACTED]');
   });
 });

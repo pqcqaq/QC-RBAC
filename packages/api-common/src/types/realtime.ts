@@ -19,9 +19,13 @@ export interface PresenceChangedPayload {
 }
 
 export interface AuditEventPayload {
-  action: string;
   actor: string;
-  target: string;
+  method: string;
+  operationCount: number;
+  path: string;
+  primaryOperation?: string | null;
+  requestId: string;
+  statusCode: number;
   createdAt: string;
 }
 

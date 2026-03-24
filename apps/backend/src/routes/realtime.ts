@@ -1,11 +1,10 @@
 import { Router } from 'express';
 import { z } from 'zod';
 import { prisma } from '../lib/prisma';
-import { emitAuditEvent, emitChatMessage } from '../lib/socket';
+import { emitChatMessage } from '../lib/socket';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
 import { ok, asyncHandler, parsePagination } from '../utils/http';
-import { logActivity } from '../utils/audit';
 import { withSnowflakeId } from '../utils/persistence';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 
@@ -109,14 +108,6 @@ realtimeRouter.post(
       include: liveMessageInclude,
     });
 
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
-      action: 'realtime.send',
-      target: 'global-channel',
-      detail: { content: payload.content },
-    });
-    emitAuditEvent({ action: 'realtime.send', actor: actor.nickname, target: 'global-channel' });
     const dto = toLiveMessageDto(message);
     emitChatMessage(dto);
 

@@ -9,7 +9,6 @@ import {
   storeLocalPart,
   validateUploadRequest,
 } from '../services/file-upload';
-import { logActivity } from '../utils/audit';
 import { badRequest, notFound } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
 import { withSnowflakeId } from '../utils/persistence';
@@ -190,18 +189,6 @@ filesRouter.post(
         url: finalized.url,
         etag: finalized.etag,
         completedAt: new Date(),
-      },
-    });
-
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
-      action: 'file.upload',
-      target: asset.originalName,
-      detail: {
-        kind: asset.kind,
-        provider: asset.storageProvider,
-        strategy: asset.uploadStrategy,
       },
     });
 

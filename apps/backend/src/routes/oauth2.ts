@@ -256,12 +256,12 @@ oauth2Router.get('/oauth2/authorize', asyncHandler(async (req, res, next) => {
       res,
     });
     if (redirected) {
-      throw rollbackHandledResponse();
+      throw rollbackHandledResponse(error);
     }
 
     if (error instanceof HttpError) {
       res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
-      throw rollbackHandledResponse();
+      throw rollbackHandledResponse(error);
     }
 
     throw error;
@@ -285,7 +285,7 @@ const handleAuthorizationDecision = async (req: Request, res: Response) => {
   } catch (error) {
     if (error instanceof HttpError) {
       res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
-      throw rollbackHandledResponse();
+      throw rollbackHandledResponse(error);
     }
 
     throw error;
@@ -322,7 +322,7 @@ oauth2Router.post('/oauth2/token', asyncHandler(async (req, res) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
-    throw rollbackHandledResponse();
+    throw rollbackHandledResponse(error);
   }
 }));
 
@@ -332,7 +332,7 @@ const handleUserInfo = async (req: Request, res: Response) => {
 
   if (!token) {
     sendOAuthJsonError(res, 401, 'invalid_token', 'missing access token');
-    throw rollbackHandledResponse();
+    throw rollbackHandledResponse(badRequest('missing access token'));
   }
 
   try {
@@ -340,7 +340,7 @@ const handleUserInfo = async (req: Request, res: Response) => {
   } catch (error) {
     if (error instanceof HttpError) {
       sendOAuthJsonError(res, 401, 'invalid_token', error.message);
-      throw rollbackHandledResponse();
+      throw rollbackHandledResponse(error);
     }
 
     throw error;
@@ -366,7 +366,7 @@ oauth2Router.post('/oauth2/introspect', asyncHandler(async (req, res) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
-    throw rollbackHandledResponse();
+    throw rollbackHandledResponse(error);
   }
 }));
 
@@ -387,7 +387,7 @@ oauth2Router.post('/oauth2/revoke', asyncHandler(async (req, res) => {
   } catch (error) {
     const mapped = mapTokenError(error);
     sendOAuthJsonError(res, mapped.status, mapped.error, mapped.description);
-    throw rollbackHandledResponse();
+    throw rollbackHandledResponse(error);
   }
 }));
 

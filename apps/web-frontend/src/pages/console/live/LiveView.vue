@@ -236,7 +236,10 @@ useWsTopic<PresenceChangedPayload>(REALTIME_TOPICS.presenceChanged, ({ payload }
 });
 
 useWsTopic<AuditEventPayload>(REALTIME_TOPICS.auditEvent, ({ payload }) => {
-  pushEvent('审计广播', `${payload.actor} 执行了 ${payload.action} -> ${payload.target}`);
+  pushEvent(
+    '审计广播',
+    `${payload.actor} ${payload.method} ${payload.path} · ${payload.operationCount} 次操作 · ${payload.statusCode}`,
+  );
 });
 
 useWsTopic<RbacUpdatedPayload>(currentUserRbacTopic, ({ payload }) => {

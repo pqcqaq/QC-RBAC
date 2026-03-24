@@ -21,7 +21,7 @@ hero:
       link: /guide/backend
 features:
   - title: Backend
-    details: Express 5 + Prisma。认证、RBAC、OAuth/OIDC、上传、导出、定时任务都在这里实现。
+    details: Express 5 + Prisma。认证、RBAC、OAuth/OIDC、上传、请求审计、导出、定时任务都在这里实现。
   - title: Web Console
     details: Vue 3 + Pinia + Vue Router。菜单驱动动态路由，工作台配置会同步到当前用户。
   - title: Uni Frontend
@@ -92,7 +92,7 @@ features:
 
 ## 文档覆盖什么
 
-- 后端实现：认证、RBAC、菜单、OAuth/OIDC、文件上传、附件管理、Excel 导出、BackendRuntimeContext、自动事务、受管 Prisma、删除保护、定时任务。
+- 后端实现：认证、RBAC、菜单、OAuth/OIDC、文件上传、附件管理、RequestRecord / Operation 请求审计、Excel 导出、BackendRuntimeContext、自动事务、受管 Prisma、删除保护、定时任务。
 - Web 前端：登录页、动态菜单路由、工作台状态、分页列表、导出、页面结构和表单关系选择。
 - Uni 前端：登录注册、门户、个人中心、设置、自定义 Header / Tabbar / Safe Area、多端客户端识别。
 - 共享抽象：客户端类型、共享类型、请求核心、平台适配器、实时协议、API 工厂、下载请求配置。

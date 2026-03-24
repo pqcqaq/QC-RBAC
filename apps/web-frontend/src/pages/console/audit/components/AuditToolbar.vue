@@ -4,18 +4,43 @@
       <el-input
         v-model="filters.q"
         clearable
-        placeholder="操作者 / 动作 / 目标"
+        placeholder="请求ID / 操作者 / 路径 / 模型 / 操作"
         @keyup.enter="emit('apply')"
       />
     </el-form-item>
 
-    <el-form-item label="动作" class="page-toolbar__field">
+    <el-form-item label="方法" class="page-toolbar__field">
+      <el-select v-model="filters.method" clearable placeholder="全部方法">
+        <el-option label="GET" value="GET" />
+        <el-option label="POST" value="POST" />
+        <el-option label="PUT" value="PUT" />
+        <el-option label="DELETE" value="DELETE" />
+      </el-select>
+    </el-form-item>
+
+    <el-form-item label="模型" class="page-toolbar__field">
       <el-input
-        v-model="filters.action"
+        v-model="filters.model"
         clearable
-        placeholder="如 user.update"
+        placeholder="如 User"
         @keyup.enter="emit('apply')"
       />
+    </el-form-item>
+
+    <el-form-item label="操作" class="page-toolbar__field">
+      <el-input
+        v-model="filters.operation"
+        clearable
+        placeholder="如 update / findMany"
+        @keyup.enter="emit('apply')"
+      />
+    </el-form-item>
+
+    <el-form-item label="结果" class="page-toolbar__field">
+      <el-select v-model="filters.status" clearable placeholder="全部结果">
+        <el-option label="成功" value="success" />
+        <el-option label="失败" value="failure" />
+      </el-select>
     </el-form-item>
 
     <div class="page-toolbar__actions">
@@ -29,7 +54,10 @@
 defineProps<{
   filters: {
     q: string;
-    action: string;
+    method: string;
+    model: string;
+    operation: string;
+    status: string;
   };
 }>();
 

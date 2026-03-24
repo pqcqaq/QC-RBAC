@@ -4,8 +4,18 @@ import {
   assertNoDeleteReferenceBlocks,
   isDeleteGuardedOperation,
 } from './delete-reference-checker';
-import { createPrismaClient } from './prisma-client-factory';
 import { getBackendRuntimeContext } from './backend-runtime-context';
+import {
+  buildReadOperationEffect,
+  buildWriteOperationEffect,
+  classifyOperationEffectKind,
+  extractRecordIds,
+  splitOperationAuditArgs,
+  summarizeRuntimeError,
+  toAuditJson,
+  type RuntimeOperationAccessKind,
+} from './request-audit';
+import { createPrismaClient } from './prisma-client-factory';
 import { generateSnowflakeId } from '../utils/snowflake';
 
 const auditedModelNames = new Set([
@@ -21,7 +31,6 @@ const auditedModelNames = new Set([
   'UserRole',
   'RolePermission',
   'RefreshToken',
-  'ActivityLog',
   'MediaAsset',
   'ChatMessage',
   'OAuthProvider',
@@ -37,14 +46,24 @@ const softDeleteModelNames = new Set(auditedModelNames);
 const isPlainObject = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+const lowerFirst = (value: string) => value.charAt(0).toLowerCase() + value.slice(1);
+
 type PrismaDelegateArgs = Record<string, unknown>;
 
 type PrismaModelDelegate = Record<string, (args?: PrismaDelegateArgs) => Promise<unknown>>;
 
 type RawPrismaClient = PrismaClient | Prisma.TransactionClient;
 
+type ManagedOperationPlan = {
+  effectiveArgs: PrismaDelegateArgs;
+  effectiveOperation: string;
+  softDelete: boolean;
+};
+
 const managedClientCache = new WeakMap<object, PrismaClient>();
+const rawClientCache = new WeakMap<object, PrismaClient>();
 const managedDelegateCache = new WeakMap<object, object>();
+const rawDelegateCache = new WeakMap<object, object>();
 
 const mergeActiveWhere = (where?: unknown) => {
   if (!isPlainObject(where)) {
@@ -87,7 +106,7 @@ const normalizeUniqueWhere = (where?: unknown) => {
 
 const stampCreateData = (data: unknown, actorId: string | null) => {
   if (Array.isArray(data)) {
-    return data.map((item) => stampCreateData(item, actorId));
+    return data.map(item => stampCreateData(item, actorId));
   }
 
   if (!isPlainObject(data)) {
@@ -105,7 +124,7 @@ const stampCreateData = (data: unknown, actorId: string | null) => {
 
 const stampUpdateData = (data: unknown, actorId: string | null) => {
   if (Array.isArray(data)) {
-    return data.map((item) => stampUpdateData(item, actorId));
+    return data.map(item => stampUpdateData(item, actorId));
   }
 
   if (!isPlainObject(data)) {
@@ -147,11 +166,17 @@ const callDelegateOperation = (
   return executor.call(delegate, args);
 };
 
+const getModelDelegate = (client: RawPrismaClient, model: string) =>
+  (client as unknown as Record<string, PrismaModelDelegate>)[lowerFirst(model)];
+
 const resolveRuntimeActorId = () => getBackendRuntimeContext()?.getActorId() ?? null;
 
 const rootPrismaRaw = createPrismaClient();
 
-const resolveRuntimeRawClient = () => getBackendRuntimeContext()?.dbRaw ?? rootPrismaRaw;
+const resolveRuntimeRawDriver = () => getBackendRuntimeContext()?.dbRawDriver ?? rootPrismaRaw;
+
+const resolveRuntimeRawClient = () =>
+  getBackendRuntimeContext()?.dbRaw as PrismaClient | undefined;
 
 const resolveActiveRecordId = async (
   delegate: PrismaModelDelegate,
@@ -165,37 +190,31 @@ const resolveActiveRecordId = async (
   return record?.id ?? '__soft_delete_missing__';
 };
 
-const runManagedDelegateOperation = async (
-  rawClient: RawPrismaClient,
+const buildManagedOperationPlan = (
   model: string,
   operation: string,
-  delegate: PrismaModelDelegate,
   args?: PrismaDelegateArgs,
-) => {
-  if (!auditedModelNames.has(model)) {
-    return callDelegateOperation(delegate, operation, args);
-  }
-
+): ManagedOperationPlan => {
   const normalizedArgs = args ?? {};
-
-  if (isDeleteGuardedOperation(model, operation, normalizedArgs, softDeleteModelNames)) {
-    await assertNoDeleteReferenceBlocks({
-      client: rawClient as PrismaClient,
-      model,
-      operation,
-      args: normalizedArgs,
-      softDeleteModelNames,
-    });
+  if (!auditedModelNames.has(model)) {
+    return {
+      effectiveArgs: normalizedArgs,
+      effectiveOperation: operation,
+      softDelete: false,
+    };
   }
 
   const actorId = resolveRuntimeActorId();
-
   if (softDeleteModelNames.has(model)) {
     if (operation === 'findUnique') {
-      return callDelegateOperation(delegate, 'findFirst', {
-        ...normalizedArgs,
-        where: mergeActiveWhere(normalizeUniqueWhere(normalizedArgs.where)),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: mergeActiveWhere(normalizeUniqueWhere(normalizedArgs.where)),
+        },
+        effectiveOperation: 'findFirst',
+        softDelete: false,
+      };
     }
 
     if (
@@ -204,74 +223,399 @@ const runManagedDelegateOperation = async (
       || operation === 'count'
       || operation === 'aggregate'
     ) {
-      return callDelegateOperation(delegate, operation, {
-        ...normalizedArgs,
-        where: mergeActiveWhere(normalizedArgs.where),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: mergeActiveWhere(normalizedArgs.where),
+        },
+        effectiveOperation: operation,
+        softDelete: false,
+      };
     }
 
     if (operation === 'update') {
-      const recordId = await resolveActiveRecordId(delegate, normalizedArgs.where);
-      return callDelegateOperation(delegate, 'update', {
-        ...normalizedArgs,
-        where: { id: recordId },
-        data: stampUpdateData(normalizedArgs.data, actorId),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: normalizedArgs.where,
+          data: stampUpdateData(normalizedArgs.data, actorId),
+        },
+        effectiveOperation: 'update',
+        softDelete: false,
+      };
     }
 
     if (operation === 'updateMany') {
-      return callDelegateOperation(delegate, 'updateMany', {
-        ...normalizedArgs,
-        where: mergeActiveWhere(normalizedArgs.where),
-        data: stampUpdateData(normalizedArgs.data, actorId),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: mergeActiveWhere(normalizedArgs.where),
+          data: stampUpdateData(normalizedArgs.data, actorId),
+        },
+        effectiveOperation: 'updateMany',
+        softDelete: false,
+      };
     }
 
     if (operation === 'delete') {
-      const recordId = await resolveActiveRecordId(delegate, normalizedArgs.where);
-      return callDelegateOperation(delegate, 'update', {
-        ...normalizedArgs,
-        where: { id: recordId },
-        data: stampDeleteData(actorId),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: normalizedArgs.where,
+          data: stampDeleteData(actorId),
+        },
+        effectiveOperation: 'update',
+        softDelete: true,
+      };
     }
 
     if (operation === 'deleteMany') {
-      return callDelegateOperation(delegate, 'updateMany', {
-        ...normalizedArgs,
-        where: mergeActiveWhere(normalizedArgs.where),
-        data: stampDeleteData(actorId),
-      });
+      return {
+        effectiveArgs: {
+          ...normalizedArgs,
+          where: mergeActiveWhere(normalizedArgs.where),
+          data: stampDeleteData(actorId),
+        },
+        effectiveOperation: 'updateMany',
+        softDelete: true,
+      };
     }
   }
 
   if (operation === 'create') {
-    return callDelegateOperation(delegate, 'create', {
-      ...normalizedArgs,
-      data: stampCreateData(normalizedArgs.data, actorId),
-    });
+    return {
+      effectiveArgs: {
+        ...normalizedArgs,
+        data: stampCreateData(normalizedArgs.data, actorId),
+      },
+      effectiveOperation: 'create',
+      softDelete: false,
+    };
   }
 
   if (operation === 'createMany') {
-    return callDelegateOperation(delegate, 'createMany', {
-      ...normalizedArgs,
-      data: stampCreateData(normalizedArgs.data, actorId),
-    });
+    return {
+      effectiveArgs: {
+        ...normalizedArgs,
+        data: stampCreateData(normalizedArgs.data, actorId),
+      },
+      effectiveOperation: 'createMany',
+      softDelete: false,
+    };
   }
 
   if (operation === 'upsert') {
-    return callDelegateOperation(delegate, 'upsert', {
-      ...normalizedArgs,
-      create: stampCreateData(normalizedArgs.create, actorId),
-      update: {
-        ...(stampUpdateData(normalizedArgs.update, actorId) as Record<string, unknown>),
-        deleteAt: null,
+    return {
+      effectiveArgs: {
+        ...normalizedArgs,
+        create: stampCreateData(normalizedArgs.create, actorId),
+        update: {
+          ...(stampUpdateData(normalizedArgs.update, actorId) as Record<string, unknown>),
+          deleteAt: null,
+        },
       },
+      effectiveOperation: 'upsert',
+      softDelete: false,
+    };
+  }
+
+  return {
+    effectiveArgs: normalizedArgs,
+    effectiveOperation: operation,
+    softDelete: false,
+  };
+};
+
+const extractIdsFromMutationData = (data: unknown) => {
+  if (Array.isArray(data)) {
+    return data
+      .flatMap(item => extractIdsFromMutationData(item))
+      .filter((id, index, items) => items.indexOf(id) === index);
+  }
+
+  if (!isPlainObject(data)) {
+    return [];
+  }
+
+  return typeof data.id === 'string' ? [data.id] : [];
+};
+
+const resolveRowsByWhere = async (
+  rawClient: RawPrismaClient,
+  model: string,
+  where?: unknown,
+) => {
+  const delegate = getModelDelegate(rawClient, model);
+  const rows = await callDelegateOperation(delegate, 'findMany', {
+    where: where ?? {},
+  }) as Array<Record<string, unknown>>;
+  return rows;
+};
+
+const resolveRowsByIds = async (
+  rawClient: RawPrismaClient,
+  model: string,
+  ids: string[],
+) => {
+  if (!ids.length) {
+    return [];
+  }
+
+  const delegate = getModelDelegate(rawClient, model);
+  const rows = await callDelegateOperation(delegate, 'findMany', {
+    where: {
+      id: {
+        in: ids,
+      },
+    },
+  }) as Array<Record<string, unknown>>;
+
+  return rows;
+};
+
+const resolveBeforeRowsForWrite = async (input: {
+  rawClient: RawPrismaClient;
+  model: string;
+  operation: string;
+  effectiveArgs: PrismaDelegateArgs;
+}) => {
+  if (input.operation === 'create' || input.operation === 'createMany') {
+    return [];
+  }
+
+  if (input.operation === 'upsert') {
+    return resolveRowsByWhere(input.rawClient, input.model, normalizeUniqueWhere(input.effectiveArgs.where));
+  }
+
+  return resolveRowsByWhere(input.rawClient, input.model, input.effectiveArgs.where);
+};
+
+const resolveAfterRowsForWrite = async (input: {
+  rawClient: RawPrismaClient;
+  model: string;
+  operation: string;
+  effectiveArgs: PrismaDelegateArgs;
+  result: unknown;
+  beforeRows: Array<Record<string, unknown>>;
+}) => {
+  const idsFromResult = extractRecordIds(input.result);
+  if (idsFromResult.length) {
+    return resolveRowsByIds(input.rawClient, input.model, idsFromResult);
+  }
+
+  const idsFromMutation = extractIdsFromMutationData(input.effectiveArgs.data ?? input.effectiveArgs.create);
+  if (idsFromMutation.length) {
+    return resolveRowsByIds(input.rawClient, input.model, idsFromMutation);
+  }
+
+  const idsFromBefore = input.beforeRows
+    .flatMap(row => typeof row.id === 'string' ? [row.id] : [])
+    .filter((id, index, items) => items.indexOf(id) === index);
+
+  if (!idsFromBefore.length) {
+    return [];
+  }
+
+  return resolveRowsByIds(input.rawClient, input.model, idsFromBefore);
+};
+
+const captureRuntimeOperation = (input: {
+  model: string;
+  operation: string;
+  effectiveOperation: string;
+  requestedArgs?: PrismaDelegateArgs;
+  effectiveArgs: PrismaDelegateArgs;
+  accessKind: RuntimeOperationAccessKind;
+  softDelete: boolean;
+  startedAt: Date;
+  finishedAt: Date;
+  result?: unknown;
+  beforeRows?: Array<Record<string, unknown>>;
+  afterRows?: Array<Record<string, unknown>>;
+  error?: unknown;
+}) => {
+  const context = getBackendRuntimeContext();
+  if (!context) {
+    return;
+  }
+
+  const effectKind = classifyOperationEffectKind(input.operation);
+  const { query, mutation } = splitOperationAuditArgs(input.requestedArgs, input.effectiveArgs);
+  const succeeded = !input.error;
+  const error = input.error ? summarizeRuntimeError(input.error) : null;
+  const affectedIds = effectKind === 'WRITE'
+    ? [...new Set([
+        ...(input.beforeRows ?? []).flatMap(row => typeof row.id === 'string' ? [row.id] : []),
+        ...(input.afterRows ?? []).flatMap(row => typeof row.id === 'string' ? [row.id] : []),
+      ])]
+    : extractRecordIds(input.result);
+  const effect = effectKind === 'WRITE'
+    ? buildWriteOperationEffect({
+        afterRows: input.afterRows ?? [],
+        beforeRows: input.beforeRows ?? [],
+        result: input.result,
+      })
+    : buildReadOperationEffect(input.result);
+
+  context.addOperation({
+    model: input.model,
+    operation: input.operation,
+    effectiveOperation: input.effectiveOperation,
+    accessKind: input.accessKind,
+    effectKind,
+    inTransaction: context.inTransaction,
+    softDelete: input.softDelete,
+    succeeded,
+    primaryEntityId: affectedIds[0] ?? null,
+    affectedCount: affectedIds.length,
+    affectedIds,
+    query,
+    mutation,
+    result: toAuditJson(input.result),
+    effect: toAuditJson(effect),
+    errorCode: error?.code ?? null,
+    errorMessage: error?.message ?? null,
+    startedAt: input.startedAt,
+    finishedAt: input.finishedAt,
+    durationMs: input.finishedAt.getTime() - input.startedAt.getTime(),
+  });
+};
+
+const executeAuditedOperation = async (input: {
+  rawClient: RawPrismaClient;
+  model: string;
+  operation: string;
+  effectiveOperation: string;
+  requestedArgs?: PrismaDelegateArgs;
+  effectiveArgs: PrismaDelegateArgs;
+  delegate: PrismaModelDelegate;
+  accessKind: RuntimeOperationAccessKind;
+  softDelete: boolean;
+}) => {
+  const effectKind = classifyOperationEffectKind(input.operation);
+  const startedAt = new Date();
+  const beforeRows = effectKind === 'WRITE'
+    ? await resolveBeforeRowsForWrite({
+        effectiveArgs: input.effectiveArgs,
+        model: input.model,
+        operation: input.operation,
+        rawClient: input.rawClient,
+      })
+    : [];
+
+  try {
+    const result = await callDelegateOperation(
+      input.delegate,
+      input.effectiveOperation,
+      input.effectiveArgs,
+    );
+    const finishedAt = new Date();
+    const afterRows = effectKind === 'WRITE'
+      ? await resolveAfterRowsForWrite({
+          beforeRows,
+          effectiveArgs: input.effectiveArgs,
+          model: input.model,
+          operation: input.operation,
+          rawClient: input.rawClient,
+          result,
+        })
+      : [];
+
+    captureRuntimeOperation({
+      accessKind: input.accessKind,
+      afterRows,
+      beforeRows,
+      effectiveArgs: input.effectiveArgs,
+      effectiveOperation: input.effectiveOperation,
+      finishedAt,
+      model: input.model,
+      operation: input.operation,
+      requestedArgs: input.requestedArgs,
+      result,
+      softDelete: input.softDelete,
+      startedAt,
+    });
+
+    return result;
+  } catch (error) {
+    const finishedAt = new Date();
+    captureRuntimeOperation({
+      accessKind: input.accessKind,
+      beforeRows,
+      effectiveArgs: input.effectiveArgs,
+      effectiveOperation: input.effectiveOperation,
+      error,
+      finishedAt,
+      model: input.model,
+      operation: input.operation,
+      requestedArgs: input.requestedArgs,
+      softDelete: input.softDelete,
+      startedAt,
+    });
+    throw error;
+  }
+};
+
+const runManagedDelegateOperation = async (
+  rawClient: RawPrismaClient,
+  model: string,
+  operation: string,
+  delegate: PrismaModelDelegate,
+  args?: PrismaDelegateArgs,
+) => {
+  const requestedArgs = args ?? {};
+  if (auditedModelNames.has(model) && isDeleteGuardedOperation(model, operation, requestedArgs, softDeleteModelNames)) {
+    await assertNoDeleteReferenceBlocks({
+      client: rawClient as PrismaClient,
+      model,
+      operation,
+      args: requestedArgs,
+      softDeleteModelNames,
     });
   }
 
-  return callDelegateOperation(delegate, operation, normalizedArgs);
+  const plan = buildManagedOperationPlan(model, operation, requestedArgs);
+  if (operation === 'update' && auditedModelNames.has(model)) {
+    const recordId = await resolveActiveRecordId(delegate, requestedArgs.where);
+    plan.effectiveArgs.where = { id: recordId };
+  }
+
+  if (operation === 'delete' && auditedModelNames.has(model)) {
+    const recordId = await resolveActiveRecordId(delegate, requestedArgs.where);
+    plan.effectiveArgs.where = { id: recordId };
+  }
+
+  return executeAuditedOperation({
+    accessKind: 'MANAGED',
+    delegate,
+    effectiveArgs: plan.effectiveArgs,
+    effectiveOperation: plan.effectiveOperation,
+    model,
+    operation,
+    rawClient,
+    requestedArgs,
+    softDelete: plan.softDelete,
+  });
 };
+
+const runRawDelegateOperation = async (
+  rawClient: RawPrismaClient,
+  model: string,
+  operation: string,
+  delegate: PrismaModelDelegate,
+  args?: PrismaDelegateArgs,
+) =>
+  executeAuditedOperation({
+    accessKind: 'RAW',
+    delegate,
+    effectiveArgs: args ?? {},
+    effectiveOperation: operation,
+    model,
+    operation,
+    rawClient,
+    requestedArgs: args ?? {},
+    softDelete: false,
+  });
 
 const createClientProxy = <TClient extends object>(resolver: () => TClient): TClient =>
   new Proxy({} as TClient, {
@@ -298,15 +642,18 @@ const createClientProxy = <TClient extends object>(resolver: () => TClient): TCl
     },
   });
 
-export const createManagedPrismaClient = (
+const createAuditedPrismaClient = (
   rawClient: RawPrismaClient,
+  mode: RuntimeOperationAccessKind,
 ) => {
-  const cached = managedClientCache.get(rawClient as object);
+  const clientCache = mode === 'MANAGED' ? managedClientCache : rawClientCache;
+  const delegateCache = mode === 'MANAGED' ? managedDelegateCache : rawDelegateCache;
+  const cached = clientCache.get(rawClient as object);
   if (cached) {
     return cached;
   }
 
-  const managed = new Proxy(rawClient as PrismaClient, {
+  const audited = new Proxy(rawClient as PrismaClient, {
     get(target, property, receiver) {
       const value = Reflect.get(target, property, receiver);
       if (typeof property !== 'string') {
@@ -320,13 +667,13 @@ export const createManagedPrismaClient = (
       }
 
       const delegateKey = value as object;
-      const cachedDelegate = managedDelegateCache.get(delegateKey);
+      const cachedDelegate = delegateCache.get(delegateKey);
       if (cachedDelegate) {
         return cachedDelegate;
       }
 
       const model = property.charAt(0).toUpperCase() + property.slice(1);
-      const managedDelegate = new Proxy(value, {
+      const auditedDelegate = new Proxy(value, {
         get(delegateTarget, operation, delegateReceiver) {
           const member = Reflect.get(delegateTarget, operation, delegateReceiver);
           if (typeof operation !== 'string' || typeof member !== 'function') {
@@ -334,30 +681,49 @@ export const createManagedPrismaClient = (
           }
 
           return (args?: PrismaDelegateArgs) =>
-            runManagedDelegateOperation(
-              rawClient,
-              model,
-              operation,
-              delegateTarget as PrismaModelDelegate,
-              args,
-            );
+            mode === 'MANAGED'
+              ? runManagedDelegateOperation(
+                  rawClient,
+                  model,
+                  operation,
+                  delegateTarget as PrismaModelDelegate,
+                  args,
+                )
+              : runRawDelegateOperation(
+                  rawClient,
+                  model,
+                  operation,
+                  delegateTarget as PrismaModelDelegate,
+                  args,
+                );
         },
       });
 
-      managedDelegateCache.set(delegateKey, managedDelegate);
-      return managedDelegate;
+      delegateCache.set(delegateKey, auditedDelegate);
+      return auditedDelegate;
     },
   }) as unknown as PrismaClient;
 
-  managedClientCache.set(rawClient as object, managed);
-  return managed;
+  clientCache.set(rawClient as object, audited);
+  return audited;
 };
 
+export const createManagedPrismaClient = (
+  rawClient: RawPrismaClient,
+) => createAuditedPrismaClient(rawClient, 'MANAGED');
+
+export const createRawPrismaClient = (
+  rawClient: RawPrismaClient,
+) => createAuditedPrismaClient(rawClient, 'RAW');
+
 const rootPrisma = createManagedPrismaClient(rootPrismaRaw);
+const rootPrismaRawAudited = createRawPrismaClient(rootPrismaRaw);
 
 export const getRootPrismaClient = () => rootPrisma;
 
 export const getRootPrismaRawClient = () => rootPrismaRaw;
+
+export const getRootPrismaRawContextClient = () => rootPrismaRawAudited;
 
 export const assertPrismaDeleteAllowed = async (
   model: string,
@@ -369,7 +735,7 @@ export const assertPrismaDeleteAllowed = async (
   internalParams?: unknown,
 ) => {
   await assertNoDeleteReferenceBlocks({
-    client: resolveRuntimeRawClient() as PrismaClient,
+    client: resolveRuntimeRawDriver() as PrismaClient,
     model,
     operation,
     args,
@@ -378,8 +744,10 @@ export const assertPrismaDeleteAllowed = async (
   });
 };
 
-export const prisma = createClientProxy(() => getBackendRuntimeContext()?.db ?? rootPrisma) as PrismaClient;
+export const prisma = createClientProxy(
+  () => getBackendRuntimeContext()?.db ?? rootPrisma,
+) as PrismaClient;
 
 export const prismaRaw = createClientProxy(
-  () => resolveRuntimeRawClient() as unknown as PrismaClient,
+  () => resolveRuntimeRawClient() ?? rootPrismaRawAudited,
 ) as PrismaClient;

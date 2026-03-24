@@ -15,7 +15,6 @@ import {
   resolveMediaAssetsByIds,
 } from '../services/media-asset-options';
 import { parseOptionResolvePayload } from '../services/rbac-options';
-import { logActivity } from '../utils/audit';
 import { createExcelExportHandler, createTimestampedExcelFileName } from '../utils/excel-export';
 import { badRequest, notFound } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
@@ -144,7 +143,6 @@ attachmentsRouter.put(
   '/:id',
   requirePermission('file.update'),
   asyncHandler(async (req, res) => {
-    const actor = req.auth!;
     const assetId = String(req.params.id);
     const payload = attachmentUpdateSchema.parse(req.body);
 
@@ -169,18 +167,6 @@ attachmentsRouter.put(
       include: mediaAssetWithOwnerInclude,
     }) as MediaAssetWithOwnerRecord;
 
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
-      action: 'file.update',
-      target: current.originalName,
-      detail: {
-        assetId: current.id,
-        tag1: asset.tag1,
-        tag2: asset.tag2,
-      },
-    });
-
     return ok(res, toMediaAssetRecord(asset), 'Attachment updated');
   }),
 );
@@ -189,7 +175,6 @@ attachmentsRouter.delete(
   '/:id',
   requirePermission('file.delete'),
   asyncHandler(async (req, res) => {
-    const actor = req.auth!;
     const assetId = String(req.params.id);
     const asset = await prisma.mediaAsset.findUnique({
       where: { id: assetId },
@@ -215,18 +200,6 @@ attachmentsRouter.delete(
 
     await prisma.mediaAsset.delete({
       where: { id: asset.id },
-    });
-
-    await logActivity({
-      actorId: actor.id,
-      actorName: actor.nickname,
-      action: 'file.delete',
-      target: asset.originalName,
-      detail: {
-        assetId: asset.id,
-        kind: asset.kind,
-        uploadStatus: asset.uploadStatus,
-      },
     });
 
     return ok(res, { ok: true }, 'Attachment deleted');

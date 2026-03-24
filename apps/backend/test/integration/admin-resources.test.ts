@@ -218,6 +218,9 @@ describe('Admin resource integration', () => {
       .expect(200);
 
     assert.ok(auditResponse.body.data.items.length > 0);
+    assert.equal(typeof auditResponse.body.data.items[0].method, 'string');
+    assert.equal(typeof auditResponse.body.data.items[0].path, 'string');
+    assert.ok(Array.isArray(auditResponse.body.data.items[0].operations));
 
     const permissionList = await request(app)
       .get('/api/permissions')

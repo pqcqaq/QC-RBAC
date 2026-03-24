@@ -54,10 +54,10 @@
         <div v-if="summary.auditFeed.length">
           <div v-for="log in summary.auditFeed" :key="log.id" class="audit-row">
             <div>
-              <strong>{{ log.action }}</strong>
-              <span class="muted">{{ log.actor }} -> {{ log.target }}</span>
+              <strong>{{ log.summary }}</strong>
+              <span class="muted">{{ log.actor }} · {{ log.operationCount }} 次数据库操作</span>
             </div>
-            <small class="muted">{{ formatTime(log.createdAt) }}</small>
+            <small class="muted">{{ formatTime(log.createdAt) }} · {{ log.statusCode }}</small>
           </div>
         </div>
         <el-empty v-else description="暂无审计数据" />

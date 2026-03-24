@@ -1,5 +1,7 @@
 import {
   AsyncTask,
+  CronJob,
+  type CronSchedule,
   SimpleIntervalJob,
   type SimpleIntervalSchedule,
   ToadScheduler,
@@ -7,11 +9,21 @@ import {
 
 type IntervalSchedule = Omit<SimpleIntervalSchedule, 'runImmediately'>;
 
+type TimerSchedule =
+  | {
+      kind: 'interval';
+      options: IntervalSchedule;
+    }
+  | {
+      kind: 'cron';
+      options: CronSchedule;
+    };
+
 export interface IntervalTimerDefinition {
   id: string;
   description: string;
   enabled: boolean;
-  schedule: IntervalSchedule;
+  schedule: TimerSchedule;
   runImmediately?: boolean;
   execute: () => Promise<void>;
 }
@@ -21,7 +33,7 @@ export interface TimerRegistry {
   stop: () => void;
 }
 
-const formatSchedule = (schedule: IntervalSchedule) => {
+const formatIntervalSchedule = (schedule: IntervalSchedule) => {
   const parts = Object.entries(schedule)
     .filter(([, value]) => typeof value === 'number' && value > 0)
     .map(([unit, value]) => `${value}${unit}`);
@@ -29,7 +41,34 @@ const formatSchedule = (schedule: IntervalSchedule) => {
   return parts.join(' ') || 'manual';
 };
 
-export const defineIntervalTimer = (timer: IntervalTimerDefinition) => timer;
+const formatSchedule = (schedule: TimerSchedule) =>
+  schedule.kind === 'cron'
+    ? `cron:${schedule.options.cronExpression}${schedule.options.timezone ? ` tz=${schedule.options.timezone}` : ''}`
+    : formatIntervalSchedule(schedule.options);
+
+export const defineIntervalTimer = (
+  timer: Omit<IntervalTimerDefinition, 'schedule'> & {
+    schedule: IntervalSchedule;
+  },
+): IntervalTimerDefinition => ({
+  ...timer,
+  schedule: {
+    kind: 'interval',
+    options: timer.schedule,
+  },
+});
+
+export const defineCronTimer = (
+  timer: Omit<IntervalTimerDefinition, 'schedule' | 'runImmediately'> & {
+    schedule: CronSchedule;
+  },
+): IntervalTimerDefinition => ({
+  ...timer,
+  schedule: {
+    kind: 'cron',
+    options: timer.schedule,
+  },
+});
 
 export const createTimerRegistry = (timers: IntervalTimerDefinition[]): TimerRegistry => {
   const scheduler = new ToadScheduler();
@@ -75,18 +114,32 @@ export const createTimerRegistry = (timers: IntervalTimerDefinition[]): TimerReg
           },
         );
 
-        scheduler.addSimpleIntervalJob(
-          new SimpleIntervalJob(
-            {
-              ...timer.schedule,
-              runImmediately: timer.runImmediately ?? false,
-            },
-            task,
-            {
-              id: timer.id,
-            },
-          ),
-        );
+        if (timer.schedule.kind === 'cron') {
+          scheduler.addCronJob(
+            new CronJob(
+              timer.schedule.options,
+              task,
+              {
+                id: timer.id,
+                preventOverrun: true,
+              },
+            ),
+          );
+        } else {
+          scheduler.addSimpleIntervalJob(
+            new SimpleIntervalJob(
+              {
+                ...timer.schedule.options,
+                runImmediately: timer.runImmediately ?? false,
+              },
+              task,
+              {
+                id: timer.id,
+                preventOverrun: true,
+              },
+            ),
+          );
+        }
 
         activeTimerIds.push(timer.id);
         console.log(

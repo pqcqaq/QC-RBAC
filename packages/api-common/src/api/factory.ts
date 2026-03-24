@@ -32,7 +32,6 @@ import type {
   UploadPrepareResult,
 } from '../types/files';
 import type {
-  ActivityLogRecord,
   AuthClientFormPayload,
   AuthClientRecord,
   DashboardSummary,

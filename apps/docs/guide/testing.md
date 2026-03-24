@@ -10,6 +10,7 @@ apps/backend/test
 ├─ framework
 │  ├─ delete-reference-checker.test.ts
 │  ├─ runtime-transaction.test.ts
+│  ├─ request-audit-retention.test.ts
 │  ├─ realtime-client.test.ts
 │  ├─ realtime-topic.test.ts
 │  └─ excel-export.test.ts
@@ -82,6 +83,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - 登录并拿到 session
 - 解析 Excel 导出响应
 - 启动独立随机端口的 mock OAuth Provider
+- 在 `db push --force-reset`、reseed、teardown 之前等待异步请求审计 flush 完成，避免测试数据库重置和后台审计写入竞争
 
 新增集成测试时，优先复用它，不要每个文件重新搭一遍数据库和 mock 服务。
 
@@ -112,11 +114,18 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 ### `framework/runtime-transaction.test.ts`
 
 - `commits writes and preserves actor ids from request context`
-  验证请求上下文里的 `actorId` 能传递到受管 Prisma 写入，并在成功时提交
+  验证请求上下文里的 `actorId` 能传递到受管 Prisma 写入，并且成功请求会落下对应 `RequestRecord + Operation`
 - `rolls back writes when an async handler throws`
-  验证 `asyncHandler(...)` 包装的接口在抛错时会整体回滚
+  验证 `asyncHandler(...)` 包装的接口在抛错时会整体回滚，并把事务内写操作标记成 `committed = false`
 - `rolls back handled error responses and reuses the same nested transaction`
   验证已写出错误响应的协议型接口只要调用 `rollbackHandledResponse()` 也会回滚，并且服务层显式事务会复用当前请求事务而不是独立提交
+- `redacts sensitive request and database fields in persisted audit records`
+  验证请求体和数据库前后镜像里的敏感字段会统一脱敏
+
+### `framework/request-audit-retention.test.ts`
+
+- `removes request records older than 30 days and cascades operations`
+  验证每天 0 点执行的请求审计清理逻辑会删除 30 天之前的 `RequestRecord`，并通过级联删除清掉关联 `Operation`
 
 ### `framework/realtime-topic.test.ts`
 
@@ -216,6 +225,7 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 
 - 上传 finalize 失败时，`MediaAsset.uploadStatus` 会被持久化为 `FAILED`
 - 失败补偿不会被请求事务一起回滚掉
+- 请求级审计也是请求外持久化，但测试基建会在 reset 前等待它完成
 
 ### `integration/oauth.test.ts`
 

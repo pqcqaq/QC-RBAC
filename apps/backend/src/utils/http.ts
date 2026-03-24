@@ -1,11 +1,15 @@
 import type { NextFunction, Request, Response } from 'express';
 import { runInBackendRuntimeTransaction } from '../lib/runtime-transaction';
+import { markRequestFailure } from './request-context';
 
 type PaginationInput = Pick<Request, 'query'>['query'] | Record<string, unknown> | undefined | null;
 
 class HandledTransactionalResponseError extends Error {
-  constructor() {
+  readonly causeError: unknown;
+
+  constructor(causeError?: unknown) {
     super('Handled response requires transaction rollback');
+    this.causeError = causeError ?? null;
   }
 }
 
@@ -17,7 +21,7 @@ export const ok = <T>(res: Response, data: T, message = 'OK') => {
   });
 };
 
-export const rollbackHandledResponse = () => new HandledTransactionalResponseError();
+export const rollbackHandledResponse = (error?: unknown) => new HandledTransactionalResponseError(error);
 
 export const asyncHandler =
   (handler: (req: Request, res: Response, next: NextFunction) => Promise<unknown>) =>
@@ -32,6 +36,7 @@ export const asyncHandler =
         error instanceof HandledTransactionalResponseError
         && (res.headersSent || res.writableEnded)
       ) {
+        markRequestFailure(error.causeError ?? error);
         return;
       }
       next(error);

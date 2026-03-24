@@ -4,6 +4,7 @@ import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
 import { ok, asyncHandler } from '../utils/http';
 import { toUserRecord, userRoleSummaryInclude } from '../utils/rbac-records';
+import { listRecentAuditFeed } from '../services/request-audit';
 
 const dashboardRouter = Router();
 
@@ -33,10 +34,7 @@ dashboardRouter.get(
       orderBy: { createdAt: 'desc' },
       include: userRoleSummaryInclude,
     });
-    const logs = await prisma.activityLog.findMany({
-      take: 8,
-      orderBy: { createdAt: 'desc' },
-    });
+    const logs = await listRecentAuditFeed(8);
 
     const moduleCoverage = Object.entries(
       permissions.reduce<Record<string, number>>((acc, permission) => {
@@ -57,13 +55,7 @@ dashboardRouter.get(
         roleDistribution: roles.map((role) => ({ roleName: role.name, count: role.users.length })),
         moduleCoverage,
         latestUsers: latestUsers.map(toUserRecord),
-        auditFeed: logs.map((item) => ({
-          id: item.id,
-          actor: item.actorName,
-          action: item.action,
-          target: item.target,
-          createdAt: item.createdAt.toISOString(),
-        })),
+        auditFeed: logs,
       },
       'Dashboard summary',
     );

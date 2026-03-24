@@ -52,6 +52,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 - 权限种子由 `apps/backend/src/constants/system-permissions.ts` 维护；前端运行时权限来自 `/api/auth/me` 和 `/api/menus/current`，不要在 shared 包里维护运行时权限目录。
 - 后端异步接口统一通过 `asyncHandler(...)` 进入；服务层显式事务统一使用 `runInBackendRuntimeTransaction(...)`。
 - 后端默认数据库入口使用 `prisma`；只有需要原始表语义时才使用 `prismaRaw`。
+- 请求结束后会自动把本次请求写成 `RequestRecord`，并把每次数据库操作写成 `Operation`；事务回滚时写操作会标记 `committed = false`。
 - 接口如果为了协议兼容需要自己写错误响应，响应写出后必须调用 `rollbackHandledResponse()`，否则事务会被当作成功提交。
 - 后端列表接口统一使用分页，前端列表页统一通过 `page` / `pageSize` 请求并保留筛选状态。
 - 列表导出统一走后端 `createExcelExportHandler` 和前端 `useDownload` / `ListExportButton`。
@@ -64,6 +65,7 @@ description: QC-RBAC 的实现地图，先看整体，再进入后端、Web、Un
 - TypeScript 源码禁止显式 `any`；动态边界必须补窄类型、声明类型或 `unknown` + 明确收敛，不能用 `as any` 或 `: any` 跳过。
 - 如果第三方插件会生成带 `any` 的声明文件，优先关闭它的 dts 产出并改为仓库内手写声明，避免每次构建把 `any` 写回源码。
 - 测试按 `framework` 和 `integration` 拆分，文档也要同步反映新的测试入口和覆盖范围。
+- 请求审计保留期由后端 timer 管理，默认每天 0 点清理 30 天前数据。
 
 ## 建议阅读顺序
 

@@ -173,17 +173,70 @@ export interface DashboardSummary {
   roleDistribution: Array<{ roleName: string; count: number }>;
   moduleCoverage: Array<{ module: string; count: number }>;
   latestUsers: UserRecord[];
-  auditFeed: Array<{ id: string; actor: string; action: string; target: string; createdAt: string }>;
+  auditFeed: Array<{
+    id: string;
+    actor: string;
+    summary: string;
+    statusCode: number;
+    operationCount: number;
+    createdAt: string;
+  }>;
 }
 
-export interface ActivityLogRecord {
+export type RequestAuditAuthMode = 'LOCAL' | 'OAUTH' | 'ANONYMOUS';
+
+export type RequestAuditOperationAccessKind = 'MANAGED' | 'RAW';
+
+export type RequestAuditOperationEffectKind = 'READ' | 'WRITE';
+
+export interface RequestAuditOperationRecord {
+  id: string;
+  sequence: number;
+  model: string;
+  operation: string;
+  effectiveOperation?: string | null;
+  accessKind: RequestAuditOperationAccessKind;
+  effectKind: RequestAuditOperationEffectKind;
+  committed: boolean;
+  softDelete: boolean;
+  succeeded: boolean;
+  primaryEntityId?: string | null;
+  affectedCount: number;
+  affectedIds: string[];
+  query?: unknown;
+  mutation?: unknown;
+  result?: unknown;
+  effect?: unknown;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+}
+
+export interface RequestAuditRecord {
   id: string;
   actorId?: string | null;
   actorName: string;
-  action: string;
-  target: string;
-  detail?: unknown;
-  createdAt: string;
+  method: string;
+  path: string;
+  statusCode: number;
+  success: boolean;
+  authMode: RequestAuditAuthMode;
+  authClientCode?: string | null;
+  authClientType?: AuthClientType | null;
+  errorCode?: string | null;
+  errorMessage?: string | null;
+  operationCount: number;
+  readCount: number;
+  writeCount: number;
+  requestQuery?: unknown;
+  requestParams?: unknown;
+  requestBody?: unknown;
+  startedAt: string;
+  finishedAt: string;
+  durationMs: number;
+  operations: RequestAuditOperationRecord[];
 }
 
 export interface LiveMessage {
@@ -200,6 +253,6 @@ export type PaginatedRoles = PaginatedResult<RoleRecord>;
 export type PaginatedPermissions = PaginatedResult<PermissionRecord>;
 export type PaginatedRealtimeTopics = PaginatedResult<RealtimeTopicRecord>;
 export type PaginatedAuthClients = PaginatedResult<AuthClientRecord>;
-export type PaginatedAuditLogs = PaginatedResult<ActivityLogRecord>;
+export type PaginatedAuditLogs = PaginatedResult<RequestAuditRecord>;
 export type PaginatedLiveMessages = PaginatedResult<LiveMessage>;
 

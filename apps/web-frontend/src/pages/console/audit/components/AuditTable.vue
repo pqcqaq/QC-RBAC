@@ -13,16 +13,34 @@
 
     <el-table :data="logs" stripe v-loading="loading">
       <el-table-column prop="actorName" label="操作者" width="180" />
-      <el-table-column prop="action" label="动作" min-width="180" />
-      <el-table-column prop="target" label="目标" min-width="220" />
-      <el-table-column label="上下文" width="120">
+      <el-table-column label="请求" min-width="280">
         <template #default="{ row }">
-          {{ summarizeDetail(row.detail) }}
+          <div>
+            <strong>{{ row.method }}</strong>
+            <div class="muted">{{ row.path }}</div>
+          </div>
+        </template>
+      </el-table-column>
+      <el-table-column label="结果" width="120">
+        <template #default="{ row }">
+          <el-tag :type="row.success ? 'success' : 'danger'" round>
+            {{ row.statusCode }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column label="数据库操作" min-width="220">
+        <template #default="{ row }">
+          {{ summarizeOperations(row.operations) }}
+        </template>
+      </el-table-column>
+      <el-table-column label="耗时" width="100">
+        <template #default="{ row }">
+          {{ row.durationMs }}ms
         </template>
       </el-table-column>
       <el-table-column label="时间" width="180">
         <template #default="{ row }">
-          {{ formatTime(row.createdAt) }}
+          {{ formatTime(row.startedAt) }}
         </template>
       </el-table-column>
       <el-table-column label="详情" width="120" fixed="right">
@@ -44,19 +62,19 @@
 </template>
 
 <script setup lang="ts">
-import type { ActivityLogRecord } from '@rbac/api-common';
+import type { RequestAuditRecord } from '@rbac/api-common';
 
 defineProps<{
-  logs: ActivityLogRecord[];
+  logs: RequestAuditRecord[];
   loading: boolean;
   total: number;
   page: number;
   pageSize: number;
-  summarizeDetail: (detail: unknown) => string;
+  summarizeOperations: (operations: RequestAuditRecord['operations']) => string;
 }>();
 
 const emit = defineEmits<{
-  detail: [row: ActivityLogRecord];
+  detail: [row: RequestAuditRecord];
   'page-change': [value: number];
 }>();
 

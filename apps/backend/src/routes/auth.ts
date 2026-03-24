@@ -8,7 +8,6 @@ import { authMiddleware } from '../middlewares/auth';
 import { authClientMiddleware } from '../middlewares/auth-client';
 import { badRequest, forbidden, HttpError, unauthorized } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
-import { logActivity } from '../utils/audit';
 import { withSnowflakeId } from '../utils/persistence';
 import { setRequestActorId } from '../utils/request-context';
 import {
@@ -199,16 +198,6 @@ authRouter.post(
     setRequestActorId(identity.user.id);
 
     await invalidatePermissionCache([identity.user.id]);
-    await logActivity({
-      actorId: identity.user.id,
-      actorName: identity.user.nickname,
-      action: 'auth.register',
-      target: identity.identifier,
-      detail: {
-        strategyCode: identity.strategy.code,
-        clientCode: client.code,
-      },
-    });
 
     const session = await issueSession(identity.user.id, client);
     syncBrowserSession(res, client, session.tokens.accessToken);
@@ -228,17 +217,6 @@ authRouter.post(
     if (identity.user.status !== 'ACTIVE') {
       throw unauthorized('Account disabled');
     }
-
-    await logActivity({
-      actorId: identity.user.id,
-      actorName: identity.user.nickname,
-      action: 'auth.login',
-      target: identity.identifier,
-      detail: {
-        strategyCode: identity.strategy.code,
-        clientCode: client.code,
-      },
-    });
 
     const session = await issueSession(identity.user.id, client);
     syncBrowserSession(res, client, session.tokens.accessToken);

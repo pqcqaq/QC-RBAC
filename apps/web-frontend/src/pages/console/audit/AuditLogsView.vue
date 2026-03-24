@@ -21,7 +21,7 @@
       :total="total"
       :page="pageState.page"
       :page-size="pageSize"
-      :summarize-detail="summarizeDetail"
+      :summarize-operations="summarizeOperations"
       @detail="openDetail"
       @page-change="changePage"
     />
@@ -29,7 +29,6 @@
     <AuditDetailDrawer
       v-model:visible="drawerVisible"
       :log="selectedLog"
-      :summarize-detail="summarizeDetail"
     />
   </PageScaffold>
 </template>
@@ -37,7 +36,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from 'vue';
 import { ElMessage } from 'element-plus';
-import type { ActivityLogRecord } from '@rbac/api-common';
+import type { RequestAuditRecord } from '@rbac/api-common';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import ListExportButton from '@/components/download/ListExportButton.vue';
 import { usePageState } from '@/composables/use-page-state';
@@ -57,13 +56,16 @@ definePage({
 type AuditPageState = {
   filters: {
     q: string;
-    action: string;
+    method: string;
+    model: string;
+    operation: string;
+    status: string;
   };
   page: number;
 };
 
-const logs = ref<ActivityLogRecord[]>([]);
-const selectedLog = ref<ActivityLogRecord | null>(null);
+const logs = ref<RequestAuditRecord[]>([]);
+const selectedLog = ref<RequestAuditRecord | null>(null);
 const drawerVisible = ref(false);
 const loading = ref(false);
 const total = ref(0);
@@ -72,34 +74,54 @@ const pageSize = 10;
 const { state: pageState } = usePageState<AuditPageState>('page:audit', {
   filters: {
     q: '',
-    action: '',
+    method: '',
+    model: '',
+    operation: '',
+    status: '',
   },
   page: 1,
 });
 
 const uniqueActors = computed(() => new Set(logs.value.map((item) => item.actorName)).size);
-const activeKeyword = computed(() => pageState.filters.q || pageState.filters.action || '无');
+const failedCount = computed(() => logs.value.filter(item => !item.success).length);
+const activeKeyword = computed(() =>
+  [
+    pageState.filters.q,
+    pageState.filters.method,
+    pageState.filters.model,
+    pageState.filters.operation,
+    pageState.filters.status,
+  ].filter(Boolean).join(' / ') || '无');
 const stats = computed(() => [
   { label: '日志总量', value: total.value },
   { label: '当前页记录', value: logs.value.length },
   { label: '当前页操作者', value: uniqueActors.value },
+  { label: '当前页失败', value: failedCount.value },
   { label: '当前过滤', value: activeKeyword.value },
 ]);
 
 const buildFilterParams = () => ({
   q: pageState.filters.q || undefined,
-  action: pageState.filters.action || undefined,
+  method: pageState.filters.method || undefined,
+  model: pageState.filters.model || undefined,
+  operation: pageState.filters.operation || undefined,
+  status: pageState.filters.status || undefined,
 });
 
 const buildExportRequest = () => api.audit.export(buildFilterParams());
 
-const summarizeDetail = (detail: unknown) => {
-  if (!detail || typeof detail !== 'object') {
-    return '无';
+const summarizeOperations = (operations: RequestAuditRecord['operations']) => {
+  if (!operations.length) {
+    return '无数据库操作';
   }
 
-  const keys = Object.keys(detail as Record<string, unknown>);
-  return keys.length ? `${keys.length} 个字段` : '空对象';
+  const labels = operations
+    .slice(0, 2)
+    .map(operation => `${operation.model}.${operation.operation}`);
+
+  return operations.length > 2
+    ? `${labels.join(' / ')} 等 ${operations.length} 次`
+    : labels.join(' / ');
 };
 
 const loadLogs = async () => {
@@ -127,7 +149,10 @@ const applyFilters = async () => {
 
 const resetFilters = async () => {
   pageState.filters.q = '';
-  pageState.filters.action = '';
+  pageState.filters.method = '';
+  pageState.filters.model = '';
+  pageState.filters.operation = '';
+  pageState.filters.status = '';
   pageState.page = 1;
   await loadLogs();
 };
@@ -137,7 +162,7 @@ const changePage = async (value: number) => {
   await loadLogs();
 };
 
-const openDetail = (row: ActivityLogRecord) => {
+const openDetail = (row: RequestAuditRecord) => {
   selectedLog.value = row;
   drawerVisible.value = true;
 };

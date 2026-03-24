@@ -599,10 +599,14 @@ export const closeSocketServer = async () => {
 };
 
 export const emitAuditEvent = (payload: {
-  action: string;
   actor: string;
   createdAt?: string;
-  target: string;
+  method: string;
+  operationCount: number;
+  path: string;
+  primaryOperation?: string | null;
+  requestId: string;
+  statusCode: number;
 }) => {
   const normalizedPayload: AuditEventPayload = {
     ...payload,
