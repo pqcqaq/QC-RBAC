@@ -6,7 +6,7 @@ import { assertPrismaDeleteAllowed, prisma } from '../lib/prisma';
 import type { Prisma } from '../lib/prisma-generated';
 import { authMiddleware } from '../middlewares/auth';
 import { requirePermission } from '../middlewares/require-permission';
-import { deleteStoredUpload, normalizeMediaAssetTag } from '../services/file-upload';
+import { normalizeMediaAssetTag } from '../services/file-upload';
 import {
   buildMediaAssetWhere,
   listMediaAssets,
@@ -187,15 +187,6 @@ attachmentsRouter.delete(
 
     await assertPrismaDeleteAllowed('MediaAsset', 'delete', {
       where: { id: asset.id },
-    });
-
-    await deleteStoredUpload({
-      fileId: asset.id,
-      objectKey: asset.objectKey,
-      storageProvider: asset.storageProvider,
-      storageBucket: asset.storageBucket,
-      uploadStrategy: asset.uploadStrategy,
-      chunkCount: asset.chunkCount,
     });
 
     await prisma.mediaAsset.delete({

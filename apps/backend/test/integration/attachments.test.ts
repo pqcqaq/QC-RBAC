@@ -1,5 +1,8 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
 import assert from 'node:assert/strict';
 import { after, before, beforeEach, describe, it } from 'node:test';
+import { setTimeout as delay } from 'node:timers/promises';
 import request from 'supertest';
 import {
   binaryParser,
@@ -14,6 +17,21 @@ import {
 } from '../support/backend-testkit';
 
 let context: BackendTestContext;
+
+const resolveUploadPath = (objectKey: string) => path.resolve(process.cwd(), 'uploads', objectKey);
+
+const waitForFileRemoval = async (filePath: string) => {
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    try {
+      await fs.access(filePath);
+      await delay(25);
+    } catch {
+      return;
+    }
+  }
+
+  await assert.rejects(fs.access(filePath));
+};
 
 before(async () => {
   context = await bootstrapBackendTestContext();
@@ -54,6 +72,17 @@ describe('Attachment integration', () => {
 
     assert.match(primaryUpload.url, /attachments\//);
     assert.match(secondaryUpload.url, /attachments\//);
+
+    const primaryAsset = await context.prismaRaw.mediaAsset.findUnique({
+      where: { id: primaryUpload.fileId },
+      select: {
+        id: true,
+        objectKey: true,
+      },
+    });
+
+    assert.ok(primaryAsset);
+    const primaryUploadPath = resolveUploadPath(primaryAsset.objectKey);
 
     const filteredList = await request(app)
       .get('/api/attachments')
@@ -117,6 +146,18 @@ describe('Attachment integration', () => {
       .delete(`/api/attachments/${primaryUpload.fileId}`)
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
+
+    const deletedPrimaryAsset = await context.prismaRaw.mediaAsset.findUnique({
+      where: { id: primaryUpload.fileId },
+      select: {
+        id: true,
+        deleteAt: true,
+      },
+    });
+
+    assert.ok(deletedPrimaryAsset);
+    assert.notEqual(deletedPrimaryAsset.deleteAt, null);
+    await waitForFileRemoval(primaryUploadPath);
 
     await request(app)
       .get(`/api/attachments/${primaryUpload.fileId}`)
@@ -243,5 +284,72 @@ describe('Attachment integration', () => {
       .delete(`/api/attachments/${avatarUpload.fileId}`)
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
+  });
+
+  it('auto-deletes related avatar assets when deleting a user', async () => {
+    const { app } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const memberRole = await context.prismaRaw.role.findFirst({
+      where: { code: 'member' },
+      select: { id: true },
+    });
+
+    assert.ok(memberRole);
+
+    const avatarUpload = await uploadManagedFileForTest(app, {
+      accessToken: adminSession.tokens.accessToken,
+      fileName: 'user-delete-avatar.png',
+      contentType: 'image/png',
+      content: 'user-delete-avatar-content',
+      kind: 'avatar',
+    });
+
+    const avatarAsset = await context.prismaRaw.mediaAsset.findUnique({
+      where: { id: avatarUpload.fileId },
+      select: {
+        id: true,
+        objectKey: true,
+      },
+    });
+
+    assert.ok(avatarAsset);
+    const avatarUploadPath = resolveUploadPath(avatarAsset.objectKey);
+
+    const createdUser = await request(app)
+      .post('/api/users')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        username: 'trigger-cleanup-user',
+        email: 'trigger-cleanup-user@example.com',
+        nickname: 'Trigger Cleanup User',
+        password: 'Trigger123!',
+        avatarFileId: avatarUpload.fileId,
+        status: 'ACTIVE',
+        roleIds: [memberRole.id],
+      })
+      .expect(200);
+
+    await request(app)
+      .delete(`/api/users/${createdUser.body.data.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    const deletedAvatar = await context.prismaRaw.mediaAsset.findUnique({
+      where: { id: avatarUpload.fileId },
+      select: {
+        id: true,
+        deleteAt: true,
+      },
+    });
+
+    assert.ok(deletedAvatar);
+    assert.notEqual(deletedAvatar.deleteAt, null);
+    await waitForFileRemoval(avatarUploadPath);
+
+    await request(app)
+      .get(`/api/attachments/${avatarUpload.fileId}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(404);
   });
 });

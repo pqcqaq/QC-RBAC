@@ -18,6 +18,17 @@ const defaultTransactionOptions = {
   timeout: 15_000,
 };
 
+const flushPostCommitTasks = async (context: BackendRuntimeContext) => {
+  const tasks = context.drainPostCommitTasks();
+  for (const task of tasks) {
+    try {
+      await task();
+    } catch (error) {
+      console.error('[backend] post-commit task failed', error);
+    }
+  }
+};
+
 const resolveBaseRuntimeContext = () => {
   const current = getBackendRuntimeContext();
   if (current) {
@@ -45,8 +56,7 @@ export const runInBackendRuntimeTransaction = async <T>(
   }
 
   const baseContext = resolveBaseRuntimeContext();
-
-  return getRootPrismaRawClient().$transaction(async (tx) => {
+  const result = await getRootPrismaRawClient().$transaction(async (tx) => {
     const transactionContext = baseContext.fork({
       db: createManagedPrismaClient(tx),
       dbRaw: createRawPrismaClient(tx),
@@ -56,4 +66,7 @@ export const runInBackendRuntimeTransaction = async <T>(
 
     return runWithBackendRuntimeContext(transactionContext, () => callback(transactionContext));
   }, defaultTransactionOptions);
+
+  await flushPostCommitTasks(baseContext);
+  return result;
 };

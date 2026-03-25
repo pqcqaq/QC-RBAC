@@ -14,6 +14,7 @@ type BackendRuntimeAuditState = {
   startedAt: Date;
   failure: RuntimeRequestFailure | null;
   operations: RuntimeOperationCapture[];
+  postCommitTasks: Array<() => Promise<void> | void>;
   auditFlushInProgress: boolean;
   auditFlushed: boolean;
 };
@@ -55,6 +56,7 @@ export class BackendRuntimeContext {
       startedAt: input.startedAt ?? new Date(),
       failure: null,
       operations: [],
+      postCommitTasks: [],
       auditFlushInProgress: false,
       auditFlushed: false,
     };
@@ -106,6 +108,16 @@ export class BackendRuntimeContext {
 
   getOperations() {
     return [...this.auditState.operations];
+  }
+
+  deferPostCommitTask(task: () => Promise<void> | void) {
+    this.auditState.postCommitTasks.push(task);
+  }
+
+  drainPostCommitTasks() {
+    const tasks = [...this.auditState.postCommitTasks];
+    this.auditState.postCommitTasks.length = 0;
+    return tasks;
   }
 
   beginAuditFlush() {

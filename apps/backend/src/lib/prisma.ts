@@ -16,6 +16,12 @@ import {
   type RuntimeOperationAccessKind,
 } from './request-audit';
 import { createPrismaClient } from './prisma-client-factory';
+import {
+  buildBackendTriggerRegistry,
+  getTriggersForOperation,
+  type TriggerAction,
+  type TriggerDeleteMode,
+} from '../triggers';
 import { generateSnowflakeId } from '../utils/snowflake';
 
 const auditedModelNames = new Set([
@@ -142,6 +148,19 @@ const stampDeleteData = (actorId: string | null) => ({
   updateId: actorId,
 });
 
+const getDeleteAtWriteValue = (data?: unknown) => {
+  if (!isPlainObject(data) || !Object.prototype.hasOwnProperty.call(data, 'deleteAt')) {
+    return undefined;
+  }
+
+  const value = data.deleteAt;
+  if (isPlainObject(value) && Object.prototype.hasOwnProperty.call(value, 'set')) {
+    return value.set;
+  }
+
+  return value;
+};
+
 const isModelDelegate = (value: unknown): value is PrismaModelDelegate =>
   typeof value === 'object'
   && value !== null
@@ -172,6 +191,7 @@ const getModelDelegate = (client: RawPrismaClient, model: string) =>
 const resolveRuntimeActorId = () => getBackendRuntimeContext()?.getActorId() ?? null;
 
 const rootPrismaRaw = createPrismaClient();
+const backendTriggerRegistry = buildBackendTriggerRegistry(rootPrismaRaw);
 
 const resolveRuntimeRawDriver = () => getBackendRuntimeContext()?.dbRawDriver ?? rootPrismaRaw;
 
@@ -481,6 +501,119 @@ const captureRuntimeOperation = (input: {
   });
 };
 
+const resolveTriggerAction = (
+  operation: string,
+  requestedArgs: PrismaDelegateArgs,
+): TriggerAction | null => {
+  if (
+    operation === 'findUnique'
+    || operation === 'findFirst'
+    || operation === 'findMany'
+    || operation === 'count'
+    || operation === 'aggregate'
+  ) {
+    return 'select';
+  }
+
+  if (operation === 'delete' || operation === 'deleteMany') {
+    return 'delete';
+  }
+
+  if (
+    (operation === 'update' || operation === 'updateMany')
+    && getDeleteAtWriteValue(requestedArgs.data) != null
+  ) {
+    return 'delete';
+  }
+
+  if (operation === 'update' || operation === 'updateMany') {
+    return 'update';
+  }
+
+  return null;
+};
+
+const resolveTriggerDeleteMode = (
+  operation: string,
+  requestedArgs: PrismaDelegateArgs,
+  softDelete: boolean,
+): TriggerDeleteMode => {
+  if (operation === 'delete' || operation === 'deleteMany') {
+    return softDelete ? 'soft' : 'hard';
+  }
+
+  if (
+    (operation === 'update' || operation === 'updateMany')
+    && getDeleteAtWriteValue(requestedArgs.data) != null
+  ) {
+    return 'soft';
+  }
+
+  return null;
+};
+
+const runOperationTriggers = async (input: {
+  when: 'before' | 'after';
+  rawClient: RawPrismaClient;
+  model: string;
+  operation: string;
+  effectiveOperation: string;
+  requestedArgs: PrismaDelegateArgs;
+  effectiveArgs: PrismaDelegateArgs;
+  accessKind: RuntimeOperationAccessKind;
+  softDelete: boolean;
+  result: unknown;
+  beforeRows: Array<Record<string, unknown>>;
+  afterRows: Array<Record<string, unknown>>;
+}) => {
+  const action = resolveTriggerAction(input.operation, input.requestedArgs);
+  if (!action) {
+    return;
+  }
+
+  const triggers = getTriggersForOperation(
+    backendTriggerRegistry,
+    input.when,
+    input.model,
+    action,
+  );
+  if (!triggers.length) {
+    return;
+  }
+
+  const runtime = getBackendRuntimeContext();
+  const filter = input.requestedArgs.where ?? input.effectiveArgs.where ?? null;
+  const data = input.requestedArgs.data ?? input.effectiveArgs.data ?? null;
+  const deleteMode = resolveTriggerDeleteMode(
+    input.operation,
+    input.requestedArgs,
+    input.softDelete,
+  );
+
+  for (const trigger of triggers) {
+    await trigger.fn({
+      entity: input.model,
+      action,
+      when: input.when,
+      operation: input.operation,
+      effectiveOperation: input.effectiveOperation,
+      accessKind: input.accessKind,
+      deleteMode,
+      runtime,
+      db: createManagedPrismaClient(input.rawClient),
+      dbRaw: createRawPrismaClient(input.rawClient),
+      dbDriver: input.rawClient,
+      requestedArgs: input.requestedArgs,
+      effectiveArgs: input.effectiveArgs,
+      filter,
+      data,
+      result: input.result,
+      beforeRows: input.beforeRows,
+      afterRows: input.afterRows,
+    });
+  }
+};
+
 const executeAuditedOperation = async (input: {
   rawClient: RawPrismaClient;
   model: string;
@@ -494,6 +627,23 @@ const executeAuditedOperation = async (input: {
 }) => {
   const effectKind = classifyOperationEffectKind(input.operation);
   const startedAt = new Date();
+  const requestedArgs = input.requestedArgs ?? {};
+
+  await runOperationTriggers({
+    accessKind: input.accessKind,
+    afterRows: [],
+    beforeRows: [],
+    effectiveArgs: input.effectiveArgs,
+    effectiveOperation: input.effectiveOperation,
+    model: input.model,
+    operation: input.operation,
+    rawClient: input.rawClient,
+    requestedArgs,
+    result: null,
+    softDelete: input.softDelete,
+    when: 'before',
+  });
+
   const beforeRows = effectKind === 'WRITE'
     ? await resolveBeforeRowsForWrite({
         effectiveArgs: input.effectiveArgs,
@@ -521,6 +671,21 @@ const executeAuditedOperation = async (input: {
         })
       : [];
 
+    await runOperationTriggers({
+      accessKind: input.accessKind,
+      afterRows,
+      beforeRows,
+      effectiveArgs: input.effectiveArgs,
+      effectiveOperation: input.effectiveOperation,
+      model: input.model,
+      operation: input.operation,
+      rawClient: input.rawClient,
+      requestedArgs,
+      result,
+      softDelete: input.softDelete,
+      when: 'after',
+    });
+
     captureRuntimeOperation({
       accessKind: input.accessKind,
       afterRows,
@@ -530,7 +695,7 @@ const executeAuditedOperation = async (input: {
       finishedAt,
       model: input.model,
       operation: input.operation,
-      requestedArgs: input.requestedArgs,
+      requestedArgs,
       result,
       softDelete: input.softDelete,
       startedAt,
@@ -548,7 +713,7 @@ const executeAuditedOperation = async (input: {
       finishedAt,
       model: input.model,
       operation: input.operation,
-      requestedArgs: input.requestedArgs,
+      requestedArgs,
       softDelete: input.softDelete,
       startedAt,
     });
