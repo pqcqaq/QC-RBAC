@@ -160,6 +160,26 @@ apps/backend/src/lib/socket.ts
 - `RBAC_PRINT_RELATION_GRAPH_MERMAID=1`
   - 额外打印可复制的 Mermaid `erDiagram` 源码
 
+关系图的 schema 解析方案现在也是固定的，不再依赖额外第三方 AST 库：
+
+- 入口在 `src/lib/entity-relation-graph.ts`
+- 启动时直接读取 Prisma Client 内部挂着的 `client._engineConfig.inlineSchema`
+  - 也就是当前进程实际使用的那份内联 `schema.prisma`
+  - 不需要再额外去磁盘读文件
+- 解析过程是轻量字符串解析：
+  - 先按 `model Xxx { ... }` 切出每个 model block
+  - 再把 block 内字段语句按括号平衡拼接完整，跳过 `@@index` 这类 model-level 语句
+  - 只提取显式 `@relation(fields: [...], references: [...])` 的字段来生成边
+- 每条边都会保留：
+  - `sourceModel / sourceField`
+  - `targetModel`
+  - `fields -> references` 映射
+  - 字段基数 `required / optional / list`
+  - 可选的 relation name
+- 解析结果会按整份 schema 字符串做缓存
+  - 同一份 schema 在同一进程内只解析一次
+- 如果 Prisma 没暴露 `inlineSchema`，启动期就只打印 `relation graph unavailable`，不会影响后端继续启动
+
 ### 请求运行时与事务边界
 
 当前后端不是直接在路由里裸用 Prisma，而是先进入统一运行时：
