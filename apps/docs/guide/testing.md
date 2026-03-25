@@ -9,6 +9,7 @@ description: 后端 framework / integration 测试结构、运行方式，以及
 apps/backend/test
 ├─ framework
 │  ├─ delete-reference-checker.test.ts
+│  ├─ entity-relation-graph.test.ts
 │  ├─ runtime-transaction.test.ts
 │  ├─ request-audit-retention.test.ts
 │  ├─ realtime-client.test.ts
@@ -110,6 +111,13 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
   验证时间戳文件名格式稳定
 - `supports resolving columns from exported rows for dynamic headers`
   验证 `columns` 可以用函数形式读取导出记录，动态展开列头并保持行数据对齐
+
+### `framework/entity-relation-graph.test.ts`
+
+- `builds model and relation edges from Prisma schema`
+  验证启动期实体关系图工具能从 Prisma schema 文本中提取模型列表、普通关系和自关联关系
+- `formats readable text and mermaid outputs`
+  验证默认的紧凑纯文本摘要和 Mermaid `erDiagram` 输出格式稳定，便于启动期低噪声打印，必要时再展开完整说明
 
 ### `framework/runtime-transaction.test.ts`
 

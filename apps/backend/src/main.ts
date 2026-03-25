@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { env } from './config/env';
 import { createApp } from './app';
+import { printPrismaEntityRelationGraph } from './lib/entity-relation-graph';
 import { getRootPrismaClient, getRootPrismaRawClient } from './lib/prisma';
 import { closeRedisConnection, ensureRedisConnection } from './lib/redis';
 import { closeSocketServer, initSocket } from './lib/socket';
@@ -70,6 +71,7 @@ process.on('SIGTERM', () => {
 
 void bootstrapSystemRbac(getRootPrismaClient())
   .then(() => {
+    printPrismaEntityRelationGraph(getRootPrismaRawClient());
     server.listen(env.PORT, () => {
       console.log(`[backend] http://localhost:${env.PORT}`);
       timers.start();
