@@ -4,9 +4,9 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "prisma generate && nodemon",
-    "build": "prisma generate && tsc -p tsconfig.json && node ../../scripts/rewrite-dist-import-extensions.mjs dist",
-    "start": "node dist/apps/backend/src/main.js",
+    "dev": "node ./scripts/dev.mjs",
+    "build": "prisma generate && tsdown",
+    "start": "node --enable-source-maps dist/src/main.mjs",
     "lint": "prisma generate && tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
     "test": "prisma generate && tsc -p tsconfig.test.json --noEmit && node --import tsx --test --test-concurrency=1 test/**/*.test.ts",
     "prisma:generate": "prisma generate",
@@ -47,9 +47,9 @@
     "@types/multer": "^2.0.0",
     "@types/node": "^24.3.0",
     "@types/supertest": "^6.0.3",
-    "nodemon": "^3.1.10",
     "prisma": "^7.5.0",
     "supertest": "^7.1.4",
+    "tsdown": "^0.21.4",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2"
   }

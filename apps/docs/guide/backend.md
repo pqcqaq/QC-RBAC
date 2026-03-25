@@ -48,6 +48,36 @@ apps/backend
 - `timers/`：正式注册的后台任务。
 - `utils/`：token、持久化、文件、RBAC 映射等通用工具。
 
+## 编译产物
+
+后端的生产构建现在走 `tsdown`，不再是单纯的 `tsc` 直出：
+
+- `pnpm --filter @rbac/backend build`
+  - 先执行 `prisma generate`
+  - 再把 `src/main.ts` 打成 Node ESM bundle
+- 默认产物入口是 `apps/backend/dist/src/main.mjs`
+- `@rbac/api-common` 会在构建时一起被 bundle 进后端产物，避免把整个 workspace 包原样带进运行时
+- 构建开启了 sourcemap 和 tree shaking，运行时启动脚本会带 `--enable-source-maps`
+
+这套编译链路的目标不是把所有依赖都硬塞进一个可执行文件，而是：
+
+- 让后端自己的源码和 workspace 内共享代码得到 bundling / tree shaking
+- 继续保留 Node / Prisma 运行时依赖的兼容性
+- 把生产构建和开发启动解耦，各自针对运行场景优化
+
+开发态入口也已经更新成更轻量的 watcher 组合：
+
+- `pnpm --filter @rbac/backend dev`
+  - 先执行一次 `prisma generate`
+  - 然后并发启动 `prisma generate --watch`
+  - 再启动 `tsx watch src/main.ts`
+- `src/**/*.ts`、`prisma/**/*.prisma`、`prisma/generated/**/*.ts`、`.env` 变化后，后端进程会自动热重启
+
+这里的“热重载”更准确地说是“进程级热重启”：
+
+- 不做模块级 HMR 注入
+- 但源码、配置和 Prisma schema 变更后，不需要手工停掉再重开服务
+
 ## 实时网关
 
 后端实时入口现在在：

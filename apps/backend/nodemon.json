@@ -1,5 +1,0 @@
-{
-  "watch": ["src", "prisma"],
-  "ext": "ts,prisma,json",
-  "exec": "tsx src/main.ts"
-}
