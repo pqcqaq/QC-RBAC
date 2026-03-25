@@ -68,10 +68,11 @@ apps/backend
 开发态入口也已经更新成更轻量的 watcher 组合：
 
 - `pnpm --filter @rbac/backend dev`
-  - 先执行一次 `prisma generate`
-  - 然后并发启动 `prisma generate --watch`
-  - 再启动 `tsx watch src/main.ts`
-- `src/**/*.ts`、`prisma/**/*.prisma`、`prisma/generated/**/*.ts`、`.env` 变化后，后端进程会自动热重启
+  - 启动 `nodemon`
+  - 每次启动或重启前先执行一次 `prisma generate`
+  - 然后再执行 `tsx src/main.ts`
+- `src/**/*.ts`、`prisma/**/*.prisma`、`.env` 变化后，后端进程会自动热重启
+- `prisma/generated/**/*.ts` 会被显式忽略，不参与 watcher 触发；schema 变化时由重启前的 `prisma generate` 重新生成 client
 
 这里的“热重载”更准确地说是“进程级热重启”：
 

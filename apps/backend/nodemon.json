@@ -1,0 +1,6 @@
+{
+  "watch": ["src", "prisma", ".env", "prisma.config.ts"],
+  "ignore": ["prisma/generated/**", "dist/**"],
+  "ext": "ts,prisma,json,env",
+  "exec": "pnpm exec prisma generate && pnpm exec tsx src/main.ts"
+}
