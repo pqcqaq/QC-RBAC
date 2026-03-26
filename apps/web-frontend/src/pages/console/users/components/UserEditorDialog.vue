@@ -25,6 +25,8 @@
         dialog-title="选择头像"
         trigger-text="选择头像"
         upload-kind="avatar"
+        :max-width="DEFAULT_AVATAR_IMAGE_MAX_WIDTH"
+        :max-height="DEFAULT_AVATAR_IMAGE_MAX_HEIGHT"
         :upload-enabled="canUploadImages"
         :allow-clear="true"
       >
@@ -100,6 +102,10 @@
 import { computed } from 'vue';
 import { api } from '@/api/client';
 import ImageSelectFormItem from '@/components/form/ImageSelectFormItem.vue';
+import {
+  DEFAULT_AVATAR_IMAGE_MAX_HEIGHT,
+  DEFAULT_AVATAR_IMAGE_MAX_WIDTH,
+} from '@/components/form/image-select';
 import RelationSelectFormItem from '@/components/form/RelationSelectFormItem.vue';
 import { useAuthStore } from '@/stores/auth';
 

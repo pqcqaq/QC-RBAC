@@ -1,0 +1,102 @@
+model Role {
+  id          String           @id
+  createId    String?
+  updateId    String?
+  code        String           @unique
+  name        String
+  description String
+  isSystem    Boolean          @default(false)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  deleteAt    DateTime?
+  users       UserRole[]
+  permissions RolePermission[]
+
+  @@index([deleteAt])
+}
+
+model Permission {
+  id             String                       @id
+  createId       String?
+  updateId       String?
+  code           String                       @unique
+  name           String
+  module         String
+  action         String
+  description    String?
+  isSystem       Boolean                      @default(false)
+  createdAt      DateTime                     @default(now())
+  updatedAt      DateTime                     @updatedAt
+  deleteAt       DateTime?
+  roles          RolePermission[]
+  menuNode       MenuNode?
+  oauthApps      OAuthApplicationPermission[]
+  realtimeTopics RealtimeTopic[]
+
+  @@index([deleteAt])
+}
+
+model MenuNode {
+  id           String      @id
+  createId     String?
+  updateId     String?
+  code         String      @unique
+  type         MenuNodeType
+  title        String
+  caption      String?
+  description  String?
+  icon         String?
+  path         String?     @unique
+  viewKey      String?     @unique
+  sortOrder    Int         @default(0)
+  parentId     String?
+  permissionId String?     @unique
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+  deleteAt     DateTime?
+  parent       MenuNode?   @relation("MenuTree", fields: [parentId], references: [id])
+  children     MenuNode[]  @relation("MenuTree")
+  permission   Permission? @relation(fields: [permissionId], references: [id], onDelete: SetNull)
+
+  @@index([parentId, sortOrder])
+  @@index([type])
+  @@index([deleteAt])
+}
+
+model UserRole {
+  id         String   @id
+  createId   String?
+  updateId   String?
+  userId     String
+  roleId     String
+  assignedAt DateTime @default(now())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  deleteAt   DateTime?
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role       Role     @relation(fields: [roleId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, roleId])
+  @@index([userId, deleteAt])
+  @@index([roleId, deleteAt])
+  @@index([deleteAt])
+}
+
+model RolePermission {
+  id           String     @id
+  createId     String?
+  updateId     String?
+  roleId       String
+  permissionId String
+  assignedAt   DateTime   @default(now())
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deleteAt     DateTime?
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
+  @@index([roleId, deleteAt])
+  @@index([permissionId, deleteAt])
+  @@index([deleteAt])
+}

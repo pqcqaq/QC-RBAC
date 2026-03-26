@@ -7,10 +7,13 @@
     <div v-else-if="source" class="panel-grid">
       <section class="detail-section">
         <div class="detail-section__header">
-          <div>
-            <p class="panel-caption">当前用户</p>
-            <h3 class="panel-heading panel-heading--lg">{{ source.user.nickname }}</h3>
-            <p class="muted">{{ source.user.email || '未设置邮箱' }}</p>
+          <div class="detail-user">
+            <UserAvatar :avatar-url="source.user.avatarUrl" :name="source.user.nickname" size="lg" />
+            <div class="detail-user__meta">
+              <p class="panel-caption">当前用户</p>
+              <h3 class="panel-heading panel-heading--lg">{{ source.user.nickname }}</h3>
+              <p class="muted">{{ source.user.email || '未设置邮箱' }}</p>
+            </div>
           </div>
           <el-tag round>{{ source.effectivePermissions.length }} 项权限</el-tag>
         </div>
@@ -46,6 +49,7 @@
 
 <script setup lang="ts">
 import type { UserPermissionSource } from '@rbac/api-common';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 
 defineProps<{
@@ -53,3 +57,18 @@ defineProps<{
   source: UserPermissionSource | null;
 }>();
 </script>
+
+<style scoped lang="scss">
+.detail-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.detail-user__meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+</style>

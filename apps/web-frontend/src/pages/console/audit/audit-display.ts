@@ -3,6 +3,7 @@ import type {
   RequestAuditOperationAccessKind,
   RequestAuditOperationEffectKind,
   RequestAuditOperationRecord,
+  RequestAuditRecord,
 } from '@rbac/api-common';
 
 export type AuditFilters = {
@@ -86,6 +87,18 @@ export const hasMeaningfulAuditValue = (value: unknown) => {
 };
 
 export const formatAuditTime = (value: string) => new Date(value).toLocaleString();
+
+const toAuditTimestamp = (value: string) => {
+  const timestamp = new Date(value).getTime();
+  return Number.isFinite(timestamp) ? timestamp : 0;
+};
+
+export const compareRequestAuditRecency = (
+  left: Pick<RequestAuditRecord, 'id' | 'startedAt'>,
+  right: Pick<RequestAuditRecord, 'id' | 'startedAt'>,
+) =>
+  toAuditTimestamp(right.startedAt) - toAuditTimestamp(left.startedAt)
+  || right.id.localeCompare(left.id, 'en');
 
 export const formatAuditDuration = (value: number) => {
   if (value < 1000) {

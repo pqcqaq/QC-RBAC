@@ -63,6 +63,7 @@ declare module 'vue' {
     ThemeModeSwitch: typeof import('./components/workbench/ThemeModeSwitch.vue')['default']
     UnoIcon: typeof import('./components/common/UnoIcon.vue')['default']
     UnoIconPicker: typeof import('./components/common/UnoIconPicker.vue')['default']
+    UserAvatar: typeof import('./components/common/UserAvatar.vue')['default']
     WorkbenchSettings: typeof import('./components/workbench/WorkbenchSettings.vue')['default']
     WorkbenchTabs: typeof import('./components/workbench/WorkbenchTabs.vue')['default']
   }

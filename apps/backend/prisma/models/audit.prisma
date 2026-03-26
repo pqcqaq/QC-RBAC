@@ -1,0 +1,77 @@
+model RequestRecord {
+  id                   String          @id
+  createId             String?
+  updateId             String?
+  actorId              String?
+  actorName            String
+  authMode             RequestAuthMode @default(ANONYMOUS)
+  authClientId         String?
+  authClientCode       String?
+  authClientType       AuthClientType?
+  oauthApplicationId   String?
+  oauthApplicationCode String?
+  method               String
+  path                 String
+  ipAddress            String?
+  userAgent            String?
+  requestQuery         Json?
+  requestParams        Json?
+  requestBody          Json?
+  statusCode           Int
+  success              Boolean
+  errorCode            String?
+  errorMessage         String?
+  errorDetail          Json?
+  operationCount       Int             @default(0)
+  readCount            Int             @default(0)
+  writeCount           Int             @default(0)
+  startedAt            DateTime
+  finishedAt           DateTime
+  durationMs           Int             @default(0)
+  operations           Operation[]
+  createdAt            DateTime        @default(now())
+  updatedAt            DateTime        @updatedAt
+
+  @@index([startedAt])
+  @@index([actorId, startedAt])
+  @@index([method, startedAt])
+  @@index([statusCode, startedAt])
+  @@index([success, startedAt])
+}
+
+model Operation {
+  id                 String              @id
+  createId           String?
+  updateId           String?
+  requestRecordId    String
+  sequence           Int
+  model              String
+  operation          String
+  effectiveOperation String?
+  accessKind         OperationAccessKind
+  effectKind         OperationEffectKind
+  committed          Boolean             @default(true)
+  softDelete         Boolean             @default(false)
+  succeeded          Boolean             @default(true)
+  primaryEntityId    String?
+  affectedCount      Int                 @default(0)
+  affectedIds        String[]
+  query              Json?
+  mutation           Json?
+  result             Json?
+  effect             Json?
+  errorCode          String?
+  errorMessage       String?
+  startedAt          DateTime
+  finishedAt         DateTime
+  durationMs         Int                 @default(0)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  requestRecord      RequestRecord       @relation(fields: [requestRecordId], references: [id], onDelete: Cascade)
+
+  @@unique([requestRecordId, sequence])
+  @@index([requestRecordId, startedAt])
+  @@index([model, operation, startedAt])
+  @@index([primaryEntityId])
+  @@index([effectKind, startedAt])
+}

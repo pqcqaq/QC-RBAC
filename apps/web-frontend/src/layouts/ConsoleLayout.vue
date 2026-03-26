@@ -233,6 +233,12 @@ import MenuTreeNav from '@/components/workbench/MenuTreeNav.vue';
 import WorkbenchSettings from '@/components/workbench/WorkbenchSettings.vue';
 import WorkbenchTabs from '@/components/workbench/WorkbenchTabs.vue';
 import ThemeModeSwitch from '@/components/workbench/ThemeModeSwitch.vue';
+import {
+  DEFAULT_AVATAR_IMAGE_MAX_HEIGHT,
+  DEFAULT_AVATAR_IMAGE_MAX_SIZE,
+  DEFAULT_AVATAR_IMAGE_MAX_WIDTH,
+  validateImageFile,
+} from '@/components/form/image-select';
 import { findThemePreset, getThemeModeLabel, type ThemeMode } from '@/themes';
 import { uploadAvatarFile } from '@/utils/direct-upload';
 import { getErrorMessage } from '@/utils/errors';
@@ -395,6 +401,18 @@ const handleAvatarInputChange = async (event: Event) => {
   }
 
   try {
+    const validationMessage = await validateImageFile(file, {
+      accept: 'image/*',
+      maxSize: DEFAULT_AVATAR_IMAGE_MAX_SIZE,
+      maxWidth: DEFAULT_AVATAR_IMAGE_MAX_WIDTH,
+      maxHeight: DEFAULT_AVATAR_IMAGE_MAX_HEIGHT,
+    });
+
+    if (validationMessage) {
+      ElMessage.warning(validationMessage);
+      return;
+    }
+
     avatarUploading.value = true;
     const uploaded = await uploadAvatarFile(file);
     const currentUser = await api.auth.updateAvatar(uploaded.fileId);

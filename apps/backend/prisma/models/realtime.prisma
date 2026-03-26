@@ -1,0 +1,33 @@
+model RealtimeTopic {
+  id           String     @id
+  createId     String?
+  updateId     String?
+  code         String     @unique
+  name         String
+  description  String?
+  topicPattern String
+  isSystem     Boolean    @default(false)
+  permissionId String
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  deleteAt     DateTime?
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@index([topicPattern])
+  @@index([permissionId, deleteAt])
+  @@index([deleteAt])
+}
+
+model ChatMessage {
+  id        String   @id
+  createId  String?
+  updateId  String?
+  senderId  String
+  content   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  deleteAt  DateTime?
+  sender    User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([deleteAt])
+}

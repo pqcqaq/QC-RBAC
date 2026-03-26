@@ -15,6 +15,7 @@
     :allow-clear="allowClear"
     :show-selected-preview="false"
     :disabled="disabled"
+    :is-option-disabled="isImageRowDisabled"
     layout="card"
     @update:model-value="handleModelValueChange"
   >
@@ -127,6 +128,7 @@
             <span class="image-select__upload-meta">
               格式：{{ acceptText }}
               <template v-if="maxSizeText"> · 最大 {{ maxSizeText }}</template>
+              <template v-if="maxDimensionsText"> · 尺寸不超过 {{ maxDimensionsText }}</template>
             </span>
           </div>
 
@@ -164,7 +166,11 @@
       >
         <div
           class="image-select__option"
-          :class="{ 'image-select__option--selected': slotProps.selected }"
+          :class="{
+            'image-select__option--selected': slotProps.selected,
+            'image-select__option--disabled': slotProps.disabled,
+            'image-select__option--avatar': useAvatarOptionLayout,
+          }"
         >
           <div class="image-select__option-preview">
             <img
@@ -175,13 +181,13 @@
             />
             <span v-else class="image-select__option-placeholder">无预览</span>
             <span class="image-select__option-indicator">
-              {{ slotProps.selected ? '已选中' : '使用图片' }}
+              {{ resolveOptionIndicatorText(asImageRow(slotProps.row), slotProps.selected) }}
             </span>
           </div>
 
           <div class="image-select__option-copy">
             <strong>{{ asImageRow(slotProps.row).originalName }}</strong>
-            <span>{{ resolveImageSummary(asImageRow(slotProps.row)) }}</span>
+            <span>{{ resolveImageSummaryText(asImageRow(slotProps.row)) }}</span>
             <span>
               上传者：{{ asImageRow(slotProps.row).owner.nickname || asImageRow(slotProps.row).owner.username }}
             </span>
@@ -193,19 +199,26 @@
 </template>
 
 <script setup lang="ts">
-import { computed, nextTick, ref, useAttrs, useSlots } from 'vue';
+import { computed, nextTick, reactive, ref, useAttrs, useSlots } from 'vue';
 import { ElMessage } from 'element-plus';
 import type { MediaAssetListQuery, MediaAssetRecord, UploadKind } from '@rbac/api-common';
 import { api } from '@/api/client';
 import { uploadManagedFile } from '@/utils/direct-upload';
 import { getErrorMessage } from '@/utils/errors';
-import type { RelationSelectRequest, RelationSelectRow } from './relation-select';
+import type { RelationSelectRequest, RelationSelectRequestParams, RelationSelectRow } from './relation-select';
 import {
   buildImageAcceptAttribute,
+  DEFAULT_AVATAR_IMAGE_MAX_HEIGHT,
+  DEFAULT_AVATAR_IMAGE_MAX_SIZE,
+  DEFAULT_AVATAR_IMAGE_MAX_WIDTH,
+  exceedsImageDimensionLimit,
   formatImageAcceptText,
+  formatImageDimensionLimit,
   formatFileSize,
-  matchImageAccept,
+  readImageDimensions,
   resolveImageSummary,
+  validateImageFile,
+  type ImageDimensions,
 } from './image-select';
 
 type RelationSelectFormItemExposed = {
@@ -214,6 +227,13 @@ type RelationSelectFormItemExposed = {
   clearSelection: () => void;
   applySearch: () => void;
   resetSearch: () => void;
+};
+
+type ImageDimensionState = {
+  status: 'loading' | 'ready' | 'error';
+  url: string | null;
+  width?: number;
+  height?: number;
 };
 
 defineOptions({
@@ -236,6 +256,8 @@ const props = withDefaults(
     allowClear?: boolean;
     accept?: string | string[];
     maxSize?: number;
+    maxWidth?: number;
+    maxHeight?: number;
     uploadEnabled?: boolean;
     dragUpload?: boolean;
     clickUpload?: boolean;
@@ -256,6 +278,8 @@ const props = withDefaults(
     allowClear: true,
     accept: 'image/*',
     maxSize: undefined,
+    maxWidth: undefined,
+    maxHeight: undefined,
     uploadEnabled: true,
     dragUpload: true,
     clickUpload: true,
@@ -277,15 +301,44 @@ const fileInputRef = ref<HTMLInputElement | null>(null);
 const uploadProgress = ref<number | null>(null);
 const uploading = ref(false);
 const dragActive = ref(false);
+const imageDimensionStates = reactive<Record<string, ImageDimensionState>>({});
+const pendingImageDimensionTasks = new Map<string, Promise<void>>();
+const baseImageRequest = api.attachments.images as unknown as RelationSelectRequest;
+const imageRequest = (async (params: RelationSelectRequestParams) => {
+  const response = await baseImageRequest(params);
+  primeImageDimensions(response.items as MediaAssetRecord[]);
+  return response;
+}) as RelationSelectRequest;
 
-const imageRequest = api.attachments.images as unknown as RelationSelectRequest;
+imageRequest.resolve = async (ids: string[]) => {
+  const response = await baseImageRequest.resolve(ids);
+  primeImageDimensions(response as MediaAssetRecord[]);
+  return response;
+};
+
 const hasSearchSlot = computed(() => Boolean(slots.search));
 const acceptAttribute = computed(() => buildImageAcceptAttribute(props.accept));
 const acceptText = computed(() => formatImageAcceptText(props.accept));
-const maxSizeText = computed(() => (props.maxSize ? formatFileSize(props.maxSize) : ''));
+const effectiveMaxSize = computed(() => props.maxSize ?? (
+  props.uploadKind === 'avatar' ? DEFAULT_AVATAR_IMAGE_MAX_SIZE : undefined
+));
+const effectiveMaxWidth = computed(() => props.maxWidth ?? (
+  props.uploadKind === 'avatar' ? DEFAULT_AVATAR_IMAGE_MAX_WIDTH : undefined
+));
+const effectiveMaxHeight = computed(() => props.maxHeight ?? (
+  props.uploadKind === 'avatar' ? DEFAULT_AVATAR_IMAGE_MAX_HEIGHT : undefined
+));
+const maxSizeText = computed(() => (effectiveMaxSize.value ? formatFileSize(effectiveMaxSize.value) : ''));
+const hasDimensionLimit = computed(() => Boolean(effectiveMaxWidth.value || effectiveMaxHeight.value));
+const maxDimensionsText = computed(() => formatImageDimensionLimit({
+  maxWidth: effectiveMaxWidth.value,
+  maxHeight: effectiveMaxHeight.value,
+}));
+const useAvatarOptionLayout = computed(() => props.uploadKind === 'avatar');
 const canUploadInteract = computed(() => props.dragUpload || props.clickUpload);
 const resolvedRequestParams = computed<MediaAssetListQuery>(() => ({
   ...(props.requestParams ?? {}),
+  ...(effectiveMaxSize.value ? { maxSize: effectiveMaxSize.value } : {}),
 }));
 const uploadHintText = computed(() => {
   if (uploading.value) {
@@ -310,13 +363,144 @@ const asImageRow = (row: RelationSelectRow) => row as unknown as MediaAssetRecor
 
 const resolveSelectedImage = (rows: RelationSelectRow[]) => {
   const row = rows[0];
-  return row ? asImageRow(row) : null;
+  const image = row ? asImageRow(row) : null;
+
+  if (image) {
+    primeImageDimensions([image]);
+  }
+
+  return image;
 };
 
 const normalizeTag = (value: string | null | undefined) => {
   const normalized = value?.trim() ?? '';
   return normalized || null;
 };
+
+const isImageTooLarge = (record: Pick<MediaAssetRecord, 'size'> | null | undefined) =>
+  Boolean(record && effectiveMaxSize.value && record.size > effectiveMaxSize.value);
+
+const resolveLoadedImageDimensions = (
+  record: Pick<MediaAssetRecord, 'id'> | null | undefined,
+): ImageDimensions | null => {
+  if (!record) {
+    return null;
+  }
+
+  const state = imageDimensionStates[record.id];
+  if (
+    state?.status !== 'ready'
+    || typeof state.width !== 'number'
+    || typeof state.height !== 'number'
+  ) {
+    return null;
+  }
+
+  return {
+    width: state.width,
+    height: state.height,
+  };
+};
+
+const ensureImageDimensions = (record: MediaAssetRecord | null | undefined) => {
+  if (!record || !hasDimensionLimit.value) {
+    return;
+  }
+
+  const url = record.url?.trim() ?? '';
+  if (!url) {
+    imageDimensionStates[record.id] = {
+      status: 'error',
+      url: null,
+    };
+    return;
+  }
+
+  const current = imageDimensionStates[record.id];
+  if (current?.url === url && (current.status === 'loading' || current.status === 'ready' || current.status === 'error')) {
+    return;
+  }
+
+  if (pendingImageDimensionTasks.has(record.id)) {
+    return;
+  }
+
+  imageDimensionStates[record.id] = {
+    status: 'loading',
+    url,
+  };
+
+  const task = readImageDimensions(url)
+    .then((dimensions) => {
+      imageDimensionStates[record.id] = {
+        status: 'ready',
+        url,
+        ...dimensions,
+      };
+    })
+    .catch(() => {
+      imageDimensionStates[record.id] = {
+        status: 'error',
+        url,
+      };
+    })
+    .finally(() => {
+      pendingImageDimensionTasks.delete(record.id);
+    });
+
+  pendingImageDimensionTasks.set(record.id, task);
+};
+
+function primeImageDimensions(records: MediaAssetRecord[]) {
+  if (!hasDimensionLimit.value) {
+    return;
+  }
+
+  records.forEach((record) => {
+    ensureImageDimensions(record);
+  });
+}
+
+const getImageConstraintState = (record: MediaAssetRecord | null | undefined) => {
+  if (!record) {
+    return 'valid' as const;
+  }
+
+  if (isImageTooLarge(record)) {
+    return 'size' as const;
+  }
+
+  if (!hasDimensionLimit.value) {
+    return 'valid' as const;
+  }
+
+  ensureImageDimensions(record);
+  const state = imageDimensionStates[record.id];
+
+  if (!state || state.status === 'loading') {
+    return 'loading' as const;
+  }
+
+  if (state.status === 'error') {
+    return 'error' as const;
+  }
+
+  return exceedsImageDimensionLimit(
+    {
+      width: state.width ?? 0,
+      height: state.height ?? 0,
+    },
+    {
+      maxWidth: effectiveMaxWidth.value,
+      maxHeight: effectiveMaxHeight.value,
+    },
+  )
+    ? 'dimensions' as const
+    : 'valid' as const;
+};
+
+const resolveImageSummaryText = (record: MediaAssetRecord) =>
+  resolveImageSummary(record, resolveLoadedImageDimensions(record));
 
 const resolveTriggerTitle = (selectedImage: MediaAssetRecord | null, selectedCount: number) => {
   if (selectedImage) {
@@ -335,7 +519,25 @@ const resolveTriggerDescription = (
   selectedCount: number,
 ) => {
   if (selectedImage) {
-    return resolveImageSummary(selectedImage);
+    const constraintState = getImageConstraintState(selectedImage);
+
+    if (constraintState === 'size') {
+      return `当前图片超出上限 ${maxSizeText.value}，请重新选择`;
+    }
+
+    if (constraintState === 'loading') {
+      return '正在校验当前图片尺寸';
+    }
+
+    if (constraintState === 'error') {
+      return '当前图片无法校验尺寸，请重新选择';
+    }
+
+    if (constraintState === 'dimensions') {
+      return `当前图片尺寸超过 ${maxDimensionsText.value}，请重新选择`;
+    }
+
+    return resolveImageSummaryText(selectedImage);
   }
 
   if (selectedCount > 0) {
@@ -345,23 +547,49 @@ const resolveTriggerDescription = (
   return props.uploadEnabled ? '可从图库中选择，或直接上传后回填' : '点击打开后选择图片';
 };
 
+const isImageRowDisabled = (row: RelationSelectRow) => getImageConstraintState(asImageRow(row)) !== 'valid';
+
+const resolveOptionIndicatorText = (
+  row: MediaAssetRecord,
+  selected: boolean,
+) => {
+  const constraintState = getImageConstraintState(row);
+
+  if (constraintState === 'size') {
+    return `超过 ${maxSizeText.value}`;
+  }
+
+  if (constraintState === 'dimensions') {
+    return `超过 ${maxDimensionsText.value}`;
+  }
+
+  if (constraintState === 'loading') {
+    return '校验中';
+  }
+
+  if (constraintState === 'error') {
+    return '无法校验';
+  }
+
+  if (selected) {
+    return '已选中';
+  }
+
+  return '使用图片';
+};
+
 const resetFileInput = () => {
   if (fileInputRef.value) {
     fileInputRef.value.value = '';
   }
 };
 
-const validateFile = (file: File) => {
-  if (!matchImageAccept(file, props.accept)) {
-    return `图片格式不支持，仅支持 ${acceptText.value}`;
-  }
-
-  if (props.maxSize && file.size > props.maxSize) {
-    return `图片大小不能超过 ${formatFileSize(props.maxSize)}`;
-  }
-
-  return undefined;
-};
+const validateFile = (file: File) => validateImageFile(file, {
+  accept: props.accept,
+  maxSize: effectiveMaxSize.value,
+  maxWidth: effectiveMaxWidth.value,
+  maxHeight: effectiveMaxHeight.value,
+});
 
 const handleModelValueChange = (value: string | string[] | null) => {
   emit('update:modelValue', typeof value === 'string' ? value : null);
@@ -376,7 +604,7 @@ const openFileDialog = () => {
 };
 
 const uploadFile = async (file: File) => {
-  const validationMessage = validateFile(file);
+  const validationMessage = await validateFile(file);
   if (validationMessage) {
     ElMessage.warning(validationMessage);
     resetFileInput();
@@ -783,6 +1011,16 @@ const handleDrop = (event: DragEvent) => {
   background: var(--surface-accent-soft);
 }
 
+.image-select__option--disabled {
+  filter: saturate(0.72);
+}
+
+.image-select__option--avatar {
+  grid-template-columns: 88px minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
 .image-select__option-preview {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -796,6 +1034,13 @@ const handleDrop = (event: DragEvent) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+
+.image-select__option--avatar .image-select__option-preview {
+  width: 88px;
+  aspect-ratio: 1;
+  justify-self: start;
+  border-radius: 18px;
 }
 
 .image-select__option-placeholder {
@@ -849,6 +1094,14 @@ const handleDrop = (event: DragEvent) => {
 
   .image-select__upload-actions {
     justify-items: start;
+  }
+
+  .image-select__option--avatar {
+    grid-template-columns: 72px minmax(0, 1fr);
+  }
+
+  .image-select__option--avatar .image-select__option-preview {
+    width: 72px;
   }
 }
 

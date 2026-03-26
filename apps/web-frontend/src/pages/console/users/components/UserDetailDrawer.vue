@@ -8,9 +8,13 @@
     <div v-if="user" class="detail-stack">
       <section class="detail-section">
         <div class="detail-section__header">
-          <div>
-            <p class="panel-caption">Profile</p>
-            <h3 class="panel-heading panel-heading--md">{{ user.nickname }}</h3>
+          <div class="detail-user">
+            <UserAvatar :avatar-url="user.avatarUrl" :name="user.nickname" size="lg" />
+            <div class="detail-user__meta">
+              <p class="panel-caption">Profile</p>
+              <h3 class="panel-heading panel-heading--md">{{ user.nickname }}</h3>
+              <p class="muted">{{ user.email || user.username }}</p>
+            </div>
           </div>
           <el-tag :type="user.status === 'ACTIVE' ? 'success' : 'info'" round>
             {{ user.status === 'ACTIVE' ? '启用' : '禁用' }}
@@ -55,6 +59,7 @@
 
 <script setup lang="ts">
 import type { UserRecord } from '@rbac/api-common';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 
 defineProps<{
   visible: boolean;
@@ -67,3 +72,18 @@ const emit = defineEmits<{
 
 const formatTime = (value: string) => new Date(value).toLocaleString();
 </script>
+
+<style scoped lang="scss">
+.detail-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.detail-user__meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+</style>

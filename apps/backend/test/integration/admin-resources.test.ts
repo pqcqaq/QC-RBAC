@@ -212,8 +212,20 @@ describe('Admin resource integration', () => {
       .expect(403);
 
     const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+    await request(app)
+      .get('/api/roles')
+      .query({ page: 1, pageSize: 1 })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+    await request(app)
+      .get('/api/users')
+      .query({ page: 1, pageSize: 1 })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
     const auditResponse = await request(app)
       .get('/api/audit-logs')
+      .query({ page: 1, pageSize: 20 })
       .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
       .expect(200);
 
@@ -221,6 +233,12 @@ describe('Admin resource integration', () => {
     assert.equal(typeof auditResponse.body.data.items[0].method, 'string');
     assert.equal(typeof auditResponse.body.data.items[0].path, 'string');
     assert.ok(Array.isArray(auditResponse.body.data.items[0].operations));
+    assert.match(auditResponse.body.data.items[0].path, /\/api\/users/);
+    assert.match(auditResponse.body.data.items[1].path, /\/api\/roles/);
+    assert.ok(
+      new Date(auditResponse.body.data.items[0].startedAt).getTime() >=
+        new Date(auditResponse.body.data.items[1].startedAt).getTime(),
+    );
 
     const permissionList = await request(app)
       .get('/api/permissions')
@@ -397,6 +415,28 @@ describe('Admin resource integration', () => {
 
     assert.equal(updatedUserWithAvatar.body.data.avatarFileId, uploadedAvatar.fileId);
     assert.match(updatedUserWithAvatar.body.data.avatarUrl, /avatars\//);
+
+    const listedUsersAfterAvatarUpdate = await request(app)
+      .get('/api/users')
+      .query({ page: 1, pageSize: 20, q: 'cataloger' })
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    const listedUser = listedUsersAfterAvatarUpdate.body.data.items.find(
+      (item: { id: string }) => item.id === createdUser.body.data.id,
+    );
+
+    assert.ok(listedUser);
+    assert.equal(listedUser.avatarFileId, uploadedAvatar.fileId);
+    assert.match(listedUser.avatarUrl, /avatars\//);
+
+    const permissionSourceAfterAvatarUpdate = await request(app)
+      .get(`/api/users/${createdUser.body.data.id}/permission-sources`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .expect(200);
+
+    assert.equal(permissionSourceAfterAvatarUpdate.body.data.user.avatarFileId, uploadedAvatar.fileId);
+    assert.match(permissionSourceAfterAvatarUpdate.body.data.user.avatarUrl, /avatars\//);
 
     const currentAdminAfterAvatarUpdate = await withClientAuth(
       request(app)

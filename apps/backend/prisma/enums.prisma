@@ -1,0 +1,98 @@
+enum UserStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum AuthIdentifierType {
+  USERNAME
+  EMAIL
+  PHONE
+}
+
+enum AuthCredentialType {
+  PASSWORD
+  VERIFICATION_CODE
+}
+
+enum AuthVerificationPurpose {
+  LOGIN
+  REGISTER
+}
+
+enum AuthClientType {
+  WEB
+  UNI_WECHAT_MINIAPP
+  APP
+}
+
+enum OAuthProviderProtocol {
+  OIDC
+  OAUTH2
+}
+
+enum OAuthProviderClientAuthMethod {
+  CLIENT_SECRET_BASIC
+  CLIENT_SECRET_POST
+}
+
+enum OAuthApplicationClientType {
+  PUBLIC
+  CONFIDENTIAL
+}
+
+enum OAuthStateKind {
+  EXTERNAL_LOGIN
+  AUTHORIZE_SESSION
+  LOGIN_TICKET
+}
+
+enum OAuthTokenKind {
+  AUTHORIZATION_CODE
+  ACCESS_TOKEN
+  REFRESH_TOKEN
+  EXTERNAL_ACCESS_TOKEN
+  EXTERNAL_REFRESH_TOKEN
+}
+
+enum OAuthCodeChallengeMethod {
+  S256
+  PLAIN
+}
+
+enum MediaAssetStorageProvider {
+  LOCAL
+  S3
+}
+
+enum MediaAssetUploadStatus {
+  PENDING
+  COMPLETED
+  FAILED
+}
+
+enum MediaAssetUploadStrategy {
+  SINGLE
+  CHUNKED
+}
+
+enum RequestAuthMode {
+  LOCAL
+  OAUTH
+  ANONYMOUS
+}
+
+enum OperationAccessKind {
+  MANAGED
+  RAW
+}
+
+enum OperationEffectKind {
+  READ
+  WRITE
+}
+
+enum MenuNodeType {
+  DIRECTORY
+  PAGE
+  ACTION
+}

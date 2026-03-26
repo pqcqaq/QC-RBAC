@@ -8,9 +8,13 @@
     <div v-if="source" class="detail-stack">
       <section class="detail-section">
         <div class="detail-section__header">
-          <div>
-            <p class="panel-caption">Effective Permissions</p>
-            <h3 class="panel-heading panel-heading--md">{{ source.user.nickname }}</h3>
+          <div class="detail-user">
+            <UserAvatar :avatar-url="source.user.avatarUrl" :name="source.user.nickname" size="lg" />
+            <div class="detail-user__meta">
+              <p class="panel-caption">Effective Permissions</p>
+              <h3 class="panel-heading panel-heading--md">{{ source.user.nickname }}</h3>
+              <p class="muted">{{ source.user.email || source.user.username }}</p>
+            </div>
           </div>
           <el-tag round>{{ source.effectivePermissions.length }} 项权限</el-tag>
         </div>
@@ -42,6 +46,7 @@
 
 <script setup lang="ts">
 import type { UserPermissionSource } from '@rbac/api-common';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 
 defineProps<{
   visible: boolean;
@@ -52,3 +57,18 @@ const emit = defineEmits<{
   'update:visible': [value: boolean];
 }>();
 </script>
+
+<style scoped lang="scss">
+.detail-user {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.detail-user__meta {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+</style>

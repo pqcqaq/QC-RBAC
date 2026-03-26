@@ -38,9 +38,12 @@
       <SurfacePanel caption="用户" title="新加入用户">
         <div v-if="summary.latestUsers.length">
           <div v-for="user in summary.latestUsers" :key="user.id" class="audit-row">
-            <div>
-              <strong>{{ user.nickname }}</strong>
-              <span class="muted">{{ user.email || '未设置邮箱' }}</span>
+            <div class="table-user">
+              <UserAvatar :avatar-url="user.avatarUrl" :name="user.nickname" size="sm" />
+              <div class="table-user__meta">
+                <strong>{{ user.nickname }}</strong>
+                <span>{{ user.email || '未设置邮箱' }}</span>
+              </div>
             </div>
             <div class="role-pill-row">
               <span v-for="role in user.roles" :key="role.id" class="role-pill">{{ role.name }}</span>
@@ -70,6 +73,7 @@
 import { computed, onMounted, reactive, ref } from 'vue';
 import type { DashboardSummary } from '@rbac/api-common';
 import MetricCard from '@/components/MetricCard.vue';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 import PageScaffold from '@/components/workbench/PageScaffold.vue';
 import SurfacePanel from '@/components/workbench/SurfacePanel.vue';
 import { api } from '@/api/client';

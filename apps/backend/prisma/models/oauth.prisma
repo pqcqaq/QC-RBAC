@@ -1,0 +1,187 @@
+model OAuthProvider {
+  id                    String                        @id
+  createId              String?
+  updateId              String?
+  code                  String                        @unique
+  name                  String
+  description           String?
+  logoUrl               String?
+  protocol              OAuthProviderProtocol         @default(OIDC)
+  issuer                String?
+  discoveryUrl          String?
+  authorizationEndpoint String
+  tokenEndpoint         String
+  userinfoEndpoint      String?
+  jwksUri               String?
+  clientId              String
+  clientSecretEncrypted String?
+  defaultScopes         String[]
+  enabled               Boolean                       @default(true)
+  allowLogin            Boolean                       @default(true)
+  autoRegister          Boolean                       @default(true)
+  autoLinkByEmail       Boolean                       @default(true)
+  usePkce               Boolean                       @default(true)
+  clientAuthMethod      OAuthProviderClientAuthMethod @default(CLIENT_SECRET_BASIC)
+  claimMapping          Json
+  createdAt             DateTime                      @default(now())
+  updatedAt             DateTime                      @updatedAt
+  deleteAt              DateTime?
+  users                 OAuthUser[]
+  states                OAuthState[]
+  tokens                OAuthToken[]
+
+  @@index([enabled, allowLogin])
+  @@index([deleteAt])
+}
+
+model OAuthApplication {
+  id                     String                     @id
+  createId               String?
+  updateId               String?
+  code                   String                     @unique
+  name                   String
+  description            String?
+  logoUrl                String?
+  homepageUrl            String?
+  clientId               String                     @unique
+  clientType             OAuthApplicationClientType
+  clientSecretHash       String?
+  salt                   String?
+  redirectUris           String[]
+  postLogoutRedirectUris String[]
+  defaultScopes          String[]
+  enabled                Boolean                    @default(true)
+  skipConsent            Boolean                    @default(false)
+  requirePkce            Boolean                    @default(true)
+  allowAuthorizationCode Boolean                    @default(true)
+  allowRefreshToken      Boolean                    @default(true)
+  createdAt              DateTime                   @default(now())
+  updatedAt              DateTime                   @updatedAt
+  deleteAt               DateTime?
+  permissions            OAuthApplicationPermission[]
+  states                 OAuthState[]
+  tokens                 OAuthToken[]
+
+  @@index([enabled])
+  @@index([deleteAt])
+}
+
+model OAuthApplicationPermission {
+  id            String           @id
+  createId      String?
+  updateId      String?
+  applicationId String
+  permissionId  String
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
+  deleteAt      DateTime?
+  application   OAuthApplication @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  permission    Permission       @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([applicationId, permissionId])
+  @@index([applicationId, deleteAt])
+  @@index([permissionId, deleteAt])
+  @@index([deleteAt])
+}
+
+model OAuthState {
+  id            String            @id
+  createId      String?
+  updateId      String?
+  kind          OAuthStateKind
+  state         String            @unique
+  providerId    String?
+  applicationId String?
+  userId        String?
+  authClientId  String?
+  redirectUri   String?
+  nonce         String?
+  codeVerifier  String?
+  payload       Json?
+  expiresAt     DateTime
+  consumedAt    DateTime?
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  deleteAt      DateTime?
+  provider      OAuthProvider?    @relation(fields: [providerId], references: [id], onDelete: SetNull)
+  application   OAuthApplication? @relation(fields: [applicationId], references: [id], onDelete: SetNull)
+  user          User?             @relation(fields: [userId], references: [id], onDelete: SetNull)
+  authClient    AuthClient?       @relation(fields: [authClientId], references: [id], onDelete: SetNull)
+
+  @@index([kind, expiresAt])
+  @@index([providerId])
+  @@index([applicationId])
+  @@index([userId])
+  @@index([authClientId])
+  @@index([deleteAt])
+}
+
+model OAuthUser {
+  id              String        @id
+  createId        String?
+  updateId        String?
+  userId          String
+  providerId      String
+  providerSubject String
+  email           String?
+  username        String?
+  nickname        String?
+  avatarUrl       String?
+  rawProfile      Json?
+  linkedAt        DateTime      @default(now())
+  lastLoginAt     DateTime?
+  lastSyncedAt    DateTime?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+  deleteAt        DateTime?
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  provider        OAuthProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  tokens          OAuthToken[]
+
+  @@unique([providerId, providerSubject])
+  @@unique([userId, providerId])
+  @@index([userId])
+  @@index([providerId])
+  @@index([deleteAt])
+}
+
+model OAuthToken {
+  id                  String                    @id
+  createId            String?
+  updateId            String?
+  kind                OAuthTokenKind
+  tokenId             String                    @unique
+  tokenHash           String?                   @unique
+  encryptedValue      String?
+  applicationId       String?
+  providerId          String?
+  oauthUserId         String?
+  userId              String?
+  sessionId           String?
+  redirectUri         String?
+  scope               String[]
+  audience            String[]
+  codeChallenge       String?
+  codeChallengeMethod OAuthCodeChallengeMethod?
+  nonce               String?
+  expiresAt           DateTime
+  refreshAt           DateTime?
+  consumedAt          DateTime?
+  revokedAt           DateTime?
+  createdAt           DateTime                  @default(now())
+  updatedAt           DateTime                  @updatedAt
+  deleteAt            DateTime?
+  application         OAuthApplication?         @relation(fields: [applicationId], references: [id], onDelete: Cascade)
+  provider            OAuthProvider?            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  oauthUser           OAuthUser?                @relation(fields: [oauthUserId], references: [id], onDelete: Cascade)
+  user                User?                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([kind, expiresAt])
+  @@index([applicationId, kind])
+  @@index([providerId, kind])
+  @@index([oauthUserId, kind])
+  @@index([userId, kind])
+  @@index([sessionId])
+  @@index([refreshAt])
+  @@index([deleteAt])
+}

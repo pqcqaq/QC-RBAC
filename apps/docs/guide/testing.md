@@ -186,7 +186,12 @@ pnpm --filter @rbac/backend test -- oauth.test.ts
 - `tag1`、`tag2` 筛选
 - 导出结果正确性
 - 图片选择器 options / resolve
+- 图片选择器 `maxSize` 过滤
 - 被用户头像引用时的删除保护
+
+说明：
+
+- 头像图片的 `maxWidth / maxHeight` 限制目前实现在 Web 前端组件，不属于这个后端集成测试文件的覆盖范围。
 
 ### `integration/auth.test.ts`
 

@@ -17,7 +17,15 @@
           :key="user.id"
           :label="resolveUserLabel(user)"
           :value="user.id"
-        />
+        >
+          <div class="explorer-user-option">
+            <UserAvatar :avatar-url="user.avatarUrl" :name="user.nickname" size="sm" />
+            <div class="explorer-user-option__meta">
+              <strong>{{ user.nickname }}</strong>
+              <span>{{ user.email || '未设置邮箱' }}</span>
+            </div>
+          </div>
+        </el-option>
 
         <template #footer>
           <div class="explorer-select-footer">
@@ -43,6 +51,7 @@
 <script setup lang="ts">
 import { computed } from 'vue';
 import type { UserRecord } from '@rbac/api-common';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 
 const props = defineProps<{
   selectedUserId: string;
@@ -75,6 +84,28 @@ const resolveUserLabel = (user: UserRecord) => `${user.nickname} (${user.email |
 </script>
 
 <style scoped lang="scss">
+.explorer-user-option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.explorer-user-option__meta {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.explorer-user-option__meta strong {
+  font-size: 13px;
+}
+
+.explorer-user-option__meta span {
+  color: var(--ink-3);
+  font-size: 12px;
+}
+
 .explorer-select-footer {
   display: flex;
   align-items: center;

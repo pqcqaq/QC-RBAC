@@ -177,12 +177,14 @@ describe('Attachment integration', () => {
   it('supports image option search and resolve for image selectors', async () => {
     const { app } = context;
     const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+    const smallImageContent = 'small-image';
+    const largeAvatarContent = 'large-avatar-image-content';
 
     const imageUpload = await uploadManagedFileForTest(app, {
       accessToken: adminSession.tokens.accessToken,
       fileName: 'brand-cover.png',
       contentType: 'image/png',
-      content: 'png-image-content',
+      content: smallImageContent,
       kind: 'attachment',
       tag1: 'brand',
       tag2: 'cover',
@@ -192,7 +194,7 @@ describe('Attachment integration', () => {
       accessToken: adminSession.tokens.accessToken,
       fileName: 'brand-avatar.png',
       contentType: 'image/png',
-      content: 'avatar-image-content',
+      content: largeAvatarContent,
       kind: 'avatar',
       tag1: 'brand',
       tag2: 'avatar',
@@ -225,6 +227,25 @@ describe('Attachment integration', () => {
     );
     assert.ok(
       imageOptions.body.data.items.every((item: { mimeType: string }) => item.mimeType === 'image/png'),
+    );
+
+    const maxSizeFilteredOptions = await request(app)
+      .post('/api/attachments/options/images')
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`)
+      .send({
+        page: 1,
+        pageSize: 10,
+        q: 'brand',
+        maxSize: Buffer.byteLength(smallImageContent),
+      })
+      .expect(200);
+
+    assert.equal(maxSizeFilteredOptions.body.data.meta.total, 1);
+    assert.equal(maxSizeFilteredOptions.body.data.items[0].id, imageUpload.fileId);
+    assert.ok(
+      maxSizeFilteredOptions.body.data.items.every(
+        (item: { size: number }) => item.size <= Buffer.byteLength(smallImageContent),
+      ),
     );
 
     const resolved = await request(app)

@@ -82,6 +82,7 @@ export interface MediaAssetListQuery extends QueryParams {
   mimePrefix?: string;
   tag1?: string;
   tag2?: string;
+  maxSize?: number;
 }
 
 export type PaginatedMediaAssets = PaginatedResult<MediaAssetRecord>;

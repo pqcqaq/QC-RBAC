@@ -45,6 +45,8 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
   :request-params="{ tag1: 'article-cover' }"
   :search-defaults="{ q: '', tag2: '' }"
   :max-size="2 * 1024 * 1024"
+  :max-width="1920"
+  :max-height="1080"
   accept="image/png,image/jpeg,image/webp"
   upload-tag1="article-cover"
 >
@@ -86,6 +88,8 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
   dialog-title="选择头像"
   trigger-text="选择头像"
   upload-kind="avatar"
+  :max-width="1024"
+  :max-height="1024"
 >
   <template #search="{ params, search, reset }">
     <div class="relation-search-bar">
@@ -101,6 +105,8 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
   </template>
 </ImageSelectFormItem>
 ```
+
+头像场景如果不显式传 `maxSize / maxWidth / maxHeight`，组件会默认按 `5MB` 和 `1024 × 1024px` 处理，这样上传新头像和从图库里选头像都会遵守同一套约束。
 
 ## Props
 
@@ -118,7 +124,9 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 | `disabled` | `boolean` | `false` | 是否禁用 |
 | `allowClear` | `boolean` | `true` | 是否允许清空当前图片 |
 | `accept` | `string \| string[]` | `'image/*'` | 上传允许的图片格式 |
-| `maxSize` | `number` | `undefined` | 上传大小上限，单位 Byte |
+| `maxSize` | `number` | `undefined` | 图片大小上限，单位 Byte。会同时限制上传和图库可选项；当 `uploadKind = 'avatar'` 且未传该值时，默认使用 `5MB` |
+| `maxWidth` | `number` | `undefined` | 图片最大宽度，单位 px。会限制上传，并在图库里异步校验图片宽度；当 `uploadKind = 'avatar'` 且未传该值时，默认使用 `1024` |
+| `maxHeight` | `number` | `undefined` | 图片最大高度，单位 px。会限制上传，并在图库里异步校验图片高度；当 `uploadKind = 'avatar'` 且未传该值时，默认使用 `1024` |
 | `uploadEnabled` | `boolean` | `true` | 是否显示上传区 |
 | `dragUpload` | `boolean` | `true` | 是否允许拖拽上传 |
 | `clickUpload` | `boolean` | `true` | 是否允许点击选择文件 |
@@ -181,8 +189,12 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 1. 当前组件面向“单图片外键”，不是多图管理器。
 2. 图片列表接口已经固定过滤为“上传完成且 MIME 以 `image/` 开头”的记录，不会混进 PDF、Word 之类的普通附件。
 3. 编辑态如果已有图片 id，组件会自动调用 `/resolve` 获取回显，不需要用户先打开弹窗。
-4. 上传成功后会直接回填新的图片 id；如果 `closeOnUpload = false`，组件还会刷新当前列表。
-5. 如果业务要限制图片来源，优先通过 `requestParams.tag1 / tag2 / kind` 做业务过滤。
+4. 如果设置了 `maxSize`，上传区会先拦截超限文件，图库查询也会自动过滤超限图片。
+5. 如果设置了 `maxWidth / maxHeight`，上传区会先读取本地图片尺寸；图库项会按图片 URL 异步探测尺寸，超限或无法校验的图片会直接禁用。
+6. 如果 `uploadKind = 'avatar'` 且没有显式传 `maxSize / maxWidth / maxHeight`，组件会自动使用 `5MB` 和 `1024 × 1024px` 默认上限。
+7. `uploadKind = 'avatar'` 的图库列表会自动切到更紧凑的方形预览卡片，避免头像选择弹窗里的缩略图过大。
+8. 上传成功后会直接回填新的图片 id；如果 `closeOnUpload = false`，组件还会刷新当前列表。
+9. 如果业务要限制图片来源，优先通过 `requestParams.tag1 / tag2 / kind` 做业务过滤。
 
 ## 后端搜索参数
 
@@ -195,6 +207,7 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 | `q` | 搜索文件名、MIME、对象路径、标签、上传人 |
 | `tag1` | 精确匹配标签 1 |
 | `tag2` | 精确匹配标签 2 |
+| `maxSize` | 只返回不超过该字节数的图片 |
 
 这个 endpoint 已经固定了：
 
@@ -202,3 +215,9 @@ description: Web 表单里的图片外键选择组件，支持从图片库选择
 - `mimePrefix = image/`
 
 也就是说，它只返回已经上传完成、可直接预览的图片记录；如果业务还要限定 `attachment / avatar`，应当在 `requestParams.kind` 里继续收窄。
+
+当前接口还不会返回图片宽高元数据，因此 `maxWidth / maxHeight` 是前端组件侧能力：
+
+- 上传新图时本地读取文件尺寸并立即拦截
+- 打开图库时按当前页图片 URL 异步探测尺寸
+- 超限或无法校验尺寸的图片会被禁用，不能选为头像或封面图

@@ -416,9 +416,14 @@ Web 控制台现在新增了：
 - 编辑态回显走 `/api/attachments/options/images/resolve`
 - 上传复用现有分步上传链路：`/api/files/presign -> 上传分片/单文件 -> /api/files/callback`
 - 可以通过 `uploadKind` 指定上传为 `attachment` 或 `avatar`
+- 如果传了 `maxSize`，组件会同时限制新上传文件和图库可选项，并把该值透传给图片 options 接口
+- 如果传了 `maxWidth / maxHeight`，组件会在前端读取本地文件尺寸，并对图库当前页图片做异步尺寸探测；超限或无法校验的图片会直接禁用
+- `uploadKind = 'avatar'` 且没有显式传 `maxSize / maxWidth / maxHeight` 时，组件默认按 `5MB` 和 `1024 × 1024px` 处理
+- `uploadKind = 'avatar'` 时，图库选项卡会切换成更紧凑的方形缩略图布局，避免头像弹窗里的预览过大
 - 上传成功后直接回填新的图片 id，不需要业务页面再手动刷新表单
 - 上传区不塞进搜索栏，而是通过 `RelationSelectFormItem` 的 `#extra` 区域挂载
 - 图片选项接口会返回所有已完成图片，因此封面图、用户头像这类场景都可以共用这个组件
+- 用户管理弹窗里的头像选择和控制台右上角头像直传现在共用同一套头像尺寸校验
 
 这个组件适合替换所有“图片 id + 预览 + 从附件库里选 + 允许顺手上传”的表单字段。
 

@@ -364,14 +364,29 @@ export const uploadManagedFileForTest = async (
     })
     .expect(200);
 
-  const localUploadTarget = new URL(prepareResponse.body.data.parts[0].url);
-  await request(app)
-    .post(localUploadTarget.pathname)
-    .field('token', prepareResponse.body.data.parts[0].fields.token)
-    .attach('file', Buffer.from(input.content), input.fileName)
-    .expect(204);
+  const uploadPart = prepareResponse.body.data.parts[0] as {
+    url: string;
+    fields: Record<string, string>;
+  };
+  const formData = new FormData();
+  Object.entries(uploadPart.fields).forEach(([key, value]) => {
+    formData.append(key, value);
+  });
+  formData.append(
+    'file',
+    new Blob([Buffer.from(input.content)], {
+      type: input.contentType,
+    }),
+    input.fileName,
+  );
 
-  const uploadResponse = await request(app)
+  const uploadResponse = await fetch(uploadPart.url, {
+    method: 'POST',
+    body: formData,
+  });
+  assert.equal(uploadResponse.status, 204);
+
+  const callbackResponse = await request(app)
     .post('/api/files/callback')
     .set('Authorization', `Bearer ${input.accessToken}`)
     .send({ fileId: prepareResponse.body.data.fileId })
@@ -379,7 +394,7 @@ export const uploadManagedFileForTest = async (
 
   return {
     fileId: prepareResponse.body.data.fileId as string,
-    url: uploadResponse.body.data.url as string,
+    url: callbackResponse.body.data.url as string,
   };
 };
 

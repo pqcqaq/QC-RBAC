@@ -4,7 +4,7 @@
       <div>
         <p class="panel-caption">Audit Requests</p>
         <h3 class="panel-heading panel-heading--md">请求流</h3>
-        <p class="muted">按请求聚合展示数据库访问，先选中一条，再在右侧和详情抽屉里深挖。</p>
+        <p class="muted">按开始时间倒序展示，最新请求固定在最上方；先选中一条，再在右侧和详情抽屉里深挖。</p>
       </div>
       <div class="table-panel__meta">
         <span>显示 {{ rangeStart }} - {{ rangeEnd }}</span>

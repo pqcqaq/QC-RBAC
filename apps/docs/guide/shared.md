@@ -235,8 +235,16 @@ packages/api-common/src/api/factory.ts
 
 - 客户端按类型配置
 - 附件标签筛选与导出
+- `MediaAssetListQuery.maxSize` 这类图片选择器筛选参数
 - OAuth Provider / Application 管理
 - 关系选择组件的分页选项协议和编辑态回显协议
+
+和图片选择组件直接相关的共享边界目前是：
+
+- `src/types/files.ts` 里的 `MediaAssetListQuery`
+- `api.attachments.images()` 使用 `MediaAssetListQuery` 作为 options 查询参数
+
+这意味着前端图片选择器新增筛选参数时，应优先先收敛到 shared 类型，再接到后端 options 查询上，而不是只在页面里临时拼字段。
 
 ## 为什么这层重要
 

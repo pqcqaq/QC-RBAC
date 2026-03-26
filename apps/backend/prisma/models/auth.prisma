@@ -1,0 +1,132 @@
+model User {
+  id              String               @id
+  createId        String?
+  updateId        String?
+  username        String               @unique
+  email           String?              @unique
+  nickname        String
+  avatarFileId    String?
+  preferences     Json?
+  status          UserStatus           @default(ACTIVE)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  deleteAt        DateTime?
+  avatarFile      MediaAsset?          @relation("UserAvatar", fields: [avatarFileId], references: [id], onDelete: Restrict)
+  roles           UserRole[]
+  authentications UserAuthentication[]
+  refreshTokens   RefreshToken[]
+  uploads         MediaAsset[]
+  messages        ChatMessage[]
+  oauthStates     OAuthState[]
+  oauthUsers      OAuthUser[]
+  oauthTokens     OAuthToken[]
+
+  @@index([deleteAt])
+}
+
+model AuthClient {
+  id            String         @id
+  createId      String?
+  updateId      String?
+  code          String         @unique
+  name          String
+  type          AuthClientType
+  description   String?
+  config        Json
+  secretHash    String
+  salt          String
+  enabled       Boolean        @default(true)
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  deleteAt      DateTime?
+  refreshTokens RefreshToken[]
+  oauthStates   OAuthState[]
+
+  @@index([deleteAt])
+}
+
+model AuthStrategy {
+  id                  String                 @id
+  createId            String?
+  updateId            String?
+  code                String                 @unique
+  name                String
+  description         String?
+  identifierType      AuthIdentifierType
+  credentialType      AuthCredentialType
+  enabled             Boolean                @default(true)
+  loginEnabled        Boolean                @default(true)
+  registerEnabled     Boolean                @default(true)
+  verificationEnabled Boolean                @default(false)
+  mockEnabled         Boolean                @default(false)
+  mockValue           String?
+  sortOrder           Int                    @default(0)
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+  deleteAt            DateTime?
+  authentications     UserAuthentication[]
+  verificationCodes   VerificationCode[]
+
+  @@index([deleteAt])
+}
+
+model UserAuthentication {
+  id             String       @id
+  createId       String?
+  updateId       String?
+  userId         String
+  strategyId     String
+  identifier     String
+  credentialHash String?
+  salt           String?
+  verifiedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  deleteAt       DateTime?
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  strategy       AuthStrategy @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@unique([strategyId, identifier])
+  @@unique([userId, strategyId])
+  @@index([userId])
+  @@index([deleteAt])
+}
+
+model VerificationCode {
+  id         String                  @id
+  createId   String?
+  updateId   String?
+  strategyId String
+  identifier String
+  purpose    AuthVerificationPurpose
+  codeHash   String
+  salt       String
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime                @default(now())
+  updatedAt  DateTime                @updatedAt
+  deleteAt   DateTime?
+  strategy   AuthStrategy            @relation(fields: [strategyId], references: [id], onDelete: Cascade)
+
+  @@index([strategyId, identifier, purpose])
+  @@index([expiresAt])
+  @@index([deleteAt])
+}
+
+model RefreshToken {
+  id        String     @id
+  createId  String?
+  updateId  String?
+  token     String     @unique
+  userId    String
+  clientId  String
+  expiresAt DateTime
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  deleteAt  DateTime?
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client    AuthClient @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@index([userId, clientId])
+  @@index([deleteAt])
+}

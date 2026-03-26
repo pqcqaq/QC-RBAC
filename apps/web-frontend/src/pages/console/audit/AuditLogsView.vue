@@ -55,6 +55,7 @@ import { api } from '@/api/client';
 import { getErrorMessage } from '@/utils/errors';
 import type { AuditFilters, AuditSignalItem } from './audit-display';
 import {
+  compareRequestAuditRecency,
   formatAuditDuration,
   getActiveAuditFilterTokens,
 } from './audit-display';
@@ -197,7 +198,7 @@ const loadLogs = async () => {
       ...buildFilterParams(),
     });
 
-    logs.value = response.items;
+    logs.value = [...response.items].sort(compareRequestAuditRecency);
     total.value = response.meta.total;
     syncSelectedLog();
   } catch (error: unknown) {

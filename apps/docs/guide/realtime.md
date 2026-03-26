@@ -131,7 +131,7 @@ description: 标准 WebSocket、topic 订阅协议、前后端封装、心跳、
   只定义共享 topic helper、payload 类型和协议，不保存运行时授权数据。
 - `apps/backend/src/topics/*.ts`
   注册 topic 的 `code`、`topicPattern`、`permissionCode` 以及可选的 `authorizeSubscription / onSubscribed / onUnsubscribed / onPublished`。
-- `apps/backend/prisma/schema.prisma` 的 `RealtimeTopic`
+- `apps/backend/prisma/models/realtime.prisma` 的 `RealtimeTopic`
   把 topic pattern 和 permission 的关系持久化到数据库，便于以后做后台配置、扩展和查询。
 
 `apps/backend/src/services/realtime-topic-auth.ts` 的授权流程是：

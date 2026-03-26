@@ -281,6 +281,11 @@ const requestAuditInclude = {
   },
 } as const;
 
+const requestAuditRecencyOrderBy = [
+  { startedAt: 'desc' as const },
+  { id: 'desc' as const },
+] satisfies Prisma.RequestRecordOrderByWithRelationInput[];
+
 type RequestAuditRow = Prisma.RequestRecordGetPayload<{
   include: typeof requestAuditInclude;
 }>;
@@ -348,7 +353,7 @@ export const listRequestAuditRecords = async (input: {
     skip: input.skip,
     take: input.pageSize,
     include: requestAuditInclude,
-    orderBy: { startedAt: 'desc' },
+    orderBy: requestAuditRecencyOrderBy,
   });
 
   return {
@@ -366,7 +371,7 @@ export const listRequestAuditExportRows = async (query: RequestAuditListQuery) =
   const items = await prisma.requestRecord.findMany({
     where,
     include: requestAuditInclude,
-    orderBy: { startedAt: 'desc' },
+    orderBy: requestAuditRecencyOrderBy,
   });
 
   return items.map(toRequestAuditRecord);
@@ -380,7 +385,7 @@ export const listRecentAuditFeed = async (take = 8) => {
       },
     },
     take,
-    orderBy: { startedAt: 'desc' },
+    orderBy: requestAuditRecencyOrderBy,
     select: {
       id: true,
       actorName: true,

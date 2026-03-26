@@ -24,12 +24,7 @@
           <el-table-column label="用户" min-width="240">
             <template #default="{ row }">
               <div class="table-user">
-                <div v-if="row.avatarUrl" class="table-user__avatar table-user__avatar--image">
-                  <img :src="row.avatarUrl" :alt="row.nickname" />
-                </div>
-                <div v-else class="table-user__avatar">
-                  {{ row.nickname.slice(0, 1).toUpperCase() }}
-                </div>
+                <UserAvatar :avatar-url="row.avatarUrl" :name="row.nickname" />
                 <div class="table-user__meta">
                   <strong>{{ row.nickname }}</strong>
                   <span>{{ row.email || '未设置邮箱' }}</span>
@@ -91,6 +86,7 @@
 import { computed } from 'vue';
 import type { UserRecord } from '@rbac/api-common';
 import ContextMenuHost from '@/components/common/ContextMenuHost.vue';
+import UserAvatar from '@/components/common/UserAvatar.vue';
 import type { ContextMenuItem } from '@/components/common/context-menu';
 
 type HostContextMenuItem = ContextMenuItem<never>;

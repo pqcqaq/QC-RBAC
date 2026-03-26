@@ -16,6 +16,7 @@ export type MediaAssetSearchFilters = {
   tag1: string;
   tag2: string;
   mimePrefix: string;
+  maxSize: number | null;
 };
 
 type MediaAssetSearchOverrides = {
@@ -32,6 +33,20 @@ const normalizeUploadStatus = (value: string | undefined): MediaAssetSearchFilte
     : '';
 };
 
+const normalizeMaxSize = (value: string | number | undefined) => {
+  if (typeof value === 'number') {
+    return Number.isFinite(value) && value > 0 ? Math.floor(value) : null;
+  }
+
+  const normalized = trimText(value);
+  if (!normalized) {
+    return null;
+  }
+
+  const parsed = Number(normalized);
+  return Number.isFinite(parsed) && parsed > 0 ? Math.floor(parsed) : null;
+};
+
 const mediaAssetSearchSchema = z.object({
   q: z.string().optional().transform(trimText),
   kind: z.string().optional().transform(trimText),
@@ -39,6 +54,7 @@ const mediaAssetSearchSchema = z.object({
   tag1: z.string().optional().transform(trimText),
   tag2: z.string().optional().transform(trimText),
   mimePrefix: z.string().optional().transform(trimText),
+  maxSize: z.union([z.string(), z.number()]).optional().transform(normalizeMaxSize),
 });
 
 const resolveOptionSearchSource = (req: OptionSearchRequest) => {
@@ -57,6 +73,7 @@ const buildResolvedSearchFilters = (
     tag1: '',
     tag2: '',
     mimePrefix: '',
+    maxSize: null,
   };
 
   if (overrides?.defaults) {
@@ -104,6 +121,7 @@ export const buildMediaAssetWhere = ({
   tag1,
   tag2,
   mimePrefix,
+  maxSize,
 }: MediaAssetSearchFilters): Prisma.MediaAssetWhereInput => {
   const andFilters: Prisma.MediaAssetWhereInput[] = [];
 
@@ -150,6 +168,14 @@ export const buildMediaAssetWhere = ({
       mimeType: {
         startsWith: mimePrefix,
         mode: 'insensitive',
+      },
+    });
+  }
+
+  if (maxSize !== null) {
+    andFilters.push({
+      size: {
+        lte: BigInt(maxSize),
       },
     });
   }
