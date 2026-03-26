@@ -11,7 +11,7 @@ import { comparePassword, compareSecret, hashPassword, hashSecret } from '../uti
 import { withSnowflakeId, withSnowflakeIds } from '../utils/persistence';
 import { getRequestActorId } from '../utils/request-context';
 import { addSeconds } from '../utils/time';
-import { syncUserRoles } from './rbac-write';
+import { listDefaultRoleIds, syncUserRoles } from './rbac-write';
 
 const verificationCodeTtlSeconds = 60 * 5;
 
@@ -136,17 +136,14 @@ const resolveEmailCodeStrategy = async () => prisma.authStrategy.findUnique({
   select: { id: true },
 });
 
-const ensureMemberRoleId = async () => {
-  const memberRole = await prisma.role.findFirst({
-    where: { code: 'member' },
-    select: { id: true },
-  });
+const ensureDefaultRoleIds = async () => {
+  const defaultRoleIds = await listDefaultRoleIds();
 
-  if (!memberRole) {
+  if (!defaultRoleIds.length) {
     throw badRequest('Default role not initialized');
   }
 
-  return memberRole.id;
+  return defaultRoleIds;
 };
 
 const assertUserProfileAvailability = async (username: string, email?: string | null) => {
@@ -180,7 +177,7 @@ const createRegisteredUser = async (input: {
   credentialHash?: string | null;
   salt?: string | null;
 }) => {
-  const memberRoleId = await ensureMemberRoleId();
+  const defaultRoleIds = await ensureDefaultRoleIds();
   const emailIdentifier = assertOptionalEmail(input.email);
   const emailStrategy = emailIdentifier && input.strategy.code !== 'email-code'
     ? await resolveEmailCodeStrategy()
@@ -194,7 +191,7 @@ const createRegisteredUser = async (input: {
     }),
   });
 
-  await syncUserRoles(user.id, [memberRoleId]);
+  await syncUserRoles(user.id, defaultRoleIds);
   await prisma.userAuthentication.createMany({
     data: withSnowflakeIds([
       {

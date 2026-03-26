@@ -161,6 +161,7 @@ export const toRoleRecord = (role: RoleWithPermissionSummaryRelations): RoleReco
   name: role.name,
   description: role.description,
   isSystem: role.isSystem,
+  isDefault: role.isDefault,
   userCount: role.users.length,
   permissionCount: role.permissions.length,
   permissions: role.permissions.map(({ permission }) => toPermissionSummary(permission)),

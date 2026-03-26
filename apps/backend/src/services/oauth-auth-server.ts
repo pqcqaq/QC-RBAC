@@ -24,7 +24,7 @@ import {
   resolveOAuthApplicationByClientId,
 } from './oauth-admin';
 import { issueUserSession } from './session-service';
-import { syncUserRoles } from './rbac-write';
+import { listDefaultRoleIds, syncUserRoles } from './rbac-write';
 import { resolveAuthClientSummaryByCode, resolveWebAuthClientOrigin } from './auth-clients';
 import { parseOAuthClaimMapping } from '../utils/oauth-records';
 import { verifyAccessToken } from '../utils/token';
@@ -598,17 +598,14 @@ const createUniqueUsername = async (candidateValues: Array<string | null | undef
   return `oauth${randomBase64Url(8).toLowerCase().replace(/[^a-z0-9]/g, '').slice(0, 18)}`;
 };
 
-const ensureMemberRoleId = async () => {
-  const role = await prisma.role.findFirst({
-    where: { code: 'member' },
-    select: { id: true },
-  });
+const ensureDefaultRoleIds = async () => {
+  const roleIds = await listDefaultRoleIds();
 
-  if (!role) {
-    throw badRequest('Default member role not initialized');
+  if (!roleIds.length) {
+    throw badRequest('Default role not initialized');
   }
 
-  return role.id;
+  return roleIds;
 };
 
 const resolveOAuthIdentity = async (input: {
@@ -678,7 +675,7 @@ const resolveOAuthIdentity = async (input: {
         nickname: nicknameValue.slice(0, 24),
       }),
     });
-    await syncUserRoles(user.id, [await ensureMemberRoleId()]);
+    await syncUserRoles(user.id, await ensureDefaultRoleIds());
     userId = user.id;
   }
 

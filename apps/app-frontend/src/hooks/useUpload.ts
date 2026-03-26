@@ -65,6 +65,7 @@ const resolveSelectedFile = (result: unknown): SelectedFile | null => {
   return { tempFilePath, size }
 }
 
+// Deprecated for avatar upload: use useManagedAvatarUpload for prepare/callback split upload.
 export default function useUpload<T extends TfileType>(options: TOptions<T> = {}) {
   const {
     formData = {},

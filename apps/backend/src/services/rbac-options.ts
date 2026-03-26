@@ -165,7 +165,7 @@ export const listRoleSummaries = async ({
     where,
     skip,
     take: pageSize,
-    orderBy: { name: 'asc' },
+    orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
     select: { id: true, code: true, name: true, description: true },
   });
 

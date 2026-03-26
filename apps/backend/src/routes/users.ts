@@ -27,7 +27,7 @@ const userPayloadSchema = z.object({
   avatarFileId: z.string().trim().min(1).nullable().optional(),
   password: z.string().min(8).max(32).optional(),
   status: z.enum(['ACTIVE', 'DISABLED']),
-  roleIds: z.array(z.string()).min(1),
+  roleIds: z.array(z.string()),
 });
 
 const userWithRolesInclude = userRoleSummaryInclude;

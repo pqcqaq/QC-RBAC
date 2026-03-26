@@ -3,6 +3,7 @@ import { createRequestClient } from '../client/core';
 import type {
   AuthStrategyCollection,
   AuthSession,
+  CurrentUserProfilePayload,
   CurrentUser,
   LoginPayload,
   PaginatedPermissionSummaries,
@@ -227,6 +228,12 @@ export const createApiFactory = (options: ClientOptions) => {
       register: (payload: RegisterPayload) =>
         client.request<AuthSession>({ url: '/auth/register', method: 'POST', data: payload }),
       me: () => client.request<CurrentUser>({ url: '/auth/me' }),
+      updateProfile: (payload: CurrentUserProfilePayload) =>
+        client.request<CurrentUser>({
+          url: '/auth/profile',
+          method: 'PUT',
+          data: payload,
+        }),
       updateAvatar: (avatarFileId: string | null) =>
         client.request<CurrentUser>({
           url: '/auth/avatar',

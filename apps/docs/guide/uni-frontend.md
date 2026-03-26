@@ -1,17 +1,18 @@
 ---
 title: Uni 前端
-description: uni-app 端的认证、页面结构、自定义布局和跨端适配方式。
+description: uni-app 端的认证、页面结构、自定义布局、全局 UI 偏好与头像分步上传方案。
 ---
 
 ## 先从哪些文件读起
 
 1. `apps/app-frontend/src/api/client.ts`
 2. `apps/app-frontend/src/store/token.ts`
-3. `apps/app-frontend/src/composables/useAppLayout.ts`
-4. `apps/app-frontend/src/tabbar/config.ts`
-5. `apps/app-frontend/src/components/app-page-shell/app-page-shell.vue`
+3. `apps/app-frontend/src/store/user.ts`
+4. `apps/app-frontend/src/store/ui.ts`
+5. `apps/app-frontend/src/composables/useManagedAvatarUpload.ts`
+6. `apps/app-frontend/src/components/app-page-shell/app-page-shell.vue`
 
-这几处分别对应请求协议、登录态、Safe Area 计算、Tabbar 策略和页面壳。
+这几处分别对应请求协议、登录态、用户信息、全局 UI 偏好、头像上传流程和页面壳层。
 
 ## 目录结构
 
@@ -21,9 +22,9 @@ apps/app-frontend/src
 ├─ components
 ├─ composables
 ├─ hooks
-├─ http
 ├─ pages
 ├─ store
+├─ style
 ├─ tabbar
 ├─ types
 └─ utils
@@ -31,7 +32,7 @@ apps/app-frontend/src
 
 ## 当前页面
 
-当前移动端已经实现：
+当前移动端已实现：
 
 - `pages/auth/login.vue`
 - `pages/auth/register.vue`
@@ -40,237 +41,131 @@ apps/app-frontend/src
 - `pages/me/profile.vue`
 - `pages/settings/index.vue`
 
-`src/pages.json` 是实际路由与 tabbar 配置的事实来源。只有被注册到 `pages.json` 的页面，才会出现在运行时导航里。
-
-## 平台适配层级
-
-<MermaidDiagram
-  label="Uni frontend layers"
-  :code="[
-    'flowchart TB',
-    '  Pages[pages/*]',
-    '  Shell[AppPageShell + app components]',
-    '  Layout[useAppLayout + tabbar config]',
-    '  Store[token store / user store]',
-    '  Api[api/client.ts]',
-    '  Shared[packages/api-common]',
-    '  Backend[(Backend API)]',
-    '',
-    '  Pages --> Shell',
-    '  Pages --> Store',
-    '  Shell --> Layout',
-    '  Store --> Api',
-    '  Api --> Shared',
-    '  Shared --> Backend',
-  ].join('\n')"
-/>
+`src/pages.json` 是实际路由与 tabbar 配置的事实来源。
 
 ## 认证与请求
 
 Uni 端请求入口在 `src/api/client.ts`。
 
-这里做了几件事：
+核心行为：
 
-- 根据条件编译推断默认客户端类型
-- H5 调试固定按 `WEB` 处理，默认使用 `web-uni-h5`
-- 小程序请求头自动带 `appId`
-- App 请求头自动带 `packageName` / `platform`
-- 通过 `createUniAdaptor()` 生成统一请求客户端
-- 通过 `createUniWsAdaptor()` 生成统一 realtime 客户端
-- 401 时自动 refresh，失败后清理本地状态
-- 未配置 `VITE_WS_URL` 时，会根据 `VITE_SERVER_BASEURL` 推导 realtime 地址
-- 支持通过 `VITE_AUTH_MINIAPP_CLIENT_CODE` / `VITE_AUTH_MINIAPP_CLIENT_SECRET`、`VITE_AUTH_APP_CLIENT_CODE` / `VITE_AUTH_APP_CLIENT_SECRET` 覆盖不同平台的默认客户端凭证
-
-### 实时客户端
-
-Uni 端 realtime 预配置同样在 `src/api/client.ts`：
-
-- `wsClient`
-- `realtimeWsUrl`
-
-页面级消费入口在：
-
-```text
-apps/app-frontend/src/hooks/useWsTopic.ts
-```
-
-这层已经封装：
-
-- H5 下基于 query token 的握手
-- App / 小程序下基于 header 的握手
-- 自动订阅与自动解绑
-- 无 topic 时自动断开
-- 有 topic 时自动连接
-- 指数退避重连
-- 心跳应答
-
-完整说明和 API 清单见 [实时通信](/guide/realtime)。
-
-### 客户端类型选择规则
-
-| 运行环境 | 默认客户端类型 | 关键 config |
-| --- | --- | --- |
-| 微信小程序 | `UNI_WECHAT_MINIAPP` | `appId` |
-| App | `APP` | `packageName`、`platform` |
-| H5 / 浏览器 | `WEB` | `protocol`、`host`、`port` |
-
-H5 调试之所以固定走 `WEB`，是因为浏览器环境不应该拿小程序 client 去请求认证接口。
-
-### 启动与刷新时序
-
-<MermaidDiagram
-  label="Uni bootstrap and refresh"
-  :code="[
-    'sequenceDiagram',
-    '  participant App as Uni App',
-    '  participant Token as token store',
-    '  participant API as appApi',
-    '  participant Backend as /api/auth/*',
-    '',
-    '  App->>Token: bootstrap()',
-    '  alt has access token and not expired',
-    '    Token->>API: getUserInfo()',
-    '    API-->>Token: current user',
-    '  else access expired but refresh valid',
-    '    Token->>API: refreshToken()',
-    '    API-->>Token: new session',
-    '    Token->>API: getUserInfo()',
-    '  else no valid session',
-    '    Token-->>App: guest state',
-    '  end',
-  ].join('\n')"
-/>
+- 根据条件编译推断客户端类型（`WEB` / `APP` / `UNI_WECHAT_MINIAPP`）
+- 注入客户端凭证头（client code/secret + config）
+- 401 自动尝试 refresh，失败后清理本地会话
+- 统一通过 `createUniAdaptor()` 创建 API 客户端
+- 统一通过 `createUniWsAdaptor()` 创建 realtime 客户端
 
 登录态主要在 `src/store/token.ts`：
 
 - `bootstrap()`
-- `login()`
-- `register()`
-- `logout()`
+- `login()` / `register()` / `logout()`
 - `refreshToken()`
 - `tryGetValidToken()`
 
-## 自定义 Header、Tabbar 和安全区
+## 用户与偏好存储
 
-Uni 端没有使用第三方 UI 库，布局基础全是自定义组件。
+### user store
 
-关键文件：
+文件：`src/store/user.ts`
 
-- `src/composables/useAppLayout.ts`
-- `src/components/app-page-shell/app-page-shell.vue`
-- `src/components/app-nav-bar/app-nav-bar.vue`
+- `setUserInfo`：写入当前用户，并同步 hydrate `preferences.app` 到 `ui store`
+- `setAppPreferences`：仅更新 `preferences.app`
+- `clearUserInfo`：清空用户并重置 UI 偏好
+
+### ui store
+
+文件：`src/store/ui.ts`
+
+`UserAppPreferences` 字段如下：
+
+- `themeMode`: `light | dark | auto`
+- `themePresetId`: `graphite | ocean | forest | sunset`
+- `surfaceStyle`: `solid | soft | glass`
+- `density`: `comfortable | compact`
+- `tabbarStyle`: `floating | solid`
+- `portalLayout`: `overview | focus`
+- `motionEnabled`: `boolean`
+
+`ui store` 提供：
+
+- `hydrateFromUserPreferences(next)`
+- `patchPreferences(next)`
+- `persistPreferences()`（调用 `/auth/preferences`）
+- `rootCssVars`（注入全局 CSS Variables）
+
+## 全局样式与 Tabbar 联动
+
+### 根变量注入
+
+`src/App.ku.vue` 会合并：
+
+- `useAppLayout().rootCssVars`（安全区、导航高、tabbar 高）
+- `useUiStore().rootCssVars`（主题色、密度、surface/tabbar 外观）
+
+并注入到 `.app-root`。
+
+### 样式消费
+
+`src/style/index.scss` 消费核心变量：
+
+- 背景与文本：`--app-bg*`、`--app-text*`
+- 强调色：`--app-accent*`
+- 密度与动效：`--app-density-scale`、`--app-motion-duration`
+- tabbar：`--app-tabbar-*`
+
+### Tabbar 外观
+
+文件：
+
 - `src/tabbar/index.vue`
-- `src/utils/systemInfo.ts`
+- `src/tabbar/TabbarItem.vue`
 
-### Safe Area 计算
+`tabbarStyle` 支持：
 
-<MermaidDiagram
-  label="Safe area and tabbar calculation"
-  :code="[
-    'flowchart LR',
-    '  SYS[systemInfo + safeAreaInsets]',
-    '  TOP[statusBarHeight / safeTop]',
-    '  NAV[resolveNavigationBarHeight()]',
-    '  HEADER[headerHeight]',
-    '  BOTTOM[safeBottom]',
-    '  TAB[tabbarHeight]',
-    '  VARS[CSS variables]',
-    '',
-    '  SYS --> TOP',
-    '  SYS --> BOTTOM',
-    '  TOP --> NAV --> HEADER',
-    '  BOTTOM --> TAB',
-    '  HEADER --> VARS',
-    '  TAB --> VARS',
-  ].join('\n')"
-/>
+- `floating`：横向留白 + 圆角 + 阴影
+- `solid`：贴边 + 去除圆角和侧边框
 
-`useAppLayout()` 会输出统一 CSS 变量：
+## 头像分步上传（Uni 端）
 
-- `--app-safe-top`
-- `--app-safe-bottom`
-- `--app-nav-height`
-- `--app-header-height`
-- `--app-tabbar-height`
+文件：`src/composables/useManagedAvatarUpload.ts`
 
-这样页面组件不需要自己重复计算刘海、安全区和底部导航高度。
+流程：
 
-## 页面外壳与公共组件
+1. `chooseImage` / `chooseMedia` 选图
+2. 本地校验文件大小与图片宽高
+3. `POST /files/presign` 获取上传计划
+4. `uni.uploadFile` 上传分片（头像场景要求 `single`）
+5. `POST /files/callback` 完成上传
+6. `PUT /auth/avatar` 绑定头像
 
-页面默认包在 `AppPageShell` 中，统一处理：
+默认限制：
 
-- Header 标题
-- 返回逻辑
-- 内容区边距
-- 安全区补偿
+- 最大大小：`5MB`
+- 最大尺寸：`1400 x 1400`
 
-业务组件主要放在 `src/components/`，当前常用的有：
+> 旧 `useUpload` 仍可用于普通上传，但头像应统一使用 `useManagedAvatarUpload`，避免绕过后端受控上传流程。
 
-- `AppButton`
-- `AppInput`
-- `AppList`
-- `AppListItem`
-- `AppSection`
-- `AppStatus`
-- `AppTag`
-- `AppAvatar`
+## 页面职责
 
-这套组件存在的意义不是追求复杂视觉，而是让 App、H5、微信小程序都能走同一套样式语义和交互规则。
+- 首页 `pages/index/index.vue`
+  - 门户模式（`overview/focus`）联动
+  - 指标、动态、成员与快捷入口
 
-## 页面组织方式
+- 我的 `pages/me/me.vue`
+  - 账户状态、角色摘要、设置入口
 
-当前页面都比较轻，主要依赖公共组件和 store 拼装：
+- 个人信息 `pages/me/profile.vue`
+  - 昵称/邮箱编辑
+  - 头像分步上传与权限提示
 
-- 登录页：账号密码登录，底部提供注册入口
-- 注册页：完成基础注册
-- 门户页：展示概览、快捷入口、最近动态
-- 我的页：展示当前用户、角色、状态和登录操作
-- 设置页：展示已同步的控制台偏好
-
-请求一般通过：
-
-- `src/api/*.ts`
-- `appApi`
-- Pinia store
-
-## Tabbar
-
-自定义 Tabbar 相关文件：
-
-- `src/tabbar/config.ts`
-- `src/tabbar/store.ts`
-- `src/tabbar/index.vue`
-
-特点：
-
-- 默认使用自定义 Tabbar
-- 启动时隐藏原生 Tabbar
-- 自动处理底部安全区
-- 可按页面判断是否显示底部导航
-
-`src/tabbar/config.ts` 里的 `selectedTabbarStrategy` 负责决定当前平台是否使用自定义 Tabbar。
-
-## 条件编译约定
-
-移动端实现里几个关键点依赖条件编译：
-
-- 小程序环境识别：`MP-WEIXIN`
-- App 环境识别：`APP-PLUS`
-- H5 默认降级成 `WEB` client
-
-因此新增平台行为时，优先放在：
-
-- `src/api/client.ts`
-- `src/composables/useAppLayout.ts`
-- `src/utils/systemInfo.ts`
-
-不要把平台分支散落到每个页面里。
+- 设置 `pages/settings/index.vue`
+  - 主题、surface、密度、tabbar、门户布局、动效
+  - 保存后同步到 `preferences.app`
 
 ## 新增一个移动端页面
 
-1. 在 `src/pages` 下新增页面文件
-2. 页面用 `navigationStyle: 'custom'`，默认走自定义 Header
-3. 使用 `AppPageShell`
-4. 如果是 Tabbar 页面，补 `src/tabbar/config.ts`
-5. 请求统一走 `appApi`，不要直接散写 `uni.request`
-6. 如果涉及登录态或用户信息，优先放到 store 层
+1. 在 `src/pages` 下新增页面
+2. 用 `AppPageShell` 统一壳层
+3. 请求统一走 `appApi`
+4. 涉及用户与偏好时优先进入 `store`
+5. 注册到 `pages.json`（必要时补 tabbar）

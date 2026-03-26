@@ -29,6 +29,7 @@ export interface UserFormPayload {
 
 export interface RoleRecord extends RoleSummary {
   isSystem: boolean;
+  isDefault: boolean;
   userCount: number;
   permissionCount: number;
   permissions: PermissionSummary[];
@@ -41,6 +42,7 @@ export interface RoleFormPayload {
   name: string;
   description: string;
   isSystem?: boolean;
+  isDefault?: boolean;
   permissionIds: string[];
 }
 

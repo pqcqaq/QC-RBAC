@@ -31,6 +31,10 @@
             <strong>{{ role.permissionCount }}</strong>
           </div>
           <div class="detail-kv">
+            <span>默认继承</span>
+            <strong>{{ role.isDefault ? '是' : '否' }}</strong>
+          </div>
+          <div class="detail-kv">
             <span>更新时间</span>
             <strong>{{ formatTime(role.updatedAt) }}</strong>
           </div>

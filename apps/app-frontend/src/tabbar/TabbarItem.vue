@@ -16,6 +16,8 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
 
 <template>
   <view class="app-tabbar-item" :class="active ? 'is-active' : ''">
+    <view class="app-tabbar-item__active-bg" />
+
     <view class="app-tabbar-item__icon-wrap">
       <template v-if="item.iconType === 'unocss' || item.iconType === 'iconfont'">
         <view :class="['app-tabbar-item__icon', item.icon]" />
@@ -51,7 +53,22 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
   justify-content: center;
   min-width: 0;
   color: var(--app-text-muted);
-  transition: color 0.18s ease;
+  transition: color var(--app-motion-duration) ease;
+}
+
+.app-tabbar-item__active-bg {
+  position: absolute;
+  top: 2rpx;
+  left: 8rpx;
+  right: 8rpx;
+  bottom: 2rpx;
+  border-radius: 20rpx;
+  background: transparent;
+  transition: background-color var(--app-motion-duration) ease;
+}
+
+.app-tabbar-item.is-active .app-tabbar-item__active-bg {
+  background: var(--app-accent-soft);
 }
 
 .app-tabbar-item.is-active {
@@ -65,6 +82,7 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
   display: flex;
   align-items: center;
   justify-content: center;
+  z-index: 1;
 }
 
 .app-tabbar-item__icon {
@@ -81,7 +99,8 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
   margin-top: 8rpx;
   font-size: 20rpx;
   line-height: 1.2;
-  font-weight: 500;
+  font-weight: 550;
+  z-index: 1;
 }
 
 .app-tabbar-item__badge-wrap {
@@ -94,7 +113,7 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: #f04438;
+  background: var(--app-danger);
 }
 
 .app-tabbar-item__badge {
@@ -102,7 +121,7 @@ function getImageSource(item: CustomTabBarItem, active: boolean) {
   height: 28rpx;
   padding: 0 8rpx;
   border-radius: 999rpx;
-  background: #f04438;
+  background: var(--app-danger);
   color: #fff;
   font-size: 18rpx;
   line-height: 28rpx;

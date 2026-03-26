@@ -6,6 +6,20 @@ import { invalidateRealtimeTopicRegistryCache } from './realtime-topic-auth';
 
 const unique = (values: string[]) => [...new Set(values)];
 
+export const listDefaultRoleIds = async () => {
+  const rows = await prisma.role.findMany({
+    where: {
+      isDefault: true,
+      deleteAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  return rows.map((item) => item.id);
+};
+
 export const syncUserRoles = async (userId: string, roleIds: string[]) => {
   const actorId = getRequestActorId();
   const nextRoleIds = unique(roleIds);

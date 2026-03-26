@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import { computed } from 'vue'
+import { useUiStore } from '@/store/ui'
 import { customTabbarEnable, tabbarCacheEnable } from './config'
 import { tabbarList, tabbarStore } from './store'
 import TabbarItem from './TabbarItem.vue'
@@ -8,6 +10,9 @@ defineOptions({
   virtualHost: true,
 })
 // #endif
+
+const uiStore = useUiStore()
+const tabbarStyleClass = computed(() => `app-tabbar--${uiStore.preferences.tabbarStyle}`)
 
 function handleClick(index: number) {
   if (index === tabbarStore.curIdx) {
@@ -31,7 +36,7 @@ function handleClick(index: number) {
 </script>
 
 <template>
-  <view v-if="customTabbarEnable" class="app-tabbar">
+  <view v-if="customTabbarEnable" class="app-tabbar" :class="tabbarStyleClass">
     <view class="app-tabbar__inner" @touchmove.stop.prevent>
       <view class="app-tabbar__rail">
         <view
@@ -50,19 +55,35 @@ function handleClick(index: number) {
 <style scoped lang="scss">
 .app-tabbar {
   position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
+  bottom: var(--app-tabbar-offset-y);
+  left: var(--app-tabbar-offset-x);
+  right: var(--app-tabbar-offset-x);
   z-index: 1200;
   box-sizing: border-box;
 }
 
 .app-tabbar__inner {
   padding-bottom: var(--app-safe-bottom);
-  background: rgba(255, 255, 255, 0.94);
-  border-top: 1rpx solid rgba(207, 215, 226, 0.96);
-  box-shadow: 0 -8px 24px rgba(18, 26, 39, 0.05);
+  background: var(--app-tabbar-bg);
+  border: 1rpx solid var(--app-tabbar-border);
+  border-bottom: 0;
+  box-shadow: var(--app-tabbar-shadow);
+  border-radius: var(--app-tabbar-radius) var(--app-tabbar-radius) 0 0;
   backdrop-filter: blur(18px);
+  overflow: hidden;
+}
+
+.app-tabbar--solid {
+  left: 0;
+  right: 0;
+  bottom: 0;
+}
+
+.app-tabbar--solid .app-tabbar__inner {
+  border-left: 0;
+  border-right: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .app-tabbar__rail {
@@ -78,6 +99,6 @@ function handleClick(index: number) {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8rpx 0 6rpx;
+  padding: 10rpx 0 8rpx;
 }
 </style>

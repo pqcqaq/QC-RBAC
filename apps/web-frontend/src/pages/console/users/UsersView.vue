@@ -240,10 +240,6 @@ const {
       return '创建用户时必须填写密码';
     }
 
-    if (!currentForm.roleIds.length) {
-      return '至少为用户分配一个角色';
-    }
-
     return undefined;
   },
   afterSaved: loadUsers,

@@ -52,6 +52,14 @@
             </template>
           </el-table-column>
 
+          <el-table-column label="默认" width="120">
+            <template #default="{ row }">
+              <el-tag :type="row.isDefault ? 'success' : 'info'" effect="light" round>
+                {{ row.isDefault ? '默认继承' : '手动分配' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+
           <el-table-column label="更新时间" width="180">
             <template #default="{ row }">
               {{ formatTime(row.updatedAt) }}

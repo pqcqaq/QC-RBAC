@@ -121,6 +121,12 @@ export type WorkbenchSidebarAppearance = 'light' | 'dark';
 export type WorkbenchLayoutMode = 'sidebar' | 'tabs';
 export type WorkbenchPageTransitionMode = 'none' | 'fade' | 'slide';
 export type WorkbenchCachedTabDisplayMode = 'hidden' | 'classic' | 'browser';
+export type AppThemeMode = 'light' | 'dark' | 'auto';
+export type AppThemePresetId = 'graphite' | 'ocean' | 'forest' | 'sunset';
+export type AppSurfaceStyle = 'solid' | 'soft' | 'glass';
+export type AppDensityMode = 'comfortable' | 'compact';
+export type AppTabbarStyle = 'floating' | 'solid';
+export type AppPortalLayout = 'overview' | 'focus';
 
 export interface WorkbenchVisitedTab {
   path: string;
@@ -143,8 +149,24 @@ export interface UserWorkbenchPreferences {
   pageStateMap: Record<string, unknown>;
 }
 
+export interface UserAppPreferences {
+  themeMode: AppThemeMode;
+  themePresetId: AppThemePresetId;
+  surfaceStyle: AppSurfaceStyle;
+  density: AppDensityMode;
+  tabbarStyle: AppTabbarStyle;
+  portalLayout: AppPortalLayout;
+  motionEnabled: boolean;
+}
+
 export interface UserPreferences {
   workbench?: UserWorkbenchPreferences;
+  app?: UserAppPreferences;
+}
+
+export interface CurrentUserProfilePayload {
+  nickname: string;
+  email: string | null;
 }
 
 export interface CurrentUser {

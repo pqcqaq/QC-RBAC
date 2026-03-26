@@ -90,6 +90,9 @@
           </div>
         </template>
       </RelationSelectFormItem>
+      <p class="form-caption page-form-grid__full">
+        角色可留空。新注册用户会自动继承所有默认角色，后续也可以手动移除。
+      </p>
     </el-form>
     <template #footer>
       <el-button @click="emit('update:visible', false)">取消</el-button>
@@ -193,6 +196,13 @@ const emit = defineEmits<{
 .relation-option-card span,
 .relation-option-card p {
   margin: 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.form-caption {
+  margin: -4px 0 0;
   color: var(--ink-3);
   font-size: 12px;
   line-height: 1.5;

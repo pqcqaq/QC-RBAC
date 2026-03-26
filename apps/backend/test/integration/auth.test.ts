@@ -10,6 +10,7 @@ import {
   loginAs,
   reseedBackendTestContext,
   teardownBackendTestContext,
+  uploadManagedFileForTest,
   uniClient,
   webClient,
   webH5Client,
@@ -144,6 +145,7 @@ describe('Auth integration', () => {
       [...meResponse.body.data.permissions].sort(),
       [
         'dashboard.view',
+        'file.upload.avatar',
         'realtime.topic.chat-global.subscribe',
         'realtime.topic.user-rbac.subscribe-self',
       ].sort(),
@@ -247,6 +249,182 @@ describe('Auth integration', () => {
       .expect(200);
 
     assert.deepEqual(refreshResponse.body.data.user.preferences, preferencesPayload);
+  });
+
+  it('updates the current user profile and refreshes the returned session payload', async () => {
+    const { app } = context;
+    const memberSession = await loginAs(app, 'user', 'User123!', uniClient);
+
+    const updateResponse = await withClientAuth(
+      request(app)
+        .put('/api/auth/profile')
+        .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`),
+      uniClient,
+    )
+      .send({
+        nickname: '移动端用户',
+        email: 'mobile-user@example.com',
+      })
+      .expect(200);
+
+    assert.equal(updateResponse.body.data.nickname, '移动端用户');
+    assert.equal(updateResponse.body.data.email, 'mobile-user@example.com');
+
+    const meResponse = await withClientAuth(
+      request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`),
+      uniClient,
+    ).expect(200);
+
+    assert.equal(meResponse.body.data.nickname, '移动端用户');
+    assert.equal(meResponse.body.data.email, 'mobile-user@example.com');
+  });
+
+  it('merges app preferences with existing workbench preferences instead of overwriting them', async () => {
+    const { app } = context;
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+
+    const workbenchPayload = {
+      workbench: {
+        themePresetId: 'graphite',
+        themeMode: 'dark',
+        sidebarAppearance: 'light',
+        sidebarCollapsed: true,
+        layoutMode: 'tabs',
+        pageTransition: 'slide',
+        cachedTabDisplayMode: 'browser',
+        visitedTabs: [],
+        pageStateMap: {
+          'dashboard:list': {
+            page: 1,
+          },
+        },
+      },
+    };
+
+    await withClientAuth(
+      request(app)
+        .put('/api/auth/preferences')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`),
+    )
+      .send(workbenchPayload)
+      .expect(200);
+
+    const appPayload = {
+      app: {
+        themeMode: 'auto',
+        themePresetId: 'ocean',
+        surfaceStyle: 'glass',
+        density: 'comfortable',
+        tabbarStyle: 'floating',
+        portalLayout: 'overview',
+        motionEnabled: true,
+      },
+    };
+
+    const updateResponse = await withClientAuth(
+      request(app)
+        .put('/api/auth/preferences')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`),
+    )
+      .send(appPayload)
+      .expect(200);
+
+    assert.deepEqual(updateResponse.body.data, {
+      ...workbenchPayload,
+      ...appPayload,
+    });
+
+    const meResponse = await withClientAuth(
+      request(app)
+        .get('/api/auth/me')
+        .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`),
+    ).expect(200);
+
+    assert.deepEqual(meResponse.body.data.preferences, {
+      ...workbenchPayload,
+      ...appPayload,
+    });
+  });
+
+  it('allows members to upload avatars through managed uploads but still blocks attachment uploads', async () => {
+    const { app, prisma } = context;
+    const memberSession = await loginAs(app, 'user', 'User123!', uniClient);
+
+    const avatarUpload = await uploadManagedFileForTest(app, {
+      accessToken: memberSession.tokens.accessToken,
+      fileName: 'mobile-avatar.png',
+      contentType: 'image/png',
+      content: 'mobile-avatar-binary',
+      kind: 'avatar',
+    });
+
+    assert.match(avatarUpload.url, /avatars\//);
+
+    const avatarResponse = await withClientAuth(
+      request(app)
+        .put('/api/auth/avatar')
+        .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`),
+      uniClient,
+    )
+      .send({ avatarFileId: avatarUpload.fileId })
+      .expect(200);
+
+    assert.equal(avatarResponse.body.data.avatarFileId, avatarUpload.fileId);
+    assert.match(avatarResponse.body.data.avatarUrl, /avatars\//);
+
+    const deniedPrepare = await request(app)
+      .post('/api/files/presign')
+      .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`)
+      .send({
+        kind: 'attachment',
+        fileName: 'blocked.txt',
+        contentType: 'text/plain',
+        size: 12,
+      })
+      .expect(403);
+
+    assert.match(deniedPrepare.body.message, /file\.upload/i);
+
+    const adminSession = await loginAs(app, 'admin@example.com', 'Admin123!');
+    const strippedMember = await prisma.user.findUnique({
+      where: { username: 'user' },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nickname: true,
+        status: true,
+      },
+    });
+
+    assert.ok(strippedMember);
+
+    await withClientAuth(
+      request(app)
+      .put(`/api/users/${strippedMember.id}`)
+      .set('Authorization', `Bearer ${adminSession.tokens.accessToken}`),
+    )
+      .send({
+        username: strippedMember.username,
+        email: strippedMember.email,
+        nickname: strippedMember.nickname,
+        status: strippedMember.status,
+        roleIds: [],
+      })
+      .expect(200);
+
+    await request(app)
+      .post('/api/files/presign')
+      .set('Authorization', `Bearer ${memberSession.tokens.accessToken}`)
+      .send({
+        kind: 'avatar',
+        fileName: 'blocked-avatar.png',
+        contentType: 'image/png',
+        size: 24,
+      })
+      .expect(403);
   });
 
   it('supports strategy discovery, verification and code-based auth flows', async () => {

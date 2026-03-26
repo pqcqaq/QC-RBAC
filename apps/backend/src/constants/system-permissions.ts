@@ -41,6 +41,7 @@ export const systemPermissionCatalog: readonly SystemPermissionSeed[] = [
   { module: 'oauth-application', code: 'oauth-application.delete', name: '删除 OAuth 应用', action: 'delete' },
   { module: 'rbac', code: 'rbac.explorer', name: '查看权限来源', action: 'read' },
   { module: 'file', code: 'file.read', name: '查看附件', action: 'read' },
+  { module: 'file', code: 'file.upload.avatar', name: '上传头像', action: 'create' },
   { module: 'file', code: 'file.upload', name: '上传文件', action: 'create' },
   { module: 'file', code: 'file.update', name: '编辑附件', action: 'update' },
   { module: 'file', code: 'file.delete', name: '删除附件', action: 'delete' },

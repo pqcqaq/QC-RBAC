@@ -10,7 +10,7 @@ import AppSection from '@/components/app-section/app-section.vue'
 import AppStatus from '@/components/app-status/app-status.vue'
 import AppTag from '@/components/app-tag/app-tag.vue'
 import { LOGIN_PAGE, REGISTER_PAGE } from '@/router/config'
-import { useUserStore } from '@/store'
+import { useUiStore, useUserStore } from '@/store'
 import { useTokenStore } from '@/store/token'
 
 definePage({
@@ -21,6 +21,7 @@ definePage({
 
 const userStore = useUserStore()
 const tokenStore = useTokenStore()
+const uiStore = useUiStore()
 const { userInfo } = storeToRefs(userStore)
 
 const displayName = computed(() => {
@@ -37,6 +38,11 @@ const roleSummary = computed(() => {
 
 const statusTagType = computed(() => {
   return userInfo.value.status === 'ACTIVE' ? 'success' : 'warning'
+})
+
+const appPreferenceSummary = computed(() => {
+  const app = uiStore.preferences
+  return `${app.themePresetId} · ${app.themeMode} · ${app.portalLayout}`
 })
 
 function handleLogin() {
@@ -118,8 +124,8 @@ onShow(() => {
     <template v-if="tokenStore.hasLogin">
       <AppSection title="账户">
         <AppList>
-          <AppListItem title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
-          <AppListItem title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
+          <AppListItem title="个人信息" label="编辑昵称、邮箱和头像。" is-link clickable @click="openProfile" />
+          <AppListItem title="应用设置" label="配置主题、布局、密度和动效。" is-link clickable @click="openSettings" />
         </AppList>
       </AppSection>
 
@@ -129,6 +135,7 @@ onShow(() => {
           <AppListItem title="角色数量" :value="String(userInfo.roles.length)" />
           <AppListItem title="当前角色" :label="roleSummary" />
           <AppListItem title="权限数量" :value="String(userInfo.permissions.length)" />
+          <AppListItem title="界面配置" :label="appPreferenceSummary" />
         </AppList>
       </AppSection>
 

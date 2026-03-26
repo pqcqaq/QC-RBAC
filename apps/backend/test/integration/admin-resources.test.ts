@@ -330,6 +330,7 @@ describe('Admin resource integration', () => {
         code: 'catalog-publisher',
         name: '目录发布员',
         description: '负责目录发布',
+        isDefault: true,
         permissionIds: [createdPermission.body.data.id],
       })
       .expect(200);
@@ -340,6 +341,7 @@ describe('Admin resource integration', () => {
       .expect(200);
 
     assert.equal(roleDetail.body.data.code, 'catalog-publisher');
+    assert.equal(roleDetail.body.data.isDefault, true);
     assert.equal(roleDetail.body.data.permissions.length, 1);
 
     const updatedRole = await request(app)
@@ -349,11 +351,13 @@ describe('Admin resource integration', () => {
         code: 'catalog-publisher',
         name: '目录发布负责人',
         description: '负责目录发布与校验',
+        isDefault: false,
         permissionIds: [createdPermission.body.data.id],
       })
       .expect(200);
 
     assert.equal(updatedRole.body.data.name, '目录发布负责人');
+    assert.equal(updatedRole.body.data.isDefault, false);
 
     const createdUser = await request(app)
       .post('/api/users')

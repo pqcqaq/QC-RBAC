@@ -2,6 +2,7 @@ import type { CurrentUser } from '@rbac/api-common'
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import { getUserInfo } from '@/api/login'
+import { useUiStore } from './ui'
 
 const userInfoState: CurrentUser = {
   id: '',
@@ -23,14 +24,28 @@ export const useUserStore = defineStore(
     const userInfo = ref<CurrentUser>({ ...userInfoState })
 
     const setUserInfo = (val: CurrentUser) => {
+      const uiStore = useUiStore()
       userInfo.value = {
         ...val,
       }
+      uiStore.hydrateFromUserPreferences(val.preferences?.app)
     }
 
     const clearUserInfo = () => {
+      const uiStore = useUiStore()
       userInfo.value = { ...userInfoState }
+      uiStore.resetPreferences()
       uni.removeStorageSync('user')
+    }
+
+    const setAppPreferences = (appPreferences: CurrentUser['preferences']['app']) => {
+      userInfo.value = {
+        ...userInfo.value,
+        preferences: {
+          ...userInfo.value.preferences,
+          app: appPreferences,
+        },
+      }
     }
 
     const fetchUserInfo = async () => {
@@ -44,6 +59,7 @@ export const useUserStore = defineStore(
       clearUserInfo,
       fetchUserInfo,
       setUserInfo,
+      setAppPreferences,
     }
   },
   {

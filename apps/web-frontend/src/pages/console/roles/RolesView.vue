@@ -107,6 +107,7 @@ type RoleEditorForm = {
   code: string;
   name: string;
   description: string;
+  isDefault: boolean;
   permissionIds: string[];
 };
 
@@ -114,6 +115,7 @@ const createEmptyForm = (): RoleEditorForm => ({
   code: '',
   name: '',
   description: '',
+  isDefault: false,
   permissionIds: [],
 });
 
@@ -122,12 +124,14 @@ const canDelete = computed(() => auth.hasPermission('role.delete'));
 
 const stats = computed(() => {
   const systemRoleCount = roles.value.filter((item) => item.isSystem).length;
+  const defaultRoleCount = roles.value.filter((item) => item.isDefault).length;
   const memberCount = roles.value.reduce((sum, item) => sum + item.userCount, 0);
   const permissionLinks = roles.value.reduce((sum, item) => sum + item.permissionCount, 0);
 
   return [
     { label: '角色总数', value: total.value },
     { label: '当前页系统角色', value: systemRoleCount },
+    { label: '当前页默认角色', value: defaultRoleCount },
     { label: '当前页成员', value: memberCount },
     { label: '当前页权限映射', value: permissionLinks },
   ];
@@ -199,12 +203,14 @@ const {
     currentForm.code = row.code;
     currentForm.name = row.name;
     currentForm.description = row.description ?? '';
+    currentForm.isDefault = row.isDefault;
     currentForm.permissionIds = row.permissions.map((permission) => permission.id);
   },
   buildPayload: (currentForm) => ({
     code: currentForm.code,
     name: currentForm.name,
     description: currentForm.description,
+    isDefault: currentForm.isDefault,
     permissionIds: currentForm.permissionIds,
   }),
   create: (payload) => api.roles.create(payload),

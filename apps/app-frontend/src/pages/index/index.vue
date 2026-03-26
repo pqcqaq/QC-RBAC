@@ -2,6 +2,7 @@
 import type { DashboardSummary } from '@rbac/api-common'
 import dayjs from 'dayjs'
 import { computed, reactive, ref } from 'vue'
+import AppCard from '@/components/app-card/app-card.vue'
 import AppList from '@/components/app-list/app-list.vue'
 import AppListItem from '@/components/app-list-item/app-list-item.vue'
 import AppPageShell from '@/components/app-page-shell/app-page-shell.vue'
@@ -9,7 +10,7 @@ import AppSection from '@/components/app-section/app-section.vue'
 import AppStatus from '@/components/app-status/app-status.vue'
 import AppTag from '@/components/app-tag/app-tag.vue'
 import { getDashboardSummary } from '@/api/login'
-import { useTokenStore, useUserStore } from '@/store'
+import { useTokenStore, useUiStore, useUserStore } from '@/store'
 import { getErrorMessage } from '@/utils/error'
 
 defineOptions({
@@ -26,7 +27,9 @@ definePage({
 
 const tokenStore = useTokenStore()
 const userStore = useUserStore()
+const uiStore = useUiStore()
 const loading = ref(false)
+
 const summary = reactive<DashboardSummary>({
   metrics: [],
   roleDistribution: [],
@@ -35,13 +38,18 @@ const summary = reactive<DashboardSummary>({
   auditFeed: [],
 })
 
+const portalLayout = computed(() => uiStore.preferences.portalLayout)
+const isFocusLayout = computed(() => portalLayout.value === 'focus')
+
 const headerDescription = computed(() => {
   const name = userStore.userInfo.nickname || userStore.userInfo.username || '欢迎使用'
-  return `${name}，查看账号概览、最近动态和常用入口。`
+  const modeText = isFocusLayout.value ? '聚焦模式' : '概览模式'
+  return `${name}，当前为${modeText}。`
 })
 
-const latestUsers = computed(() => summary.latestUsers.slice(0, 5))
-const latestAuditFeed = computed(() => summary.auditFeed.slice(0, 6))
+const latestUsers = computed(() => summary.latestUsers.slice(0, isFocusLayout.value ? 3 : 5))
+const latestAuditFeed = computed(() => summary.auditFeed.slice(0, isFocusLayout.value ? 4 : 6))
+const focusMetrics = computed(() => summary.metrics.slice(0, 3))
 const roleTags = computed(() => userStore.userInfo.roles)
 
 function formatTime(value: string) {
@@ -99,17 +107,21 @@ onPullDownRefresh(() => {
       </view>
     </template>
 
+    <AppSection title="门户模式" description="可在设置页切换概览/聚焦布局。">
+      <AppCard :title="isFocusLayout ? '聚焦布局' : '概览布局'" :description="isFocusLayout ? '优先展示关键指标与最新动态。' : '展示完整运营数据和成员分布。'" />
+    </AppSection>
+
     <AppSection title="快捷入口" description="常用功能入口。">
       <AppList>
         <AppListItem title="个人信息" label="查看账号资料、角色和权限。" is-link clickable @click="openProfile" />
-        <AppListItem title="应用设置" label="查看已同步的个人配置。" is-link clickable @click="openSettings" />
+        <AppListItem title="应用设置" label="配置主题、密度、门户布局和动效。" is-link clickable @click="openSettings" />
       </AppList>
     </AppSection>
 
-    <AppSection title="概览" description="核心指标摘要。">
-      <AppList v-if="summary.metrics.length">
+    <AppSection v-if="isFocusLayout" title="关键指标" description="当前聚焦模式仅展示关键数据。">
+      <AppList v-if="focusMetrics.length">
         <AppListItem
-          v-for="metric in summary.metrics"
+          v-for="metric in focusMetrics"
           :key="metric.label"
           :title="metric.label"
           :label="metric.trend"
@@ -123,33 +135,52 @@ onPullDownRefresh(() => {
       </view>
     </AppSection>
 
-    <AppSection title="角色分布">
-      <AppList v-if="summary.roleDistribution.length">
-        <AppListItem
-          v-for="item in summary.roleDistribution"
-          :key="item.roleName"
-          :title="item.roleName"
-          :value="`${item.count} 人`"
-        />
-      </AppList>
-      <view v-else class="app-status-wrap">
-        <AppStatus text="暂无角色分布数据" />
-      </view>
-    </AppSection>
+    <template v-else>
+      <AppSection title="概览" description="核心指标摘要。">
+        <AppList v-if="summary.metrics.length">
+          <AppListItem
+            v-for="metric in summary.metrics"
+            :key="metric.label"
+            :title="metric.label"
+            :label="metric.trend"
+            :value="String(metric.value)"
+            value-emphasis
+          />
+        </AppList>
+        <view v-else class="app-status-wrap">
+          <AppStatus v-if="loading" mode="loading" text="加载中" />
+          <AppStatus v-else text="暂无概览数据" />
+        </view>
+      </AppSection>
 
-    <AppSection title="模块覆盖">
-      <AppList v-if="summary.moduleCoverage.length">
-        <AppListItem
-          v-for="item in summary.moduleCoverage"
-          :key="item.module"
-          :title="item.module"
-          :value="`${item.count} 项`"
-        />
-      </AppList>
-      <view v-else class="app-status-wrap">
-        <AppStatus text="暂无模块覆盖数据" />
-      </view>
-    </AppSection>
+      <AppSection title="角色分布">
+        <AppList v-if="summary.roleDistribution.length">
+          <AppListItem
+            v-for="item in summary.roleDistribution"
+            :key="item.roleName"
+            :title="item.roleName"
+            :value="`${item.count} 人`"
+          />
+        </AppList>
+        <view v-else class="app-status-wrap">
+          <AppStatus text="暂无角色分布数据" />
+        </view>
+      </AppSection>
+
+      <AppSection title="模块覆盖">
+        <AppList v-if="summary.moduleCoverage.length">
+          <AppListItem
+            v-for="item in summary.moduleCoverage"
+            :key="item.module"
+            :title="item.module"
+            :value="`${item.count} 项`"
+          />
+        </AppList>
+        <view v-else class="app-status-wrap">
+          <AppStatus text="暂无模块覆盖数据" />
+        </view>
+      </AppSection>
+    </template>
 
     <AppSection title="最近成员">
       <AppList v-if="latestUsers.length">
@@ -171,8 +202,8 @@ onPullDownRefresh(() => {
         <AppListItem
           v-for="item in latestAuditFeed"
           :key="item.id"
-          :title="item.action"
-          :label="`${item.actor} · ${item.target}`"
+          :title="item.summary"
+          :label="`状态 ${item.statusCode} · ${item.actor}`"
           :value="formatTime(item.createdAt)"
         />
       </AppList>

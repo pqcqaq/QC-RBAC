@@ -2,14 +2,13 @@ import { Router } from 'express';
 import multer from 'multer';
 import { getRootPrismaRawClient, prisma } from '../lib/prisma';
 import { authMiddleware } from '../middlewares/auth';
-import { requirePermission } from '../middlewares/require-permission';
 import {
   createUploadPlan,
   finalizeUpload,
   storeLocalPart,
   validateUploadRequest,
 } from '../services/file-upload';
-import { badRequest, notFound } from '../utils/errors';
+import { badRequest, forbidden, notFound } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
 import { withSnowflakeId } from '../utils/persistence';
 
@@ -21,6 +20,19 @@ const localUpload = multer({
 });
 
 const filesRouter = Router();
+
+const canManageUploadKind = (permissions: string[], kind: string) => {
+  if (kind === 'avatar') {
+    return permissions.includes('file.upload.avatar') || permissions.includes('file.upload');
+  }
+
+  return permissions.includes('file.upload');
+};
+
+const getUploadPermissionError = (kind: string) =>
+  kind === 'avatar'
+    ? 'Missing permission: file.upload.avatar'
+    : 'Missing permission: file.upload';
 
 filesRouter.post(
   '/local/:fileId/parts/:partNumber',
@@ -75,7 +87,6 @@ filesRouter.use(authMiddleware);
 
 filesRouter.post(
   '/presign',
-  requirePermission('file.upload'),
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const normalized = validateUploadRequest({
@@ -86,6 +97,10 @@ filesRouter.post(
       tag1: req.body.tag1 == null ? null : String(req.body.tag1),
       tag2: req.body.tag2 == null ? null : String(req.body.tag2),
     });
+
+    if (!canManageUploadKind(actor.permissions, normalized.kind)) {
+      throw forbidden(getUploadPermissionError(normalized.kind));
+    }
 
     const asset = await prisma.mediaAsset.create({
       data: withSnowflakeId({
@@ -136,7 +151,6 @@ filesRouter.post(
 
 filesRouter.post(
   '/callback',
-  requirePermission('file.upload'),
   asyncHandler(async (req, res) => {
     const actor = req.auth!;
     const fileId = String(req.body.fileId ?? '');
@@ -154,6 +168,10 @@ filesRouter.post(
 
     if (!asset) {
       throw notFound('Upload file not found');
+    }
+
+    if (!canManageUploadKind(actor.permissions, asset.kind)) {
+      throw forbidden(getUploadPermissionError(asset.kind));
     }
 
     if (asset.uploadStatus === 'COMPLETED' && asset.url) {

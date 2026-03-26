@@ -24,6 +24,7 @@ const rolePayloadSchema = z.object({
   name: z.string().min(2).max(24),
   description: z.string().min(2).max(120),
   isSystem: z.boolean().optional(),
+  isDefault: z.boolean().optional(),
   permissionIds: z.array(z.string()),
 });
 
@@ -125,7 +126,7 @@ rolesRouter.get(
       where,
       skip,
       take: pageSize,
-      orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+      orderBy: [{ isSystem: 'desc' }, { isDefault: 'desc' }, { name: 'asc' }],
       include: roleWithRelationsInclude,
     });
 
@@ -150,7 +151,7 @@ rolesRouter.get(
     queryRows: async (query) =>
       prisma.role.findMany({
         where: buildRoleWhere(query),
-        orderBy: [{ isSystem: 'desc' }, { name: 'asc' }],
+        orderBy: [{ isSystem: 'desc' }, { isDefault: 'desc' }, { name: 'asc' }],
         include: roleWithRelationsInclude,
       }),
     columns: [
@@ -158,6 +159,7 @@ rolesRouter.get(
       { header: '角色名称', width: 20, value: (row) => row.name },
       { header: '角色描述', width: 34, value: (row) => row.description },
       { header: '角色类型', width: 12, value: (row) => (row.isSystem ? '系统角色' : '自定义角色') },
+      { header: '默认角色', width: 12, value: (row) => (row.isDefault ? '是' : '否') },
       { header: '成员数', width: 12, value: (row) => row.users.length },
       { header: '权限数', width: 12, value: (row) => row.permissions.length },
       {
@@ -205,6 +207,7 @@ rolesRouter.post(
         name: payload.name,
         description: payload.description,
         isSystem: payload.isSystem ?? false,
+        isDefault: payload.isDefault ?? false,
       }),
     });
     await syncRolePermissions(role.id, nextPermissionIds);
@@ -266,6 +269,7 @@ rolesRouter.put(
         name: payload.name,
         description: payload.description,
         isSystem: current.isSystem,
+        isDefault: payload.isDefault ?? current.isDefault,
       },
     });
     await syncRolePermissions(roleId, nextPermissionIds);

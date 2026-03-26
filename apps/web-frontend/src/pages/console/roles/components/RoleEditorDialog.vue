@@ -15,6 +15,10 @@
       <el-form-item label="角色描述" class="page-form-grid__full">
         <el-input v-model="form.description" type="textarea" :rows="3" />
       </el-form-item>
+      <el-form-item label="默认角色">
+        <el-switch v-model="form.isDefault" />
+        <p class="form-caption">新注册用户会自动继承所有被标记为默认的角色。</p>
+      </el-form-item>
       <RelationSelectFormItem
         v-model="form.permissionIds"
         class="page-form-grid__full"
@@ -76,6 +80,7 @@ defineProps<{
     code: string;
     name: string;
     description: string;
+    isDefault: boolean;
     permissionIds: string[];
   };
 }>();
@@ -98,6 +103,13 @@ const emit = defineEmits<{
     border-color 0.18s ease,
     box-shadow 0.18s ease,
     background-color 0.18s ease;
+}
+
+.form-caption {
+  margin: 8px 0 0;
+  color: var(--ink-3);
+  font-size: 12px;
+  line-height: 1.5;
 }
 
 .relation-option-list--selected {

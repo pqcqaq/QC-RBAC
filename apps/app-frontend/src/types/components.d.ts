@@ -8,7 +8,10 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppAvatar: typeof import('./../components/app-avatar/app-avatar.vue')['default']
+    AppAvatarUploader: typeof import('./../components/app-avatar-uploader/app-avatar-uploader.vue')['default']
     AppButton: typeof import('./../components/app-button/app-button.vue')['default']
+    AppCard: typeof import('./../components/app-card/app-card.vue')['default']
+    AppChoiceChips: typeof import('./../components/app-choice-chips/app-choice-chips.vue')['default']
     AppInput: typeof import('./../components/app-input/app-input.vue')['default']
     AppList: typeof import('./../components/app-list/app-list.vue')['default']
     AppListItem: typeof import('./../components/app-list-item/app-list-item.vue')['default']

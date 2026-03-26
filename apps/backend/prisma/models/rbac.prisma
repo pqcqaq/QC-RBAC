@@ -6,12 +6,14 @@ model Role {
   name        String
   description String
   isSystem    Boolean          @default(false)
+  isDefault   Boolean          @default(false)
   createdAt   DateTime         @default(now())
   updatedAt   DateTime         @updatedAt
   deleteAt    DateTime?
   users       UserRole[]
   permissions RolePermission[]
 
+  @@index([isDefault])
   @@index([deleteAt])
 }
 

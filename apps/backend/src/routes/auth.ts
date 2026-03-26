@@ -6,7 +6,7 @@ import { prisma } from '../lib/prisma';
 import { cacheDel, cacheSet } from '../lib/redis';
 import { authMiddleware } from '../middlewares/auth';
 import { authClientMiddleware } from '../middlewares/auth-client';
-import { badRequest, forbidden, HttpError, unauthorized } from '../utils/errors';
+import { badRequest, forbidden, HttpError, notFound, unauthorized } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
 import { withSnowflakeId } from '../utils/persistence';
 import { setRequestActorId } from '../utils/request-context';
@@ -16,7 +16,8 @@ import {
   invalidatePermissionCache,
   mapUserRecord,
 } from '../utils/rbac';
-import { normalizeUserPreferences, userPreferencesSchema } from '../utils/user-preferences';
+import { publishRbacMutation } from '../utils/rbac-mutation';
+import { mergeUserPreferences, normalizeUserPreferences, userPreferencesSchema } from '../utils/user-preferences';
 import {
   refreshTokenTtlSeconds,
   signAccessToken,
@@ -82,6 +83,20 @@ const oauthTicketExchangeSchema = z.object({
 
 const avatarUpdateSchema = z.object({
   avatarFileId: z.string().trim().min(1).nullable(),
+});
+
+const currentUserProfileSchema = z.object({
+  nickname: z.string().trim().min(2).max(24),
+  email: z.preprocess(
+    (value) => {
+      if (value == null) {
+        return null;
+      }
+      const normalized = String(value).trim();
+      return normalized || null;
+    },
+    z.string().email().nullable(),
+  ),
 });
 
 const authRouter = Router();
@@ -325,6 +340,81 @@ authRouter.get(
 );
 
 authRouter.put(
+  '/profile',
+  authMiddleware,
+  asyncHandler(async (req, res) => {
+    if (req.authMode === 'oauth') {
+      throw forbidden('OAuth access token cannot access this endpoint');
+    }
+
+    const auth = req.auth!;
+    const payload = currentUserProfileSchema.parse(req.body);
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.id },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nickname: true,
+      },
+    });
+
+    if (!currentUser) {
+      throw notFound('Current user not found');
+    }
+
+    if (payload.email && payload.email !== currentUser.email) {
+      const duplicateUser = await prisma.user.findFirst({
+        where: {
+          email: payload.email,
+          NOT: {
+            id: auth.id,
+          },
+        },
+        select: {
+          id: true,
+        },
+      });
+
+      if (duplicateUser) {
+        throw badRequest('Email already exists');
+      }
+    }
+
+    const user = await prisma.user.update({
+      where: { id: auth.id },
+      data: {
+        nickname: payload.nickname,
+        email: payload.email,
+      },
+      select: {
+        id: true,
+        username: true,
+        email: true,
+        nickname: true,
+      },
+    });
+
+    await authService.syncManagedUserAuthentications({
+      userId: user.id,
+      username: user.username,
+      email: user.email,
+    });
+
+    await publishRbacMutation({
+      actor: auth,
+      action: 'auth.profile.update',
+      target: user.email ?? user.username,
+      affectedUserIds: [user.id],
+      reason: 'Current user profile updated',
+      syncTargets: ['user'],
+    });
+
+    return ok(res, await buildCurrentUser(auth.id), 'Profile updated');
+  }),
+);
+
+authRouter.put(
   '/avatar',
   authMiddleware,
   asyncHandler(async (req, res) => {
@@ -378,10 +468,16 @@ authRouter.put(
 
     const auth = req.auth!;
     const payload = userPreferencesSchema.parse(req.body);
+    const currentUser = await prisma.user.findUnique({
+      where: { id: auth.id },
+      select: {
+        preferences: true,
+      },
+    });
     const user = await prisma.user.update({
       where: { id: auth.id },
       data: {
-        preferences: payload as Prisma.InputJsonValue,
+        preferences: mergeUserPreferences(currentUser?.preferences, payload) as Prisma.InputJsonValue,
       },
       select: {
         preferences: true,

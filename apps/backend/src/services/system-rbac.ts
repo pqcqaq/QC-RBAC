@@ -8,6 +8,7 @@ type SystemRoleSeed = {
   code: string;
   name: string;
   description: string;
+  isDefault?: boolean;
   permissionCodes: string[];
 };
 
@@ -44,6 +45,7 @@ const buildSystemRoleSeeds = (permissions: Permission[]): SystemRoleSeed[] => {
   const memberPermissionCodes = permissions
     .filter((item) => [
       'dashboard.view',
+      'file.upload.avatar',
       'realtime.topic.chat-global.subscribe',
       'realtime.topic.user-rbac.subscribe-self',
     ].includes(item.code))
@@ -66,6 +68,7 @@ const buildSystemRoleSeeds = (permissions: Permission[]): SystemRoleSeed[] => {
       code: 'member',
       name: '普通成员',
       description: '可登录并查看自己的权限信息。',
+      isDefault: true,
       permissionCodes: memberPermissionCodes,
     },
   ];
@@ -354,12 +357,14 @@ const ensureSystemRoles = async (prisma: PrismaClient, permissionByCode: Map<str
         name: seed.name,
         description: seed.description,
         isSystem: true,
+        isDefault: seed.isDefault ?? false,
       },
       create: withSnowflakeId({
         code: seed.code,
         name: seed.name,
         description: seed.description,
         isSystem: true,
+        isDefault: seed.isDefault ?? false,
       }),
     });
 
