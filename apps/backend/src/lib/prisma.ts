@@ -19,8 +19,8 @@ import { createPrismaClient } from './prisma-client-factory';
 import {
   buildBackendTriggerRegistry,
   getTriggersForOperation,
-  type TriggerAction,
-  type TriggerDeleteMode,
+  resolveTriggerAction,
+  resolveTriggerDeleteMode,
 } from '../triggers';
 import { generateSnowflakeId } from '../utils/snowflake';
 
@@ -147,19 +147,6 @@ const stampDeleteData = (actorId: string | null) => ({
   deleteAt: new Date(),
   updateId: actorId,
 });
-
-const getDeleteAtWriteValue = (data?: unknown) => {
-  if (!isPlainObject(data) || !Object.prototype.hasOwnProperty.call(data, 'deleteAt')) {
-    return undefined;
-  }
-
-  const value = data.deleteAt;
-  if (isPlainObject(value) && Object.prototype.hasOwnProperty.call(value, 'set')) {
-    return value.set;
-  }
-
-  return value;
-};
 
 const isModelDelegate = (value: unknown): value is PrismaModelDelegate =>
   typeof value === 'object'
@@ -499,57 +486,6 @@ const captureRuntimeOperation = (input: {
     finishedAt: input.finishedAt,
     durationMs: input.finishedAt.getTime() - input.startedAt.getTime(),
   });
-};
-
-const resolveTriggerAction = (
-  operation: string,
-  requestedArgs: PrismaDelegateArgs,
-): TriggerAction | null => {
-  if (
-    operation === 'findUnique'
-    || operation === 'findFirst'
-    || operation === 'findMany'
-    || operation === 'count'
-    || operation === 'aggregate'
-  ) {
-    return 'select';
-  }
-
-  if (operation === 'delete' || operation === 'deleteMany') {
-    return 'delete';
-  }
-
-  if (
-    (operation === 'update' || operation === 'updateMany')
-    && getDeleteAtWriteValue(requestedArgs.data) != null
-  ) {
-    return 'delete';
-  }
-
-  if (operation === 'update' || operation === 'updateMany') {
-    return 'update';
-  }
-
-  return null;
-};
-
-const resolveTriggerDeleteMode = (
-  operation: string,
-  requestedArgs: PrismaDelegateArgs,
-  softDelete: boolean,
-): TriggerDeleteMode => {
-  if (operation === 'delete' || operation === 'deleteMany') {
-    return softDelete ? 'soft' : 'hard';
-  }
-
-  if (
-    (operation === 'update' || operation === 'updateMany')
-    && getDeleteAtWriteValue(requestedArgs.data) != null
-  ) {
-    return 'soft';
-  }
-
-  return null;
 };
 
 const runOperationTriggers = async (input: {

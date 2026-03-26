@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { buildPrismaEntityRelationGraphFromSchema } from '../../src/lib/entity-relation-graph';
-import { resolveMediaAssetCleanupSpecs } from '../../src/triggers';
+import {
+  resolveMediaAssetCleanupSpecs,
+  resolveTriggerAction,
+  resolveTriggerDeleteMode,
+} from '../../src/triggers';
 
 const schema = `
 model User {
@@ -42,5 +46,37 @@ describe('Backend trigger generation', () => {
         fromField: 'avatarFileId',
       },
     ]);
+  });
+
+  it('classifies trigger actions and delete modes for select, update and delete flows', () => {
+    assert.equal(resolveTriggerAction('findUnique', {}), 'select');
+    assert.equal(resolveTriggerAction('update', { data: { nickname: 'updated' } }), 'update');
+    assert.equal(resolveTriggerAction('delete', {}), 'delete');
+    assert.equal(
+      resolveTriggerAction('updateMany', {
+        data: {
+          deleteAt: new Date('2026-03-26T00:00:00.000Z'),
+        },
+      }),
+      'delete',
+    );
+
+    assert.equal(resolveTriggerDeleteMode('findUnique', {}, false), null);
+    assert.equal(resolveTriggerDeleteMode('delete', {}, false), 'hard');
+    assert.equal(resolveTriggerDeleteMode('delete', {}, true), 'soft');
+    assert.equal(
+      resolveTriggerDeleteMode(
+        'updateMany',
+        {
+          data: {
+            deleteAt: {
+              set: new Date('2026-03-26T00:00:00.000Z'),
+            },
+          },
+        },
+        false,
+      ),
+      'soft',
+    );
   });
 });
