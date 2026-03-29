@@ -29,6 +29,18 @@ const routes = [
         meta: { publicPage: true, title: '认证策略' },
       },
       {
+        path: 'oauth/authorize',
+        name: 'frontend-oauth-authorize',
+        component: () => import('@/pages/frontend/oauth/OAuthAuthorizeView.vue'),
+        meta: { publicPage: true, title: 'OAuth 授权确认' },
+      },
+      {
+        path: 'oauth/error',
+        name: 'frontend-oauth-error',
+        component: () => import('@/pages/frontend/oauth/OAuthAuthorizeErrorView.vue'),
+        meta: { publicPage: true, title: 'OAuth 授权失败' },
+      },
+      {
         path: ':pathMatch(.*)*',
         name: 'frontend-not-found',
         component: () => import('@/pages/frontend/not-found/NotFoundView.vue'),

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { authMiddleware } from '../middlewares/auth';
 import { requireAnyPermission, requirePermission } from '../middlewares/require-permission';
+import { badRequest, forbidden } from '../utils/errors';
 import { ok, asyncHandler } from '../utils/http';
 import {
   listPermissionSummaries,
@@ -21,6 +22,10 @@ import {
   updateOAuthApplication,
   updateOAuthProvider,
 } from '../services/oauth-admin';
+import {
+  decideAuthorizationSession,
+  getAuthorizationSessionView,
+} from '../services/oauth-auth-server';
 
 const oauthProviderPayloadSchema = z.object({
   code: z.string().min(2).max(64),
@@ -74,7 +79,58 @@ const oauthApplicationPayloadSchema = z.object({
 
 const oauthManagementRouter = Router();
 
+const authorizeDecisionSchema = z.object({
+  decision: z.enum(['approve', 'deny']),
+});
+
+const ensureLocalAuthUser = (req: import('express').Request) => {
+  if (!req.auth || req.authMode !== 'local') {
+    throw forbidden('OAuth access token cannot access this endpoint');
+  }
+
+  return req.auth;
+};
+
 oauthManagementRouter.use(authMiddleware);
+
+oauthManagementRouter.get(
+  '/authorize-sessions/:sessionState',
+  asyncHandler(async (req, res) => {
+    const user = ensureLocalAuthUser(req);
+    const sessionState = String(req.params.sessionState ?? '').trim();
+    if (!sessionState) {
+      throw badRequest('sessionState is required');
+    }
+
+    return ok(
+      res,
+      await getAuthorizationSessionView(sessionState, user.id),
+      'OAuth authorize session',
+    );
+  }),
+);
+
+oauthManagementRouter.post(
+  '/authorize-sessions/:sessionState/decision',
+  asyncHandler(async (req, res) => {
+    const user = ensureLocalAuthUser(req);
+    const sessionState = String(req.params.sessionState ?? '').trim();
+    if (!sessionState) {
+      throw badRequest('sessionState is required');
+    }
+
+    const payload = authorizeDecisionSchema.parse(req.body);
+    return ok(
+      res,
+      await decideAuthorizationSession({
+        sessionState,
+        userId: user.id,
+        decision: payload.decision,
+      }),
+      'OAuth authorize decision handled',
+    );
+  }),
+);
 
 const handleOAuthApplicationPermissionOptions = asyncHandler(async (req, res) => {
   return ok(

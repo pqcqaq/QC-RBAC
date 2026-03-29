@@ -16,6 +16,7 @@ import {
 import { clearBrowserSessionCookie, getBrowserSessionCookieName } from '../utils/browser-session';
 import { asyncHandler, rollbackHandledResponse } from '../utils/http';
 import { resolveOAuthApplicationByClientId } from '../services/oauth-admin';
+import { resolveWebAuthClientOrigin } from '../services/auth-clients';
 
 const oauth2Router = Router();
 
@@ -71,89 +72,31 @@ const mapAuthorizeErrorCode = (error: unknown) => {
   return 'invalid_request';
 };
 
-const renderAuthorizeErrorPage = (description: string) => `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>授权失败</title>
-    <style>
-      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f6f8; color: #1f2937; }
-      main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-      section { width: min(100%, 460px); background: #fff; border-radius: 20px; padding: 28px; box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08); }
-      h1 { margin: 0 0 12px; font-size: 26px; }
-      p { margin: 0; color: #4b5563; line-height: 1.7; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <section>
-        <h1>授权失败</h1>
-        <p>${description}</p>
-      </section>
-    </main>
-  </body>
-</html>`;
+const buildFrontendUrl = async (pathname: string, query?: Record<string, string | undefined>) => {
+  const webOrigin = await resolveWebAuthClientOrigin('web-console');
+  const url = new URL(pathname, webOrigin);
+  if (query) {
+    for (const [key, value] of Object.entries(query)) {
+      if (value) {
+        url.searchParams.set(key, value);
+      }
+    }
+  }
 
-const buildAuthorizeDecisionUrl = (input: {
-  sessionState: string;
-  decision: 'approve' | 'deny';
-}) => {
-  const query = new URLSearchParams({
-    session_state: input.sessionState,
-    decision: input.decision,
-  });
-
-  return `/oauth2/authorize/decision?${query.toString()}`;
+  return url.toString();
 };
 
-const renderConsentPage = (input: {
-  application: { name: string; description?: string | null; logoUrl?: string | null };
-  user: { nickname: string; username: string };
-  sessionState: string;
-  scopes: Array<{ code: string; name: string; description: string }>;
-}) => {
-  const scopeItems = input.scopes
-    .map(scope => `<li><strong>${scope.name}</strong><span>${scope.description}</span></li>`)
-    .join('');
-
-  return `<!doctype html>
-<html lang="zh-CN">
-  <head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>授权确认</title>
-    <style>
-      body { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f5f6f8; color: #111827; }
-      main { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
-      section { width: min(100%, 560px); background: #fff; border-radius: 24px; padding: 32px; box-shadow: 0 18px 60px rgba(15, 23, 42, 0.08); }
-      h1 { margin: 0 0 8px; font-size: 28px; }
-      p { margin: 0; color: #4b5563; line-height: 1.7; }
-      ul { margin: 24px 0; padding: 0; list-style: none; display: grid; gap: 14px; }
-      li { padding: 14px 16px; border-radius: 16px; background: #f8fafc; display: grid; gap: 4px; }
-      strong { font-size: 15px; }
-      span { color: #6b7280; font-size: 14px; }
-      .actions { display: flex; gap: 12px; justify-content: flex-end; margin-top: 20px; }
-      a { display: inline-flex; align-items: center; justify-content: center; border-radius: 12px; padding: 0 18px; height: 42px; font-size: 14px; font-weight: 600; cursor: pointer; text-decoration: none; }
-      .ghost { background: #eef2f7; color: #334155; }
-      .primary { background: #111827; color: #fff; }
-    </style>
-  </head>
-  <body>
-    <main>
-      <section>
-        <h1>${input.application.name}</h1>
-        <p>${input.application.description ?? '该应用正在请求访问你的账号信息和授权范围。'}</p>
-        <ul>${scopeItems}</ul>
-        <p>当前账号：${input.user.nickname}（${input.user.username}）</p>
-        <div class="actions">
-          <a href="${buildAuthorizeDecisionUrl({ sessionState: input.sessionState, decision: 'deny' })}" class="ghost">拒绝</a>
-          <a href="${buildAuthorizeDecisionUrl({ sessionState: input.sessionState, decision: 'approve' })}" class="primary">同意并继续</a>
-        </div>
-      </section>
-    </main>
-  </body>
-</html>`;
+const redirectToFrontendAuthorizeError = async (
+  res: Response,
+  errorCode: string,
+  description: string,
+) => {
+  res.redirect(
+    await buildFrontendUrl('/oauth/error', {
+      error: errorCode,
+      error_description: description,
+    }),
+  );
 };
 
 const readAuthorizeDecision = (req: Request) => {
@@ -246,7 +189,12 @@ oauth2Router.get('/oauth2/authorize', asyncHandler(async (req, res, next) => {
       return;
     }
 
-    res.type('html').send(renderConsentPage(result));
+    res.redirect(
+      await buildFrontendUrl('/oauth/authorize', {
+        session_state: result.sessionState,
+      }),
+    );
+    return;
   } catch (error) {
     const redirected = await tryRedirectAuthorizeError({
       clientId: typeof req.query.client_id === 'string' ? req.query.client_id : undefined,
@@ -260,11 +208,16 @@ oauth2Router.get('/oauth2/authorize', asyncHandler(async (req, res, next) => {
     }
 
     if (error instanceof HttpError) {
-      res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
+      await redirectToFrontendAuthorizeError(
+        res,
+        mapAuthorizeErrorCode(error),
+        error.message,
+      );
       throw rollbackHandledResponse(error);
     }
 
-    throw error;
+    await redirectToFrontendAuthorizeError(res, 'server_error', 'authorization failed');
+    throw rollbackHandledResponse(error);
   }
 }));
 
@@ -279,12 +232,16 @@ const handleAuthorizationDecision = async (req: Request, res: Response) => {
 
     const redirectUrl = decision === 'approve'
       ? await approveAuthorizationRequest(sessionState, userId)
-      : await denyAuthorizationRequest(sessionState);
+      : await denyAuthorizationRequest(sessionState, userId);
 
     res.redirect(redirectUrl);
   } catch (error) {
     if (error instanceof HttpError) {
-      res.status(error.statusCode).type('html').send(renderAuthorizeErrorPage(error.message));
+      await redirectToFrontendAuthorizeError(
+        res,
+        'invalid_request',
+        error.message,
+      );
       throw rollbackHandledResponse(error);
     }
 
@@ -416,7 +373,8 @@ oauth2Router.get(
       return;
     }
 
-    res.type('html').send(renderAuthorizeErrorPage('会话已退出。'));
+    await redirectToFrontendAuthorizeError(res, 'logged_out', '会话已退出。');
+    return;
   }),
 );
 

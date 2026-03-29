@@ -1,6 +1,6 @@
 # Implementation History
 
-Last updated: 2026-03-22
+Last updated: 2026-03-29
 
 本文档记录最近一轮主要实现成果，用于帮助后续开发者快速恢复项目上下文。它不是计划，也不是宣传文案，而是“已经落地了什么”的摘要。
 
@@ -117,3 +117,16 @@ Last updated: 2026-03-22
 - S3 兼容上传与补偿 timer
 - 统一页面规范、右键菜单和展示层权限指令
 - 可继续向更复杂业务系统演进的 Monorepo 结构
+
+## 13. OAuth 授权页迁移到 Web 前端
+
+- OAuth2 授权确认页与授权错误页从 backend 的 HTML 模板渲染迁移到 `apps/web-frontend`。
+- `/oauth2/authorize` 在需要用户确认授权时，不再由 backend 输出页面，而是重定向到 web 前端路由：
+  - `/oauth/authorize`
+  - `/oauth/error`
+- backend 新增授权会话 API，用于前端渲染和提交授权决策：
+  - `GET /api/oauth/authorize-sessions/:sessionState`
+  - `POST /api/oauth/authorize-sessions/:sessionState/decision`
+- `packages/api-common` 新增授权会话与决策类型，并在 API factory 中补充对应客户端调用。
+- web 前端新增 OAuth 授权确认页与错误页，实现会话加载、同意/拒绝提交和错误兜底跳转。
+- backend 旧的 OAuth 页面模板与 EJS 依赖已移除，授权流程职责收敛为“协议处理 + API 提供”。

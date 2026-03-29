@@ -16,6 +16,9 @@ import type {
   VerifyVerificationCodePayload,
 } from '../types/auth';
 import type {
+  OAuthAuthorizeDecision,
+  OAuthAuthorizeDecisionResult,
+  OAuthAuthorizeSessionView,
   OAuthApplicationFormPayload,
   OAuthApplicationRecord,
   OAuthAuthorizeUrlResult,
@@ -294,6 +297,18 @@ export const createApiFactory = (options: ClientOptions) => {
       ...clientCrud,
     },
     oauth: {
+      authorizeSessions: {
+        detail: (sessionState: string) =>
+          client.request<OAuthAuthorizeSessionView>({
+            url: `/oauth/authorize-sessions/${encodeURIComponent(sessionState)}`,
+          }),
+        decide: (sessionState: string, decision: OAuthAuthorizeDecision) =>
+          client.request<OAuthAuthorizeDecisionResult>({
+            url: `/oauth/authorize-sessions/${encodeURIComponent(sessionState)}/decision`,
+            method: 'POST',
+            data: { decision },
+          }),
+      },
       providers: oauthProviderCrud,
       applications: {
         ...oauthApplicationCrud,

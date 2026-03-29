@@ -1,6 +1,6 @@
 # Project Memory
 
-Last updated: 2026-03-22
+Last updated: 2026-03-29
 
 ## 1. 项目定位
 
@@ -222,6 +222,14 @@ Last updated: 2026-03-22
 
 - `v-permission` / `v-role` 只负责隐藏按钮与操作入口
 - 后端 RBAC 才是最终权限裁决
+
+### 5.5 OAuth 授权页与裁决边界
+
+- OAuth 授权确认页与错误页可以放在 Web 前端承载，但前端只负责展示与交互，不负责安全裁决。
+- 当前登录用户身份必须由后端会话/令牌识别，不依赖前端 store 或 localStorage 的登录态。
+- OAuth 授权最终结果（是否允许、重定向目标）必须由后端返回，前端不能自行拼接或决定 redirect。
+- 授权会话的所属用户校验必须在后端完成，避免跨账号串用 `session_state`。
+- 前端 OAuth 页面应通过后端 API 拉取授权会话详情并提交 `approve/deny`，后端再返回最终 `redirectUrl`。
 
 ### 5.5 文档需要同步维护
 

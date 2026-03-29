@@ -114,3 +114,39 @@ export interface OAuthAuthorizeUrlResult {
 export interface OAuthTicketExchangePayload {
   ticket: string;
 }
+
+export interface OAuthAuthorizeScopeView {
+  code: string;
+  name: string;
+  description: string;
+}
+
+export interface OAuthAuthorizeSessionView {
+  sessionState: string;
+  expiresAt: string;
+  application: {
+    id: string;
+    code: string;
+    clientId: string;
+    name: string;
+    description?: string | null;
+    logoUrl?: string | null;
+    homepageUrl?: string | null;
+  };
+  user: {
+    id: string;
+    username: string;
+    nickname: string;
+  };
+  scopes: OAuthAuthorizeScopeView[];
+}
+
+export type OAuthAuthorizeDecision = 'approve' | 'deny';
+
+export interface OAuthAuthorizeDecisionPayload {
+  decision: OAuthAuthorizeDecision;
+}
+
+export interface OAuthAuthorizeDecisionResult {
+  redirectUrl: string;
+}

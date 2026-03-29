@@ -46,6 +46,8 @@ type AuthorizeRequestInput = {
   userId?: string | null;
 };
 
+type AuthorizeDecision = 'approve' | 'deny';
+
 type AuthorizationSessionPayload = {
   clientState?: string;
   scopes: string[];
@@ -1119,8 +1121,11 @@ export const approveAuthorizationRequest = async (sessionState: string, userId: 
   });
 };
 
-export const denyAuthorizationRequest = async (sessionState: string) => {
+export const denyAuthorizationRequest = async (sessionState: string, userId?: string) => {
   const session = await loadActiveState(sessionState, 'AUTHORIZE_SESSION');
+  if (userId && session.userId && session.userId !== userId) {
+    throw unauthorized('OAuth session user mismatch');
+  }
   const payload = (session.payload ?? {}) as AuthorizationSessionPayload;
   await consumeState(session.id);
 
@@ -1129,6 +1134,62 @@ export const denyAuthorizationRequest = async (sessionState: string) => {
     error_description: 'resource owner denied the request',
     state: payload.clientState,
   });
+};
+
+export const getAuthorizationSessionView = async (sessionState: string, userId: string) => {
+  const session = await loadActiveState(sessionState, 'AUTHORIZE_SESSION');
+  if (!session.application) {
+    throw notFound('OAuth application not found');
+  }
+  if (session.userId && session.userId !== userId) {
+    throw unauthorized('OAuth session user mismatch');
+  }
+
+  const user = await buildCurrentUser(userId);
+  if (user.status !== 'ACTIVE') {
+    throw unauthorized('account disabled');
+  }
+
+  const payload = (session.payload ?? {}) as AuthorizationSessionPayload;
+  const scopes = payload.scopes?.length
+    ? payload.scopes
+    : session.application.defaultScopes;
+
+  return {
+    sessionState,
+    expiresAt: session.expiresAt.toISOString(),
+    application: {
+      id: session.application.id,
+      code: session.application.code,
+      clientId: session.application.clientId,
+      name: session.application.name,
+      description: session.application.description,
+      logoUrl: session.application.logoUrl,
+      homepageUrl: session.application.homepageUrl,
+    },
+    user: {
+      id: user.id,
+      username: user.username,
+      nickname: user.nickname,
+    },
+    scopes: describeScopes(session.application, scopes),
+  };
+};
+
+export const decideAuthorizationSession = async (input: {
+  sessionState: string;
+  userId: string;
+  decision: AuthorizeDecision;
+}) => {
+  if (input.decision === 'approve') {
+    return {
+      redirectUrl: await approveAuthorizationRequest(input.sessionState, input.userId),
+    };
+  }
+
+  return {
+    redirectUrl: await denyAuthorizationRequest(input.sessionState, input.userId),
+  };
 };
 
 export const exchangeOAuthToken = async (input: {
