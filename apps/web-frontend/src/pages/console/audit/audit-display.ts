@@ -186,7 +186,7 @@ export const getReadEffectSummary = (effect: unknown): AuditReadEffectSummary | 
   };
 };
 
-export const getReadEffectPreview = (effect: unknown) =>
+export const getReadEffectPreview = (effect: unknown): any =>
   isObjectRecord(effect) && 'preview' in effect ? effect.preview : undefined;
 
 export const getWriteEffectSummary = (effect: unknown): AuditWriteEffectSummary | null => {

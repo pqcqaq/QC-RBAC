@@ -41,7 +41,7 @@ const mutationArgKeys = new Set([
   'update',
 ]);
 
-const maxDepth = 6;
+const maxDepth = 7;
 const maxReadPreviewItems = 20;
 const maxStringLength = 1024;
 

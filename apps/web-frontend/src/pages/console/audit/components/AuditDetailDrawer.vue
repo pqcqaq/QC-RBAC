@@ -83,7 +83,15 @@
               <p class="panel-caption">{{ block.caption }}</p>
               <h4 class="panel-heading panel-heading--md">{{ block.title }}</h4>
             </div>
-            <pre class="audit-json">{{ formatAuditJson(block.value) }}</pre>
+            <VueJsonPretty
+              class="audit-json-viewer"
+              :data="block.value"
+              :deep="2"
+              :show-line="false"
+              :show-length="true"
+              :show-double-quotes="true"
+              :collapsed-on-click-brackets="true"
+            />
           </article>
         </div>
         <el-empty v-else description="这次请求没有 query / params / body 载荷" />
@@ -166,10 +174,16 @@
               </article>
             </div>
 
-            <pre
+            <VueJsonPretty
               v-if="getReadEffectPreview(operation.effect) !== undefined"
-              class="audit-json"
-            >{{ formatAuditJson(getReadEffectPreview(operation.effect)) }}</pre>
+              class="audit-json-viewer"
+              :data="getReadEffectPreview(operation.effect)"
+              :deep="2"
+              :show-line="false"
+              :show-length="true"
+              :show-double-quotes="true"
+              :collapsed-on-click-brackets="true"
+            />
 
             <div v-if="getWriteEffectRecords(operation.effect).length" class="audit-record-list">
               <div class="audit-record-list__summary">
@@ -215,7 +229,15 @@
                         <p class="panel-caption">Before</p>
                         <h5 class="panel-heading panel-heading--md">变更前</h5>
                       </div>
-                      <pre class="audit-json">{{ formatAuditJson(record.before) }}</pre>
+                      <VueJsonPretty
+                        class="audit-json-viewer"
+                        :data="record.before"
+                        :deep="2"
+                        :show-line="false"
+                        :show-length="true"
+                        :show-double-quotes="true"
+                        :collapsed-on-click-brackets="true"
+                      />
                     </article>
 
                     <article class="audit-json-card">
@@ -223,7 +245,15 @@
                         <p class="panel-caption">After</p>
                         <h5 class="panel-heading panel-heading--md">变更后</h5>
                       </div>
-                      <pre class="audit-json">{{ formatAuditJson(record.after) }}</pre>
+                      <VueJsonPretty
+                        class="audit-json-viewer"
+                        :data="record.after"
+                        :deep="2"
+                        :show-line="false"
+                        :show-length="true"
+                        :show-double-quotes="true"
+                        :collapsed-on-click-brackets="true"
+                      />
                     </article>
                   </div>
                 </details>
@@ -242,7 +272,15 @@
                     <p class="panel-caption">{{ block.caption }}</p>
                     <h5 class="panel-heading panel-heading--md">{{ block.title }}</h5>
                   </div>
-                  <pre class="audit-json">{{ formatAuditJson(block.value) }}</pre>
+                  <VueJsonPretty
+                    class="audit-json-viewer"
+                    :data="block.value"
+                    :deep="2"
+                    :show-line="false"
+                    :show-length="true"
+                    :show-double-quotes="true"
+                    :collapsed-on-click-brackets="true"
+                  />
                 </article>
               </div>
             </details>
@@ -257,11 +295,12 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import VueJsonPretty from 'vue-json-pretty';
+import 'vue-json-pretty/lib/styles.css';
 import type { RequestAuditOperationRecord, RequestAuditRecord } from '@rbac/api-common';
 import {
   formatAuditAuthMode,
   formatAuditDuration,
-  formatAuditJson,
   formatAuditTime,
   formatInlineAuditValue,
   formatOperationAccessKind,
@@ -303,7 +342,7 @@ const requestPayloadBlocks = computed(() => [
     title: '请求体',
     value: props.log?.requestBody,
   },
-].filter((block) => hasMeaningfulAuditValue(block.value)));
+].filter((block) => hasMeaningfulAuditValue(block.value)) as any[]);
 
 const rolledBackWrites = computed(() =>
   props.log?.operations.filter(operation => operation.effectKind === 'WRITE' && !operation.committed).length ?? 0);
@@ -337,7 +376,7 @@ const hasOperationPayload = (operation: RequestAuditOperationRecord) => [
   operation.result,
 ].some(hasMeaningfulAuditValue);
 
-const getOperationPayloadBlocks = (operation: RequestAuditOperationRecord) => [
+const getOperationPayloadBlocks = (operation: RequestAuditOperationRecord): any => [
   {
     key: 'query',
     caption: 'Query',
@@ -406,6 +445,28 @@ const getOperationPayloadBlocks = (operation: RequestAuditOperationRecord) => [
   border: 1px solid var(--line-soft);
   border-radius: var(--radius-md);
   background: var(--surface-card-bg);
+}
+
+.audit-json-viewer {
+  max-height: 340px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--line-soft);
+  background: var(--surface-card-muted-bg);
+  font-family: 'Cascadia Code', 'Consolas', monospace;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.audit-json-viewer :deep(.vjs-tree__node.is-highlight),
+.audit-json-viewer :deep(.vjs-tree__content:hover) {
+  background: color-mix(in srgb, var(--accent) 7%, transparent);
+}
+
+.audit-json-viewer :deep(.vjs-key),
+.audit-json-viewer :deep(.vjs-value-string) {
+  word-break: break-all;
 }
 
 .audit-json-card__header,
