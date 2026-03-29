@@ -62,6 +62,22 @@ const routes = [
   },
 ];
 
+const isOAuthAuthorizeReturnTo = (value: unknown) => {
+  if (typeof value !== 'string' || !value.trim()) {
+    return false;
+  }
+
+  if (value.startsWith('/oauth2/authorize')) {
+    return true;
+  }
+
+  try {
+    return new URL(value).pathname === '/oauth2/authorize';
+  } catch {
+    return false;
+  }
+};
+
 let routeProgressActive = false;
 
 const startRouteProgress = () => {
@@ -111,6 +127,10 @@ router.beforeEach(async (to) => {
   }
 
   if (to.meta.guestOnly && auth.isAuthenticated) {
+    if (to.path === '/login' && isOAuthAuthorizeReturnTo(to.query.returnTo)) {
+      return true;
+    }
+
     return menus.homePath;
   }
 
