@@ -645,6 +645,7 @@ const resolveOAuthIdentity = async (input: {
 
   let userId = oauthUser?.userId ?? null;
 
+  // 尝试通过邮箱自动关联已有账号（前提是 provider 开启了 autoLinkByEmail，并且 profile 中包含有效邮箱）
   if (!userId && input.provider.autoLinkByEmail && typeof email === 'string' && email.trim()) {
     const existedUser = await prisma.user.findUnique({
       where: {
